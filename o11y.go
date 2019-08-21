@@ -1,18 +1,20 @@
 package o11y
 
-import "context"
+import (
+	"context"
+)
 
-var client Client
+var provider Provider
 
-type Client interface {
+type Provider interface {
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
 	AddField(ctx context.Context, key string, val interface{})
 	AddFieldToTrace(ctx context.Context, key string, val interface{})
 	Close(ctx context.Context)
 }
 
-func SetClient(c Client) {
-	client = c
+func SetClient(p Provider) {
+	provider = p
 }
 
 type Span interface {
@@ -20,17 +22,17 @@ type Span interface {
 }
 
 func StartSpan(ctx context.Context, name string) (context.Context, Span) {
-	return client.StartSpan(ctx, name)
+	return provider.StartSpan(ctx, name)
 }
 
 func AddField(ctx context.Context, key string, val interface{}) {
-	client.AddField(ctx, key, val)
+	provider.AddField(ctx, key, val)
 }
 
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	client.AddFieldToTrace(ctx, key, val)
+	provider.AddFieldToTrace(ctx, key, val)
 }
 
 func Close(ctx context.Context) {
-	client.Close(ctx)
+	provider.Close(ctx)
 }
