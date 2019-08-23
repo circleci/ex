@@ -4,8 +4,6 @@ import (
 	"context"
 )
 
-var provider Provider
-
 type Provider interface {
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
 	AddField(ctx context.Context, key string, val interface{})
@@ -13,8 +11,18 @@ type Provider interface {
 	Close(ctx context.Context)
 }
 
-func SetClient(p Provider) {
-	provider = p
+type providerKey struct{}
+
+func WithProvider(ctx context.Context, p Provider) context.Context {
+	return context.WithValue(ctx, providerKey{}, p)
+}
+
+func FromContext(ctx context.Context) Provider {
+	provider, ok := ctx.Value(providerKey{}).(Provider)
+	if !ok {
+		return nil
+	}
+	return provider
 }
 
 type Span interface {
@@ -22,17 +30,17 @@ type Span interface {
 }
 
 func StartSpan(ctx context.Context, name string) (context.Context, Span) {
-	return provider.StartSpan(ctx, name)
+	return FromContext(ctx).StartSpan(ctx, name)
 }
 
 func AddField(ctx context.Context, key string, val interface{}) {
-	provider.AddField(ctx, key, val)
+	FromContext(ctx).AddField(ctx, key, val)
 }
 
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	provider.AddFieldToTrace(ctx, key, val)
+	FromContext(ctx).AddFieldToTrace(ctx, key, val)
 }
 
 func Close(ctx context.Context) {
-	provider.Close(ctx)
+	FromContext(ctx).Close(ctx)
 }

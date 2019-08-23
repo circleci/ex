@@ -8,10 +8,10 @@ import (
 
 func TestO11y(t *testing.T) {
 	got := ""
-	SetClient(&mockClient{cb: func(what string) {
+	provider := &mockClient{cb: func(what string) {
 		got = what
-	}})
-	ctx := context.Background()
+	}}
+	ctx := WithProvider(context.Background(), provider)
 
 	ctx, span := StartSpan(ctx, "start-span")
 	if got != "start-span" {
