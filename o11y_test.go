@@ -13,6 +13,11 @@ func TestO11y(t *testing.T) {
 	}}
 	ctx := WithProvider(context.Background(), provider)
 
+	AddGlobalField(ctx, "version", 42)
+	if got != "global-version-42" {
+		t.Error("add global field wired up wrong", got)
+	}
+
 	ctx, span := StartSpan(ctx, "start-span")
 	if got != "start-span" {
 		t.Error("start span wired up wrong", got)
@@ -41,6 +46,10 @@ func TestO11y(t *testing.T) {
 
 type mockClient struct {
 	cb func(string)
+}
+
+func (c *mockClient) AddGlobalField(key string, val interface{}) {
+	c.cb(fmt.Sprintf("global-%s-%v", key, val))
 }
 
 func (c *mockClient) StartSpan(ctx context.Context, name string) (context.Context, Span) {

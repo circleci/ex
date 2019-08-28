@@ -24,7 +24,6 @@ func Middleware(rootCtx context.Context, serviceName string, handler http.Handle
 		ctx = o11y.WithProvider(ctx, provider)
 		// set up our new per request root span
 		ctx, span := o11y.StartSpan(ctx, "http-request")
-		o11y.AddFieldToTrace(ctx, "svc", serviceName)
 		defer span.End()
 
 		// we always want some name

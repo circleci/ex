@@ -4,6 +4,7 @@ import (
 	"context"
 
 	beeline "github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/trace"
 
 	"github.com/circleci/distributor/o11y"
@@ -22,6 +23,10 @@ func New(dataset, key, host string, stdout bool) *honeycomb {
 	})
 
 	return &honeycomb{}
+}
+
+func (h *honeycomb) AddGlobalField(key string, val interface{}) {
+	client.AddField(key, val)
 }
 
 func (h *honeycomb) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {

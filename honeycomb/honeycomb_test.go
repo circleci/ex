@@ -18,6 +18,9 @@ func TestHoneycomb(t *testing.T) {
 		t.Log(event)
 		gotEvent = true
 
+		if !strings.Contains(event, `"version":42`) {
+			t.Error("missing version data")
+		}
 		if !strings.Contains(event, `"name":"test-span"`) {
 			t.Error("missing span name")
 		}
@@ -33,6 +36,7 @@ func TestHoneycomb(t *testing.T) {
 	ctx := context.Background()
 
 	h := New("test-dataset", "foo-bar", url, false)
+	h.AddGlobalField("version", 42)
 
 	ctx, span := h.StartSpan(ctx, "test-span")
 	h.AddFieldToTrace(ctx, "trace-key", "trace-value")
