@@ -1,8 +1,6 @@
 package o11y
 
-import (
-	"context"
-)
+import "context"
 
 type Provider interface {
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
