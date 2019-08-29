@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -15,7 +16,6 @@ import (
 func Middleware(rootCtx context.Context, serviceName string, handler http.Handler) http.Handler {
 	// Cache handlerName and provider here for efficiency's sake
 	provider := o11y.FromContext(rootCtx)
-
 	handlerName := cleanHandlerName(runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -23,13 +23,14 @@ func Middleware(rootCtx context.Context, serviceName string, handler http.Handle
 		// make sure the provider is added to the request context
 		ctx = o11y.WithProvider(ctx, provider)
 		// set up our new per request root span
-		ctx, span := o11y.StartSpan(ctx, "http-request")
-		defer span.End()
 
-		// we always want some name
 		if handlerName == "" {
 			handlerName = "unknown"
 		}
+
+		ctx, span := o11y.StartSpan(ctx, fmt.Sprintf("%s %s", r.Method, handlerName))
+		defer span.End()
+
 		o11y.AddField(ctx, "handler", handlerName)
 
 		for k, v := range common.GetRequestProps(r) {
