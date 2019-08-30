@@ -14,7 +14,7 @@ type honeycomb struct{}
 
 // New creates a new honeycomb o11y provider, which emits traces to
 // a honeycomb server.
-func New(dataset, key, host string, stdout bool) *honeycomb {
+func New(dataset, key, host string, stdout bool) o11y.Provider {
 	beeline.Init(beeline.Config{
 		WriteKey: key,
 		Dataset:  dataset,

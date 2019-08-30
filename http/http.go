@@ -9,8 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/circleci/distributor/o11y"
 	"github.com/honeycombio/beeline-go/wrappers/common"
+
+	"github.com/circleci/distributor/o11y"
 )
 
 func Middleware(rootCtx context.Context, handler http.Handler) http.Handler {
