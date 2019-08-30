@@ -13,7 +13,7 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/common"
 )
 
-func Middleware(rootCtx context.Context, serviceName string, handler http.Handler) http.Handler {
+func Middleware(rootCtx context.Context, handler http.Handler) http.Handler {
 	// Cache handlerName and provider here for efficiency's sake
 	provider := o11y.FromContext(rootCtx)
 	handlerName := cleanHandlerName(runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
