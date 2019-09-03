@@ -20,7 +20,12 @@ func WithProvider(ctx context.Context, p Provider) context.Context {
 	return context.WithValue(ctx, providerKey{}, p)
 }
 
-func FromContext(ctx context.Context) Provider {
+// CopyProvider makes the provider from rootCtx available to ctx
+func CopyProvider(rootCtx, ctx context.Context) context.Context {
+	return WithProvider(ctx, fromContext(rootCtx))
+}
+
+func fromContext(ctx context.Context) Provider {
 	provider, ok := ctx.Value(providerKey{}).(Provider)
 	if !ok {
 		return nil
@@ -32,7 +37,7 @@ func FromContext(ctx context.Context) Provider {
 //
 // eg. version, service, k8s_replicaset
 func AddGlobalField(ctx context.Context, key string, val interface{}) {
-	FromContext(ctx).AddGlobalField(key, val)
+	fromContext(ctx).AddGlobalField(key, val)
 }
 
 // StartSpan begins a new span that'll represent a unit of work
@@ -46,7 +51,7 @@ func AddGlobalField(ctx context.Context, key string, val interface{}) {
 //   ctx, span := o11y.StartSpan(ctx, "GET /help")
 //   defer span.End()
 func StartSpan(ctx context.Context, name string) (context.Context, Span) {
-	return FromContext(ctx).StartSpan(ctx, name)
+	return fromContext(ctx).StartSpan(ctx, name)
 }
 
 // AddField is for adding useful information to the currently active span
@@ -56,7 +61,7 @@ func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 // Refer to the opentelemetry draft spec for naming inspiration
 // https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md
 func AddField(ctx context.Context, key string, val interface{}) {
-	FromContext(ctx).AddField(ctx, key, val)
+	fromContext(ctx).AddField(ctx, key, val)
 }
 
 // AddFieldToTrace is for adding useful information to the current root span.
@@ -65,9 +70,9 @@ func AddField(ctx context.Context, key string, val interface{}) {
 //
 // eg. build-url, plan-id, project-id, org-id etc
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	FromContext(ctx).AddFieldToTrace(ctx, key, val)
+	fromContext(ctx).AddFieldToTrace(ctx, key, val)
 }
 
 func Close(ctx context.Context) {
-	FromContext(ctx).Close(ctx)
+	fromContext(ctx).Close(ctx)
 }

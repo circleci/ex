@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"reflect"
-	"runtime"
-	"strings"
 	"sync"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
@@ -14,51 +11,30 @@ import (
 	"github.com/circleci/distributor/o11y"
 )
 
-func Middleware(rootCtx context.Context, handler http.Handler) http.Handler {
-	// Cache handlerName and provider here for efficiency's sake
-	provider := o11y.FromContext(rootCtx)
-	handlerName := cleanHandlerName(runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name())
-
+func Middleware(rootCtx context.Context, name string, handler http.Handler) http.Handler {
+	// This code is based on github.com/beeline-go/wrappers/hnynethttp/nethttp.go
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		// make sure the provider is added to the request context
-		ctx = o11y.WithProvider(ctx, provider)
-		// set up our new per request root span
+		ctx, span := common.StartSpanOrTraceFromHTTP(r)
+		defer span.Send()
 
-		if handlerName == "" {
-			handlerName = "unknown"
-		}
-
-		ctx, span := o11y.StartSpan(ctx, fmt.Sprintf("%s %s", r.Method, handlerName))
-		defer span.End()
-
-		o11y.AddField(ctx, "handler", handlerName)
-
-		for k, v := range common.GetRequestProps(r) {
-			o11y.AddField(ctx, k, v)
-		}
-
-		// update the request with the new context
+		// make sure our provider is added to the request context
+		// otherwise the o11y functions wont work inside handlers
+		ctx = o11y.CopyProvider(rootCtx, ctx)
 		r = r.WithContext(ctx)
 
-		// inject our writer to capture the response
-		sw := &statusWriter{
-			ResponseWriter: w,
-		}
+		o11y.AddFieldToTrace(ctx, "server_name", name)
+		// TODO: In future this should ideally be the route name, not the Path,
+		//       but in order to do that, we'll need a standard routing
+		//       abstraction that can be read when wrapped by more middleware
+		span.AddField("name", fmt.Sprintf("%s %s %s", name, r.Method, r.URL.Path))
 
-		// serve the handler chain
+		sw := &statusWriter{ResponseWriter: w}
 		handler.ServeHTTP(sw, r)
-
-		o11y.AddField(ctx, "response.status_code", sw.status)
+		if sw.status == 0 {
+			sw.status = 200
+		}
+		span.AddField("response.status_code", sw.status)
 	})
-}
-
-func cleanHandlerName(name string) string {
-	parts := strings.Split(name, "/")
-	if len(parts) < 2 {
-		return name
-	}
-	return parts[len(parts)-1]
 }
 
 type statusWriter struct {
@@ -68,12 +44,8 @@ type statusWriter struct {
 }
 
 func (w *statusWriter) WriteHeader(status int) {
-	// only get the first set status
 	w.once.Do(func() {
 		w.status = status
-		if w.status == 0 {
-			w.status = http.StatusOK
-		}
 	})
 	w.ResponseWriter.WriteHeader(status)
 }
