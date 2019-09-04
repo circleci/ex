@@ -13,20 +13,35 @@ import (
 
 type honeycomb struct{}
 
+type Config struct {
+	Host    string
+	Dataset string
+	Key     string
+	// Should we actually send the traces to the honeycomb server?
+	SendTraces bool
+	// See beeline.Config.SamplerHook
+	Sampler *TraceSampler
+}
+
 // New creates a new honeycomb o11y provider, which emits JSON traces to STDOUT
 // and optionally also sends them to a honeycomb server
-func New(dataset, key, host string, send bool) o11y.Provider {
+func New(conf Config) o11y.Provider {
 	// error is ignored in default constructor in beeline, so we do the same here.
 	c, _ := libhoney.NewClient(libhoney.ClientConfig{
-		APIKey:       key,
-		Dataset:      dataset,
-		APIHost:      host,
-		Transmission: newSender(send),
+		APIKey:       conf.Key,
+		Dataset:      conf.Dataset,
+		APIHost:      conf.Host,
+		Transmission: newSender(conf.SendTraces),
 	})
 
-	beeline.Init(beeline.Config{
+	bc := beeline.Config{
 		Client: c,
-	})
+	}
+	if conf.Sampler != nil {
+		bc.SamplerHook = conf.Sampler.Hook
+	}
+
+	beeline.Init(bc)
 
 	return &honeycomb{}
 }
