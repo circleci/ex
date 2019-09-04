@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -11,18 +10,22 @@ import (
 	"github.com/circleci/distributor/o11y"
 )
 
-func Middleware(rootCtx context.Context, name string, handler http.Handler) http.Handler {
-	// This code is based on github.com/beeline-go/wrappers/hnynethttp/nethttp.go
+// Middleware returns an http.Handler which wraps an http.Handler and adds
+// an o11y.Provider to the context.
+//
+// A span is created from the request headers, or a new one is created if no
+// request headers exist.
+//
+// This code is based on github.com/beeline-go/wrappers/hnynethttp/nethttp.go
+func Middleware(provider o11y.Provider, name string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Send()
 
-		// make sure our provider is added to the request context
-		// otherwise the o11y functions wont work inside handlers
-		ctx = o11y.CopyProvider(rootCtx, ctx)
+		ctx = o11y.WithProvider(ctx, provider)
 		r = r.WithContext(ctx)
 
-		o11y.AddFieldToTrace(ctx, "server_name", name)
+		provider.AddFieldToTrace(ctx, "server_name", name)
 		// TODO: In future this should ideally be the route name, not the Path,
 		//       but in order to do that, we'll need a standard routing
 		//       abstraction that can be read when wrapped by more middleware

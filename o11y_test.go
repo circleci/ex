@@ -11,14 +11,14 @@ func TestO11y(t *testing.T) {
 	provider := &mockClient{cb: func(what string) {
 		got = what
 	}}
-	ctx := WithProvider(context.Background(), provider)
+	ctx := context.Background()
 
-	AddGlobalField(ctx, "version", 42)
+	provider.AddGlobalField("version", 42)
 	if got != "global-version-42" {
 		t.Error("add global field wired up wrong", got)
 	}
 
-	ctx, span := StartSpan(ctx, "start-span")
+	ctx, span := provider.StartSpan(ctx, "start-span")
 	if got != "start-span" {
 		t.Error("start span wired up wrong", got)
 	}
@@ -28,17 +28,17 @@ func TestO11y(t *testing.T) {
 		t.Error("span end wired up wrong", got)
 	}
 
-	AddField(ctx, "fkey", "fval")
+	provider.AddField(ctx, "fkey", "fval")
 	if got != "span-fkey-fval" {
 		t.Error("add field wired up wrong", got)
 	}
 
-	AddFieldToTrace(ctx, "fkey", "fval")
+	provider.AddFieldToTrace(ctx, "fkey", "fval")
 	if got != "aftt-fkey-fval" {
 		t.Error("add field to trace wired up wrong", got)
 	}
 
-	Close(ctx)
+	provider.Close(ctx)
 	if got != "close" {
 		t.Error("close wired up wrong", got)
 	}
