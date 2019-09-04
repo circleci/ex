@@ -3,23 +3,29 @@ package honeycomb
 import (
 	"context"
 
-	beeline "github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/trace"
+	"github.com/honeycombio/libhoney-go"
 
 	"github.com/circleci/distributor/o11y"
 )
 
 type honeycomb struct{}
 
-// New creates a new honeycomb o11y provider, which emits traces to
-// a honeycomb server.
-func New(dataset, key, host string, stdout bool) o11y.Provider {
+// New creates a new honeycomb o11y provider, which emits JSON traces to STDOUT
+// and optionally also sends them to a honeycomb server
+func New(dataset, key, host string, send bool) o11y.Provider {
+	// error is ignored in default constructor in beeline, so we do the same here.
+	c, _ := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       key,
+		Dataset:      dataset,
+		APIHost:      host,
+		Transmission: newSender(send),
+	})
+
 	beeline.Init(beeline.Config{
-		WriteKey: key,
-		Dataset:  dataset,
-		APIHost:  host,
-		STDOUT:   stdout,
+		Client: c,
 	})
 
 	return &honeycomb{}

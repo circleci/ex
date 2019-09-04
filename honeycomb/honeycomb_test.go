@@ -35,7 +35,7 @@ func TestHoneycomb(t *testing.T) {
 	url := honeycombServer(t, check)
 	ctx := context.Background()
 
-	h := New("test-dataset", "foo-bar", url, false)
+	h := New("test-dataset", "foo-bar", url, true)
 	h.AddGlobalField("version", 42)
 
 	ctx, span := h.StartSpan(ctx, "test-span")
