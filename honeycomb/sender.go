@@ -3,6 +3,7 @@ package honeycomb
 import (
 	"errors"
 
+	"github.com/hashicorp/go-multierror"
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 )
@@ -52,14 +53,16 @@ func (s *MultiSender) Start() error {
 	return nil
 }
 
-// Stop calls Stop on every configured Sender, aborting on the first error
+// Stop calls Stop on every configured Sender.
+// It will call Stop on every Sender even if there are errors
 func (s *MultiSender) Stop() error {
+	var result error
 	for _, tx := range s.Senders {
 		if err := tx.Stop(); err != nil {
-			return err
+			result = multierror.Append(result, err)
 		}
 	}
-	return nil
+	return result
 }
 
 // TxResponses returns the response channel from the first Sender only
