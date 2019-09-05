@@ -20,14 +20,6 @@ type Provider interface {
 	//   defer span.End()
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
 
-	// AddField is for adding useful information to the currently active span
-	//
-	// eg. result, http.status_code
-	//
-	// Refer to the opentelemetry draft spec for naming inspiration
-	// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md
-	AddField(ctx context.Context, key string, val interface{})
-
 	// AddFieldToTrace is for adding useful information to the root span.
 	//
 	// This will be propagated onto every child span.
@@ -39,6 +31,16 @@ type Provider interface {
 }
 
 type Span interface {
+	// AddField is for adding useful information to the currently active span
+	//
+	// eg. result, http.status_code
+	//
+	// Refer to the opentelemetry draft spec for naming inspiration
+	// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md
+	AddField(key string, val interface{})
+
+	// End sets the duration of the span and tells the related provider that the span is complete
+	// so it can do it's appropriate processing. The span should not be used after End is called.
 	End()
 }
 
@@ -57,4 +59,13 @@ func FromContext(ctx context.Context) Provider {
 		return nil
 	}
 	return provider
+}
+
+// StartSpan starts a span from a context that must contain a provider for this to have any effect.
+func StartSpan(ctx context.Context, name string) (context.Context, Span) {
+	p := FromContext(ctx)
+	if p == nil {
+		return ctx, nil
+	}
+	return p.StartSpan(ctx, name)
 }

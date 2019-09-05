@@ -11,36 +11,47 @@ func TestO11y(t *testing.T) {
 	provider := &mockClient{cb: func(what string) {
 		got = what
 	}}
-	ctx := context.Background()
+
+	ctx := WithProvider(context.Background(), provider)
 
 	provider.AddGlobalField("version", 42)
 	if got != "global-version-42" {
 		t.Error("add global field wired up wrong", got)
 	}
 
-	ctx, span := provider.StartSpan(ctx, "start-span")
+	ctx, span := StartSpan(ctx, "start-span")
 	if got != "start-span" {
 		t.Error("start span wired up wrong", got)
+	}
+
+	if FromContext(ctx) == nil {
+		t.Error("context returned from span has dropped the provider")
+	}
+
+	span.AddField("fkey", "fval")
+	if got != "span-fkey-fval" {
+		t.Error("add field wired up wrong", got)
 	}
 
 	span.End()
 	if got != "span-end" {
 		t.Error("span end wired up wrong", got)
 	}
+}
 
-	provider.AddField(ctx, "fkey", "fval")
-	if got != "span-fkey-fval" {
-		t.Error("add field wired up wrong", got)
+func TestStartSpan_WithoutProvider(t *testing.T) {
+	ctx := context.Background()
+	p := FromContext(ctx)
+	if p != nil {
+		t.Error("no provider on context should have returned nil")
 	}
 
-	provider.AddFieldToTrace(ctx, "fkey", "fval")
-	if got != "aftt-fkey-fval" {
-		t.Error("add field to trace wired up wrong", got)
+	nCtx, span := StartSpan(ctx, "foo")
+	if span != nil {
+		t.Error("should not have got a span if there is no provider on the context")
 	}
-
-	provider.Close(ctx)
-	if got != "close" {
-		t.Error("close wired up wrong", got)
+	if ctx != nCtx {
+		t.Error("context should be equal if no provider present")
 	}
 }
 
@@ -57,20 +68,18 @@ func (c *mockClient) StartSpan(ctx context.Context, name string) (context.Contex
 	return ctx, &mockSpan{cb: c.cb}
 }
 
-func (c *mockClient) AddField(ctx context.Context, key string, val interface{}) {
-	c.cb(fmt.Sprintf("span-%s-%v", key, val))
-}
-
 func (c *mockClient) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	c.cb(fmt.Sprintf("aftt-%s-%v", key, val))
 }
 
-func (c *mockClient) Close(ctx context.Context) {
-	c.cb("close")
-}
+func (c *mockClient) Close(ctx context.Context) {}
 
 type mockSpan struct {
 	cb func(string)
+}
+
+func (s *mockSpan) AddField(key string, val interface{}) {
+	s.cb(fmt.Sprintf("span-%s-%v", key, val))
 }
 
 func (s *mockSpan) End() {

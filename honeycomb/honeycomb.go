@@ -55,10 +55,6 @@ func (h *honeycomb) StartSpan(ctx context.Context, name string) (context.Context
 	return ctx, &span{span: s}
 }
 
-func (h *honeycomb) AddField(ctx context.Context, key string, val interface{}) {
-	beeline.AddField(ctx, key, val)
-}
-
 func (h *honeycomb) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	beeline.AddFieldToTrace(ctx, key, val)
 }
@@ -69,6 +65,10 @@ func (h *honeycomb) Close(_ context.Context) {
 
 type span struct {
 	span *trace.Span
+}
+
+func (s *span) AddField(key string, val interface{}) {
+	s.span.AddField("app."+key, val)
 }
 
 func (s *span) End() {

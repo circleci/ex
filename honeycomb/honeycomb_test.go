@@ -44,7 +44,7 @@ func TestHoneycomb(t *testing.T) {
 
 	ctx, span := h.StartSpan(ctx, "test-span")
 	h.AddFieldToTrace(ctx, "trace-key", "trace-value")
-	h.AddField(ctx, "span-key", "span-value")
+	span.AddField("span-key", "span-value")
 	span.End()
 	h.Close(ctx)
 
