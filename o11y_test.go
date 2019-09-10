@@ -2,41 +2,25 @@ package o11y
 
 import (
 	"context"
-	"fmt"
 	"testing"
+
+	"gotest.tools/assert"
 )
 
-func TestO11y(t *testing.T) {
-	got := ""
-	provider := &mockClient{cb: func(what string) {
-		got = what
-	}}
+func TestFromContext(t *testing.T) {
+	t.Run("no provider", func(t *testing.T) {
+		ctx := context.Background()
+		p := FromContext(ctx)
+		assert.Equal(t, p, nil)
+	})
 
-	ctx := WithProvider(context.Background(), provider)
+	t.Run("with provider in context", func(t *testing.T) {
+		expected := &fakeProvider{}
+		ctx := WithProvider(context.Background(), expected)
 
-	provider.AddGlobalField("version", 42)
-	if got != "global-version-42" {
-		t.Error("add global field wired up wrong", got)
-	}
-
-	ctx, span := StartSpan(ctx, "start-span")
-	if got != "start-span" {
-		t.Error("start span wired up wrong", got)
-	}
-
-	if FromContext(ctx) == nil {
-		t.Error("context returned from span has dropped the provider")
-	}
-
-	span.AddField("fkey", "fval")
-	if got != "span-fkey-fval" {
-		t.Error("add field wired up wrong", got)
-	}
-
-	span.End()
-	if got != "span-end" {
-		t.Error("span end wired up wrong", got)
-	}
+		actual := FromContext(ctx)
+		assert.Equal(t, actual, expected)
+	})
 }
 
 func TestStartSpan_WithoutProvider(t *testing.T) {
@@ -55,37 +39,22 @@ func TestStartSpan_WithoutProvider(t *testing.T) {
 	}
 }
 
-type mockClient struct {
-	cb func(string)
+type fakeProvider struct{}
+
+func (c *fakeProvider) AddGlobalField(key string, val interface{}) {}
+
+func (c *fakeProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
+	return ctx, &mockSpan{}
 }
 
-func (c *mockClient) AddGlobalField(key string, val interface{}) {
-	c.cb(fmt.Sprintf("global-%s-%v", key, val))
-}
+func (c *fakeProvider) AddField(ctx context.Context, key string, val interface{}) {}
 
-func (c *mockClient) StartSpan(ctx context.Context, name string) (context.Context, Span) {
-	c.cb(name)
-	return ctx, &mockSpan{cb: c.cb}
-}
+func (c *fakeProvider) AddFieldToTrace(ctx context.Context, key string, val interface{}) {}
 
-func (c *mockClient) AddField(ctx context.Context, key string, val interface{}) {
-	c.cb(fmt.Sprintf("add-%s-%v", key, val))
-}
+func (c *fakeProvider) Close(ctx context.Context) {}
 
-func (c *mockClient) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	c.cb(fmt.Sprintf("aftt-%s-%v", key, val))
-}
+type mockSpan struct{}
 
-func (c *mockClient) Close(ctx context.Context) {}
+func (s *mockSpan) AddField(key string, val interface{}) {}
 
-type mockSpan struct {
-	cb func(string)
-}
-
-func (s *mockSpan) AddField(key string, val interface{}) {
-	s.cb(fmt.Sprintf("span-%s-%v", key, val))
-}
-
-func (s *mockSpan) End() {
-	s.cb("span-end")
-}
+func (s *mockSpan) End() {}
