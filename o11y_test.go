@@ -68,6 +68,10 @@ func (c *mockClient) StartSpan(ctx context.Context, name string) (context.Contex
 	return ctx, &mockSpan{cb: c.cb}
 }
 
+func (c *mockClient) AddField(ctx context.Context, key string, val interface{}) {
+	c.cb(fmt.Sprintf("add-%s-%v", key, val))
+}
+
 func (c *mockClient) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	c.cb(fmt.Sprintf("aftt-%s-%v", key, val))
 }

@@ -20,6 +20,14 @@ type Provider interface {
 	//   defer span.End()
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
 
+	// AddField is for adding useful information to the currently active span
+	//
+	// eg. result, http.status_code
+	//
+	// Refer to the opentelemetry draft spec for naming inspiration
+	// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md
+	AddField(ctx context.Context, key string, val interface{})
+
 	// AddFieldToTrace is for adding useful information to the root span.
 	//
 	// This will be propagated onto every child span.
