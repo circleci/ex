@@ -3,10 +3,10 @@ package honeycomb
 import (
 	"context"
 
-	"github.com/honeycombio/beeline-go"
+	beeline "github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/trace"
-	"github.com/honeycombio/libhoney-go"
+	libhoney "github.com/honeycombio/libhoney-go"
 
 	"github.com/circleci/distributor/o11y"
 )
@@ -61,6 +61,15 @@ func (h *honeycomb) AddField(ctx context.Context, key string, val interface{}) {
 
 func (h *honeycomb) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	beeline.AddFieldToTrace(ctx, key, val)
+}
+
+func (h *honeycomb) Log(ctx context.Context, name string, fields ...o11y.Pair) {
+	_, s := beeline.StartSpan(ctx, name)
+	hcSpan := &span{span: s}
+	for _, field := range fields {
+		hcSpan.AddField(field.Key, field.Value)
+	}
+	hcSpan.End()
 }
 
 func (h *honeycomb) Close(_ context.Context) {

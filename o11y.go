@@ -35,6 +35,9 @@ type Provider interface {
 	// eg. build-url, plan-id, project-id, org-id etc
 	AddFieldToTrace(ctx context.Context, key string, val interface{})
 
+	// Log sends a zero duration trace event.
+	Log(ctx context.Context, name string, fields ...Pair)
+
 	Close(ctx context.Context)
 }
 
@@ -76,4 +79,15 @@ func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 		return ctx, nil
 	}
 	return p.StartSpan(ctx, name)
+}
+
+// Pair is a key value pair used to add metadata to a span.
+type Pair struct {
+	Key   string
+	Value interface{}
+}
+
+// Field returns a new metadata pair.
+func Field(key string, value interface{}) Pair {
+	return Pair{Key: key, Value: value}
 }

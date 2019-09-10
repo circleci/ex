@@ -53,6 +53,8 @@ func (c *fakeProvider) AddFieldToTrace(ctx context.Context, key string, val inte
 
 func (c *fakeProvider) Close(ctx context.Context) {}
 
+func (c *fakeProvider) Log(ctx context.Context, name string, fields ...Pair) {}
+
 type mockSpan struct{}
 
 func (s *mockSpan) AddField(key string, val interface{}) {}
