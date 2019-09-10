@@ -15,7 +15,6 @@ func TestHoneycomb(t *testing.T) {
 	// check the response for some expected data
 	gotEvent := false
 	check := func(event string) {
-		t.Log(event)
 		gotEvent = true
 
 		if !strings.Contains(event, `"version":42`) {
