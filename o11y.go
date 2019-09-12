@@ -67,18 +67,14 @@ func WithProvider(ctx context.Context, p Provider) context.Context {
 func FromContext(ctx context.Context) Provider {
 	provider, ok := ctx.Value(providerKey{}).(Provider)
 	if !ok {
-		return nil
+		return defaultProvider
 	}
 	return provider
 }
 
 // StartSpan starts a span from a context that must contain a provider for this to have any effect.
 func StartSpan(ctx context.Context, name string) (context.Context, Span) {
-	p := FromContext(ctx)
-	if p == nil {
-		return ctx, nil
-	}
-	return p.StartSpan(ctx, name)
+	return FromContext(ctx).StartSpan(ctx, name)
 }
 
 // Pair is a key value pair used to add metadata to a span.
@@ -91,3 +87,27 @@ type Pair struct {
 func Field(key string, value interface{}) Pair {
 	return Pair{Key: key, Value: value}
 }
+
+var defaultProvider = &noopProvider{}
+
+type noopProvider struct{}
+
+func (c *noopProvider) AddGlobalField(key string, val interface{}) {}
+
+func (c *noopProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
+	return ctx, &noopSpan{}
+}
+
+func (c *noopProvider) AddField(ctx context.Context, key string, val interface{}) {}
+
+func (c *noopProvider) AddFieldToTrace(ctx context.Context, key string, val interface{}) {}
+
+func (c *noopProvider) Close(ctx context.Context) {}
+
+func (c *noopProvider) Log(ctx context.Context, name string, fields ...Pair) {}
+
+type noopSpan struct{}
+
+func (s *noopSpan) AddField(key string, val interface{}) {}
+
+func (s *noopSpan) End() {}
