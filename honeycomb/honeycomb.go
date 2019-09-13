@@ -2,6 +2,7 @@ package honeycomb
 
 import (
 	"context"
+	"io"
 
 	beeline "github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
@@ -21,6 +22,8 @@ type Config struct {
 	SendTraces bool
 	// See beeline.Config.SamplerHook
 	Sampler *TraceSampler
+	// ConsoleWriter used to write events to a local stderr
+	ConsoleWriter io.Writer
 }
 
 // New creates a new honeycomb o11y provider, which emits JSON traces to STDOUT
@@ -31,7 +34,7 @@ func New(conf Config) o11y.Provider {
 		APIKey:       conf.Key,
 		Dataset:      conf.Dataset,
 		APIHost:      conf.Host,
-		Transmission: newSender(conf.SendTraces),
+		Transmission: newSender(conf.ConsoleWriter, conf.SendTraces),
 	})
 
 	bc := beeline.Config{

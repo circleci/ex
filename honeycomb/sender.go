@@ -2,7 +2,7 @@ package honeycomb
 
 import (
 	"errors"
-	"os"
+	"io"
 
 	multierror "github.com/hashicorp/go-multierror"
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -12,9 +12,9 @@ import (
 // This has been submitted upstream as
 // https://github.com/honeycombio/libhoney-go/pull/60
 
-// newSender returns a transmission.Sender which sends traces to stderr, and when
+// newSender returns a transmission.Sender which sends traces to w, and when
 // send is true, also sends traces to Honeycomb.
-func newSender(send bool) transmission.Sender {
+func newSender(w io.Writer, send bool) transmission.Sender {
 	s := &MultiSender{}
 
 	if send {
@@ -27,10 +27,7 @@ func newSender(send bool) transmission.Sender {
 		})
 	}
 
-	s.Senders = append(s.Senders, &transmission.WriterSender{
-		W: os.Stderr,
-	})
-
+	s.Senders = append(s.Senders, &transmission.WriterSender{W: w})
 	return s
 }
 

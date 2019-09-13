@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -17,6 +18,12 @@ type TextFormatter struct {
 	// match the prefix, the field will be included in the formatted output.
 	FieldPrefixes []string
 	W             io.Writer
+}
+
+// DefaultTextFormat writes to stderr.
+var DefaultTextFormat = &TextFormatter{
+	W:             os.Stderr,
+	FieldPrefixes: []string{"app", "request", "response"},
 }
 
 func (h *TextFormatter) Write(raw []byte) (int, error) {

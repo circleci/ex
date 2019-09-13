@@ -1,6 +1,7 @@
 package honeycomb
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -11,21 +12,24 @@ import (
 // This has been submitted upstream as
 // https://github.com/honeycombio/libhoney-go/pull/60
 
-func TestMultiSenderStart(t *testing.T) {
-	// Errors with no transmissions configured
-	ms := &MultiSender{}
-	err := ms.Start()
-	assert.Error(t, err, "no senders configured")
+func TestMultiSender_Start(t *testing.T) {
+	t.Run("no transmissions configured", func(t *testing.T) {
+		ms := &MultiSender{}
+		err := ms.Start()
+		assert.Error(t, err, "no senders configured")
+	})
 
-	// Convenience startup stdout only is valid
-	s := newSender(false)
-	err = s.Start()
-	assert.Assert(t, err, "the plus stdout sender should start without errors")
+	t.Run("transmission to only stderr", func(t *testing.T) {
+		s := newSender(os.Stderr, false)
+		err := s.Start()
+		assert.Assert(t, err, "Start failed")
+	})
 
-	// Convenience startup with full send is valid
-	s = newSender(true)
-	err = s.Start()
-	assert.Assert(t, err, "the plus stdout sender should start without errors")
+	t.Run("transmission to multiple sources", func(t *testing.T) {
+		s := newSender(os.Stderr, true)
+		err := s.Start()
+		assert.Assert(t, err, "Start failed")
+	})
 }
 
 func TestMultiSender(t *testing.T) {
