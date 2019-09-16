@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestTextFormatter_Write(t *testing.T) {

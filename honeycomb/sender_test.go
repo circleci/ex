@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/honeycombio/libhoney-go/transmission"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 // This has been submitted upstream as
