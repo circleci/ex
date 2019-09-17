@@ -53,7 +53,7 @@ func format(e *entry, fields []string) []byte {
 	for _, k := range keys(e.Data) {
 		for _, field := range fields {
 			if strings.HasPrefix(k, field+".") {
-				fmt.Fprintf(buf, " %s=%s", k, e.Data[k])
+				fmt.Fprintf(buf, " %s=%v", k, e.Data[k])
 			}
 		}
 	}
