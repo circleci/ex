@@ -77,6 +77,20 @@ func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return FromContext(ctx).StartSpan(ctx, name)
 }
 
+func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
+	FromContext(ctx).AddFieldToTrace(ctx, key, val)
+}
+
+func AddResultToSpan(err error, span Span) {
+	if err != nil {
+		span.AddField("result", "error")
+		span.AddField("error", err.Error())
+		return
+	}
+
+	span.AddField("result", "success")
+}
+
 // Pair is a key value pair used to add metadata to a span.
 type Pair struct {
 	Key   string
