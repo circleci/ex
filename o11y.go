@@ -77,6 +77,10 @@ func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return FromContext(ctx).StartSpan(ctx, name)
 }
 
+func AddField(ctx context.Context, key string, val interface{}) {
+	FromContext(ctx).AddField(ctx, key, val)
+}
+
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	FromContext(ctx).AddFieldToTrace(ctx, key, val)
 }
