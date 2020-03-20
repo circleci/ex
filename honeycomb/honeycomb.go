@@ -84,6 +84,9 @@ type span struct {
 }
 
 func (s *span) AddField(key string, val interface{}) {
+	if err, ok := val.(error); ok {
+		val = err.Error()
+	}
 	s.span.AddField("app."+key, val)
 }
 
