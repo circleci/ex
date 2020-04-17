@@ -77,15 +77,18 @@ func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return FromContext(ctx).StartSpan(ctx, name)
 }
 
+// AddField adds a field to the currently active span
 func AddField(ctx context.Context, key string, val interface{}) {
 	FromContext(ctx).AddField(ctx, key, val)
 }
 
+// AddFieldToTrace adds a field to the currently active root span and all of its current and future child spans
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	FromContext(ctx).AddFieldToTrace(ctx, key, val)
 }
 
-func AddResultToSpan(err error, span Span) {
+// AddResultToSpan takes a possibly nil error, and updates the "error" and "result" fields of the span appropriately
+func AddResultToSpan(span Span, err error) {
 	if err != nil {
 		span.AddField("result", "error")
 		span.AddField("error", err.Error())
