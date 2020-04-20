@@ -26,7 +26,7 @@ type Config struct {
 	ConsoleWriter io.Writer
 }
 
-// New creates a new honeycomb o11y provider, which emits JSON traces to STDOUT
+// New creates a new honeycomb o11y provider, which emits traces to STDOUT
 // and optionally also sends them to a honeycomb server
 func New(conf Config) o11y.Provider {
 	// error is ignored in default constructor in beeline, so we do the same here.
