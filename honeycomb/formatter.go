@@ -63,12 +63,20 @@ func (h *TextFormatter) format(e *entry) []byte {
 	for _, k := range sortedKeys(e.Data) {
 		for _, field := range h.fieldPrefixes {
 			if strings.HasPrefix(k, field+".") {
-				fmt.Fprintf(buf, " %s=%v", k, e.Data[k])
+				label := k
+				if k == "app.error" && h.colour {
+					label = errorHighlight(k)
+				}
+				fmt.Fprintf(buf, " %s=%v", label, e.Data[k])
 			}
 		}
 	}
 	buf.WriteString("\n")
 	return buf.Bytes()
+}
+
+func errorHighlight(s string) string {
+	return fmt.Sprintf("\033[1;37;41m%s\033[0m", s)
 }
 
 // colours is all ansi colour codes that look ok against black
