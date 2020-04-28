@@ -2,11 +2,13 @@ package honeycomb
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	beeline "github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/trace"
+	"github.com/honeycombio/dynsampler-go"
 	libhoney "github.com/honeycombio/libhoney-go"
 
 	"github.com/circleci/distributor/o11y"
@@ -14,34 +16,41 @@ import (
 
 type honeycomb struct{}
 
-type Config struct {
-	Host    string
-	Dataset string
-	Key     string
-	// Should we actually send the traces to the honeycomb server?
-	SendTraces bool
-	// See beeline.Config.SamplerHook
-	Sampler *TraceSampler
-	// ConsoleWriter used to write events to a local stderr
-	ConsoleWriter io.Writer
-}
-
 // New creates a new honeycomb o11y provider, which emits traces to STDOUT
 // and optionally also sends them to a honeycomb server
-func New(conf Config) o11y.Provider {
+func New(c Config) o11y.Provider {
+	var writer io.Writer = ColourTextFormat
+	if c.Format != nil {
+		writer = c.Format.Value()
+	}
+
 	// error is ignored in default constructor in beeline, so we do the same here.
-	c, _ := libhoney.NewClient(libhoney.ClientConfig{
-		APIKey:       conf.Key,
-		Dataset:      conf.Dataset,
-		APIHost:      conf.Host,
-		Transmission: newSender(conf.ConsoleWriter, conf.SendTraces),
+	client, _ := libhoney.NewClient(libhoney.ClientConfig{
+		APIKey:       c.HoneycombKey.Value(),
+		Dataset:      c.HoneycombDataset,
+		APIHost:      c.Host,
+		Transmission: newSender(writer, c.HoneycombEnabled),
 	})
 
 	bc := beeline.Config{
-		Client: c,
+		Client: client,
 	}
-	if conf.Sampler != nil {
-		bc.SamplerHook = conf.Sampler.Hook
+
+	if c.SampleTraces {
+		sampler := &TraceSampler{
+			KeyFunc: func(fields map[string]interface{}) string {
+				return fmt.Sprintf("%s %s %d",
+					fields["app.server_name"],
+					fields["request.path"],
+					fields["response.status_code"],
+				)
+			},
+			Sampler: &dynsampler.Static{
+				Default: 1,
+				Rates:   map[string]int{},
+			},
+		}
+		bc.SamplerHook = sampler.Hook
 	}
 
 	beeline.Init(bc)

@@ -35,9 +35,9 @@ func TestHoneycomb(t *testing.T) {
 	ctx := context.Background()
 
 	h := New(Config{
-		Dataset:    "test-dataset",
-		Host:       url,
-		SendTraces: true,
+		HoneycombDataset: "test-dataset",
+		HoneycombEnabled: true,
+		Host:             url,
 	})
 	h.AddGlobalField("version", 42)
 
