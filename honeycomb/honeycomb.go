@@ -2,8 +2,10 @@ package honeycomb
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	beeline "github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
@@ -16,35 +18,63 @@ import (
 
 type honeycomb struct{}
 
+type Config struct {
+	Host          string
+	Dataset       string
+	Key           string
+	Format        string
+	SendTraces    bool // Should we actually send the traces to the honeycomb server?
+	SampleTraces  bool
+	SampleKeyFunc func(map[string]interface{}) string
+}
+
+func (c *Config) Validate() error {
+	if c.SendTraces && c.Key == "" {
+		return errors.New("honeycomb_key key required for honeycomb")
+	}
+	if _, err := c.ConsoleWriter(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ConsoleWriter used to write events to a local stderr
+func (c *Config) ConsoleWriter() (io.Writer, error) {
+	switch c.Format {
+	case "json":
+		return os.Stderr, nil
+	case "text":
+		return DefaultTextFormat, nil
+	case "colour", "color":
+		return ColourTextFormat, nil
+	}
+	return nil, fmt.Errorf("unknown format: %s", c.Format)
+}
+
 // New creates a new honeycomb o11y provider, which emits traces to STDOUT
 // and optionally also sends them to a honeycomb server
-func New(c Config) o11y.Provider {
-	var writer io.Writer = ColourTextFormat
-	if c.Format != nil {
-		writer = c.Format.Value()
+func New(conf Config) o11y.Provider {
+	writer, err := conf.ConsoleWriter()
+	if err != nil {
+		writer = ColourTextFormat
 	}
 
 	// error is ignored in default constructor in beeline, so we do the same here.
 	client, _ := libhoney.NewClient(libhoney.ClientConfig{
-		APIKey:       c.HoneycombKey.Value(),
-		Dataset:      c.HoneycombDataset,
-		APIHost:      c.Host,
-		Transmission: newSender(writer, c.HoneycombEnabled),
+		APIKey:       conf.Key,
+		Dataset:      conf.Dataset,
+		APIHost:      conf.Host,
+		Transmission: newSender(writer, conf.SendTraces),
 	})
 
 	bc := beeline.Config{
 		Client: client,
 	}
 
-	if c.SampleTraces {
+	if conf.SampleTraces {
+		// See beeline.Config.SamplerHook
 		sampler := &TraceSampler{
-			KeyFunc: func(fields map[string]interface{}) string {
-				return fmt.Sprintf("%s %s %d",
-					fields["app.server_name"],
-					fields["request.path"],
-					fields["response.status_code"],
-				)
-			},
+			KeyFunc: conf.SampleKeyFunc,
 			Sampler: &dynsampler.Static{
 				Default: 1,
 				Rates:   map[string]int{},

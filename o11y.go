@@ -1,8 +1,6 @@
 package o11y
 
-import (
-	"context"
-)
+import "context"
 
 type Provider interface {
 	// AddGlobalField adds data which should apply to every span in the application
