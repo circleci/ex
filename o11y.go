@@ -1,6 +1,11 @@
 package o11y
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrDoNotTrace = errors.New("this error should not be traced")
 
 type Provider interface {
 	// AddGlobalField adds data which should apply to every span in the application
@@ -52,7 +57,16 @@ type Span interface {
 
 	// End sets the duration of the span and tells the related provider that the span is complete
 	// so it can do it's appropriate processing. The span should not be used after End is called.
-	End()
+	// The variadic signature allows zero or one pointer to an error interface, (more than one will be ignored)
+	// Using the unusual pointer to the interface means that clients can call defer on End early,
+	// typically on the next line after calling StartSpan as it will capture the address of the named
+	// return error at that point. Any further assignments are made to the pointed to data, so that when
+	// our End func dereferences the pointer we get the last assigned error as desired.
+	// The correct way to capture the returned error is given in the doc example, it is like this..
+	//
+	// defer span.End(&err)
+	//
+	End(...*error)
 }
 
 type providerKey struct{}
@@ -87,8 +101,12 @@ func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	FromContext(ctx).AddFieldToTrace(ctx, key, val)
 }
 
-// AddResultToSpan takes a possibly nil error, and updates the "error" and "result" fields of the span appropriately
+// AddResultToSpan takes a possibly nil error, and updates the "error" and "result" fields of the span appropriately.
 func AddResultToSpan(span Span, err error) {
+	if errors.Is(err, ErrDoNotTrace) {
+		err = nil
+	}
+
 	if err != nil {
 		span.AddField("result", "error")
 		span.AddField("error", err.Error())
@@ -131,4 +149,4 @@ type noopSpan struct{}
 
 func (s *noopSpan) AddField(key string, val interface{}) {}
 
-func (s *noopSpan) End() {}
+func (s *noopSpan) End(...*error) {}

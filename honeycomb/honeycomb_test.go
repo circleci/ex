@@ -2,13 +2,15 @@ package honeycomb
 
 import (
 	"context"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/klauspost/compress/zstd"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestHoneycomb(t *testing.T) {
@@ -17,18 +19,10 @@ func TestHoneycomb(t *testing.T) {
 	check := func(event string) {
 		gotEvent = true
 
-		if !strings.Contains(event, `"version":42`) {
-			t.Error("missing version data")
-		}
-		if !strings.Contains(event, `"name":"test-span"`) {
-			t.Error("missing span name")
-		}
-		if !strings.Contains(event, `"app.span-key":"span-value"`) {
-			t.Error("missing span data")
-		}
-		if !strings.Contains(event, `"app.trace-key":"trace-value"`) {
-			t.Error("missing trace data")
-		}
+		assert.Check(t, cmp.Contains(event, `"version":42`))
+		assert.Check(t, cmp.Contains(event, `"name":"test-span"`))
+		assert.Check(t, cmp.Contains(event, `"app.span-key":"span-value"`))
+		assert.Check(t, cmp.Contains(event, `"app.trace-key":"trace-value"`))
 	}
 	// set up a minimal server with the check defined above
 	url := honeycombServer(t, check)
@@ -47,9 +41,44 @@ func TestHoneycomb(t *testing.T) {
 	span.End()
 	h.Close(ctx)
 
-	if !gotEvent {
-		t.Error("never received an event")
+	assert.Assert(t, gotEvent, "expected to receive an event")
+}
+
+func TestHoneycombWithError(t *testing.T) {
+	// check the response for some expected data
+	gotEvent := false
+	check := func(event string) {
+		gotEvent = true
+
+		assert.Check(t, cmp.Contains(event, `"version":123`))
+		assert.Check(t, cmp.Contains(event, `"name":"test-span-with-error"`))
+		assert.Check(t, cmp.Contains(event, `"app.span-key":"span-value-error"`))
+		assert.Check(t, cmp.Contains(event, `"app.trace-key":"trace-value-error"`))
+		assert.Check(t, cmp.Contains(event, `"app.result":"error"`))
+		assert.Check(t, cmp.Contains(event, `"app.error":"example error"`))
 	}
+	// set up a minimal server with the check defined above
+	url := honeycombServer(t, check)
+	ctx := context.Background()
+
+	h := New(Config{
+		Dataset:    "error-dataset",
+		Host:       url,
+		SendTraces: true,
+	})
+	h.AddGlobalField("version", 123)
+
+	_ = func() (err error) {
+		ctx, span := h.StartSpan(ctx, "test-span-with-error")
+		defer span.End(&err)
+		h.AddFieldToTrace(ctx, "trace-key", "trace-value-error")
+		span.AddField("span-key", "span-value-error")
+		return errors.New("example error")
+	}()
+
+	h.Close(ctx)
+
+	assert.Assert(t, gotEvent, "expected to receive an event")
 }
 
 func honeycombServer(t *testing.T, cb func(string)) string {
