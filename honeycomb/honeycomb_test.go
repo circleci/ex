@@ -11,6 +11,8 @@ import (
 	"github.com/klauspost/compress/zstd"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
+	"github.com/circleci/distributor/o11y"
 )
 
 func TestHoneycomb(t *testing.T) {
@@ -70,10 +72,42 @@ func TestHoneycombWithError(t *testing.T) {
 
 	_ = func() (err error) {
 		ctx, span := h.StartSpan(ctx, "test-span-with-error")
-		defer span.End(&err)
+		defer o11y.End(span, &err)
 		h.AddFieldToTrace(ctx, "trace-key", "trace-value-error")
 		span.AddField("span-key", "span-value-error")
 		return errors.New("example error")
+	}()
+
+	h.Close(ctx)
+
+	assert.Assert(t, gotEvent, "expected to receive an event")
+}
+
+func TestHoneycombWithNilError(t *testing.T) {
+	// check the response for some expected data
+	gotEvent := false
+	check := func(event string) {
+		gotEvent = true
+
+		assert.Check(t, cmp.Contains(event, `"app.result":"success"`))
+		assert.Check(t, not(cmp.Contains(event, `"app.error"`)))
+	}
+	// set up a minimal server with the check defined above
+	url := honeycombServer(t, check)
+	ctx := context.Background()
+
+	h := New(Config{
+		Dataset:    "error-dataset",
+		Host:       url,
+		SendTraces: true,
+	})
+	h.AddGlobalField("version", 123)
+
+	_, _ = func() (result string, err error) {
+		_, span := h.StartSpan(ctx, "test-span-with-nil-error")
+		defer o11y.End(span, &err)
+
+		return "ok", nil
 	}()
 
 	h.Close(ctx)
@@ -97,4 +131,18 @@ func honeycombServer(t *testing.T, cb func(string)) string {
 		cb(string(b))
 	}))
 	return ts.URL
+}
+
+func not(c cmp.Comparison) cmp.Comparison {
+	return func() cmp.Result {
+		return InvertedResult{c()}
+	}
+}
+
+type InvertedResult struct {
+	cmp.Result
+}
+
+func (r InvertedResult) Success() bool {
+	return !r.Result.Success()
 }

@@ -5,7 +5,7 @@ import (
 	"errors"
 )
 
-var ErrDoNotTrace = errors.New("this error should not be traced")
+var ErrDoNotTrace = errors.New("this error should not be treated as an error in trace reporting")
 
 type Provider interface {
 	// AddGlobalField adds data which should apply to every span in the application
@@ -57,16 +57,7 @@ type Span interface {
 
 	// End sets the duration of the span and tells the related provider that the span is complete
 	// so it can do it's appropriate processing. The span should not be used after End is called.
-	// The variadic signature allows zero or one pointer to an error interface, (more than one will be ignored)
-	// Using the unusual pointer to the interface means that clients can call defer on End early,
-	// typically on the next line after calling StartSpan as it will capture the address of the named
-	// return error at that point. Any further assignments are made to the pointed to data, so that when
-	// our End func dereferences the pointer we get the last assigned error as desired.
-	// The correct way to capture the returned error is given in the doc example, it is like this..
-	//
-	// defer span.End(&err)
-	//
-	End(...*error)
+	End()
 }
 
 type providerKey struct{}
@@ -99,6 +90,24 @@ func AddField(ctx context.Context, key string, val interface{}) {
 // AddFieldToTrace adds a field to the currently active root span and all of its current and future child spans
 func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	FromContext(ctx).AddFieldToTrace(ctx, key, val)
+}
+
+// End completes a span, including using AddResultToSpan to set the error and result fields
+//
+// The correct way to capture the returned error is given in the doc example, it is like this..
+// defer o11y.End(span, &err)
+//
+// Using the unusual pointer to the interface means that clients can call defer on End early,
+// typically on the next line after calling StartSpan as it will capture the address of the named
+// return error at that point. Any further assignments are made to the pointed to data, so that when
+// our End func dereferences the pointer we get the last assigned error as desired.
+func End(span Span, err *error) {
+	var actualErr error
+	if err != nil {
+		actualErr = *err
+	}
+	AddResultToSpan(span, actualErr)
+	span.End()
 }
 
 // AddResultToSpan takes a possibly nil error, and updates the "error" and "result" fields of the span appropriately.
@@ -149,4 +158,4 @@ type noopSpan struct{}
 
 func (s *noopSpan) AddField(key string, val interface{}) {}
 
-func (s *noopSpan) End(...*error) {}
+func (s *noopSpan) End() {}

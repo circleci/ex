@@ -119,33 +119,16 @@ func (h *honeycomb) Close(_ context.Context) {
 }
 
 type span struct {
-	span      *trace.Span
-	resultSet bool
+	span *trace.Span
 }
 
 func (s *span) AddField(key string, val interface{}) {
 	if err, ok := val.(error); ok {
 		val = err.Error()
 	}
-	if key == "result" {
-		s.resultSet = true
-	}
 	s.span.AddField("app."+key, val)
 }
 
-// End takes zero or one pointers to error, any more than one error is ignored.
-// If there is a non nil error passed in it will set the result.
-// Otherwise if no "result" field has already been set then a
-// result:success is set.
-func (s *span) End(errors ...*error) {
-	if len(errors) == 0 || errors[0] == nil {
-		s.span.Send()
-		return
-	}
-	// If the error is not nil add the error result.
-	// Otherwise if we have not set a result already then go ahead
-	if *errors[0] != nil || !s.resultSet {
-		o11y.AddResultToSpan(s, *errors[0])
-	}
+func (s *span) End() {
 	s.span.Send()
 }
