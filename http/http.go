@@ -1,3 +1,4 @@
+// Package http provides common http middleware for tracing requests.
 package http
 
 import (

@@ -1,3 +1,4 @@
+// Package honeycomb implements o11y tracing.
 package honeycomb
 
 import (

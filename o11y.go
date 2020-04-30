@@ -1,3 +1,4 @@
+// Package o11y provides observability in the form of tracing.
 package o11y
 
 import (
