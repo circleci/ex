@@ -53,7 +53,7 @@ type entry struct {
 
 func (h *TextFormatter) format(e *entry) []byte {
 	buf := new(bytes.Buffer)
-	fmt.Fprintf(buf, "%s %s %.3fms %s",
+	_, _ = fmt.Fprintf(buf, "%s %s %.3fms %s",
 		e.Time.Format("15:04:05"),
 		h.applyColour(formatTraceID(e.Data["trace.trace_id"])),
 		e.Data["duration_ms"],
@@ -67,7 +67,7 @@ func (h *TextFormatter) format(e *entry) []byte {
 				if k == "app.error" && h.colour {
 					label = errorHighlight(k)
 				}
-				fmt.Fprintf(buf, " %s=%v", label, e.Data[k])
+				_, _ = fmt.Fprintf(buf, " %s=%v", label, e.Data[k])
 			}
 		}
 	}

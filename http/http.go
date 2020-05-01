@@ -27,7 +27,7 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		// TODO: In future this should ideally be the route name, not the Path,
 		//       but in order to do that, we'll need a standard routing
 		//       abstraction that can be read when wrapped by more middleware
-		span.AddField("name", fmt.Sprintf("%s %s %s", name, r.Method, r.URL.Path))
+		span.AddField("name", fmt.Sprintf("%s: %s %s", name, r.Method, r.URL.Path))
 
 		sw := &statusWriter{ResponseWriter: w}
 		handler.ServeHTTP(sw, r)
