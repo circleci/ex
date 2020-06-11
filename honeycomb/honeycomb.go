@@ -27,20 +27,25 @@ type Config struct {
 	SendTraces    bool // Should we actually send the traces to the honeycomb server?
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
+	Writer        io.Writer
 }
 
 func (c *Config) Validate() error {
 	if c.SendTraces && c.Key == "" {
 		return errors.New("honeycomb_key key required for honeycomb")
 	}
-	if _, err := c.ConsoleWriter(); err != nil {
+	if _, err := c.writer(); err != nil {
 		return err
 	}
 	return nil
 }
 
-// ConsoleWriter used to write events to a local stderr
-func (c *Config) ConsoleWriter() (io.Writer, error) {
+// writer returns the writer as given by the config or returns
+// a stderr writer to write events to based on the config Format.
+func (c *Config) writer() (io.Writer, error) {
+	if c.Writer != nil {
+		return c.Writer, nil
+	}
 	switch c.Format {
 	case "json":
 		return os.Stderr, nil
@@ -55,7 +60,7 @@ func (c *Config) ConsoleWriter() (io.Writer, error) {
 // New creates a new honeycomb o11y provider, which emits traces to STDOUT
 // and optionally also sends them to a honeycomb server
 func New(conf Config) o11y.Provider {
-	writer, err := conf.ConsoleWriter()
+	writer, err := conf.writer()
 	if err != nil {
 		writer = ColourTextFormat
 	}
