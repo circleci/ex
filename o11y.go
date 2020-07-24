@@ -1,4 +1,4 @@
-// Package o11y provides observability in the form of tracing.
+// Package o11y provides observability in the form of tracing and metrics
 package o11y
 
 import (
@@ -56,9 +56,36 @@ type Span interface {
 	// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md
 	AddField(key string, val interface{})
 
+	// RecordMetric tells the provider to emit a metric to its metric backend when the span ends
+	RecordMetric(metric Metric)
+
 	// End sets the duration of the span and tells the related provider that the span is complete
 	// so it can do it's appropriate processing. The span should not be used after End is called.
 	End()
+}
+
+type MetricType string
+
+const (
+	MetricTimer = "timer"
+)
+
+type Metric struct {
+	Type MetricType
+	// Name is the metric name that will be emitted
+	Name string
+	// Field is the span field to use as the metric's value
+	Field string
+	// TagFields are additional span fields to use as metric tags
+	TagFields []string
+}
+
+func Timing(name string, fields ...string) Metric {
+	return Metric{MetricTimer, name, "duration_ms", fields}
+}
+
+type MetricsProvider interface {
+	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
 }
 
 type providerKey struct{}
@@ -158,5 +185,7 @@ func (c *noopProvider) Log(ctx context.Context, name string, fields ...Pair) {}
 type noopSpan struct{}
 
 func (s *noopSpan) AddField(key string, val interface{}) {}
+
+func (s *noopSpan) RecordMetric(metric Metric) {}
 
 func (s *noopSpan) End() {}

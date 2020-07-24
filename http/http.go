@@ -9,6 +9,7 @@ import (
 	"github.com/honeycombio/beeline-go/wrappers/common"
 
 	"github.com/circleci/distributor/o11y"
+	"github.com/circleci/distributor/o11y/honeycomb"
 )
 
 // Middleware returns an http.Handler which wraps an http.Handler and adds
@@ -35,6 +36,9 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 			sw.status = 200
 		}
 		span.AddField("response.status_code", sw.status)
+
+		honeycomb.WrapSpan(span).RecordMetric(o11y.Timing("handler",
+			"server_name", "request.method", "request.path", "response.status_code"))
 	})
 }
 

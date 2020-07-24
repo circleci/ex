@@ -28,6 +28,7 @@ type Config struct {
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
 	Writer        io.Writer
+	Metrics       o11y.MetricsProvider
 }
 
 func (c *Config) Validate() error {
@@ -56,6 +57,8 @@ func (c *Config) writer() (io.Writer, error) {
 	}
 	return nil, fmt.Errorf("unknown format: %s", c.Format)
 }
+
+const metricKey = "__MAGIC_METRIC_KEY__"
 
 // New creates a new honeycomb o11y provider, which emits traces to STDOUT
 // and optionally also sends them to a honeycomb server
@@ -89,9 +92,53 @@ func New(conf Config) o11y.Provider {
 		bc.SamplerHook = sampler.Hook
 	}
 
+	if conf.Metrics != nil {
+		bc.PresendHook = extractAndSendMetrics(conf.Metrics)
+	} else {
+		bc.PresendHook = stripMetrics
+	}
+
 	beeline.Init(bc)
 
 	return &honeycomb{}
+}
+
+func stripMetrics(fields map[string]interface{}) {
+	delete(fields, metricKey)
+}
+func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{}) {
+	return func(fields map[string]interface{}) {
+		metrics, ok := fields[metricKey].([]o11y.Metric)
+		if !ok {
+			return
+		}
+		delete(fields, metricKey)
+		for _, m := range metrics {
+			switch m.Type {
+			case o11y.MetricTimer:
+				_ = mp.TimeInMilliseconds(
+					m.Name,
+					fields[m.Field].(float64),
+					extractTagsFromFields(m.TagFields, fields),
+					1,
+				)
+			}
+		}
+	}
+}
+func extractTagsFromFields(tags []string, fields map[string]interface{}) []string {
+	result := make([]string, 0, len(tags))
+	for _, name := range tags {
+		val, ok := fields[name]
+		if !ok {
+			// Also support the app. prefix, for interop with honeycomb's prefixed fields
+			val, ok = fields["app."+name]
+		}
+		if ok {
+			result = append(result, fmt.Sprintf("%s:%v", name, val))
+		}
+	}
+	return result
 }
 
 func (h *honeycomb) AddGlobalField(key string, val interface{}) {
@@ -100,7 +147,7 @@ func (h *honeycomb) AddGlobalField(key string, val interface{}) {
 
 func (h *honeycomb) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
 	ctx, s := beeline.StartSpan(ctx, name)
-	return ctx, &span{span: s}
+	return ctx, WrapSpan(s)
 }
 
 func (h *honeycomb) AddField(ctx context.Context, key string, val interface{}) {
@@ -113,7 +160,7 @@ func (h *honeycomb) AddFieldToTrace(ctx context.Context, key string, val interfa
 
 func (h *honeycomb) Log(ctx context.Context, name string, fields ...o11y.Pair) {
 	_, s := beeline.StartSpan(ctx, name)
-	hcSpan := &span{span: s}
+	hcSpan := WrapSpan(s)
 	for _, field := range fields {
 		hcSpan.AddField(field.Key, field.Value)
 	}
@@ -124,8 +171,13 @@ func (h *honeycomb) Close(_ context.Context) {
 	beeline.Close()
 }
 
+func WrapSpan(s *trace.Span) o11y.Span {
+	return &span{span: s}
+}
+
 type span struct {
-	span *trace.Span
+	span    *trace.Span
+	metrics []o11y.Metric
 }
 
 func (s *span) AddField(key string, val interface{}) {
@@ -133,6 +185,12 @@ func (s *span) AddField(key string, val interface{}) {
 		val = err.Error()
 	}
 	s.span.AddField("app."+key, val)
+}
+
+func (s *span) RecordMetric(metric o11y.Metric) {
+	s.metrics = append(s.metrics, metric)
+	// Stash the metrics list as a span field, the pre-send hook will fish it out
+	s.span.AddField(metricKey, s.metrics)
 }
 
 func (s *span) End() {
