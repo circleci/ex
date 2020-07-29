@@ -150,6 +150,10 @@ func (h *honeycomb) StartSpan(ctx context.Context, name string) (context.Context
 	return ctx, WrapSpan(s)
 }
 
+func (h *honeycomb) GetSpan(ctx context.Context) o11y.Span {
+	return WrapSpan(trace.GetSpanFromContext(ctx))
+}
+
 func (h *honeycomb) AddField(ctx context.Context, key string, val interface{}) {
 	beeline.AddField(ctx, key, val)
 }
@@ -185,6 +189,13 @@ func (s *span) AddField(key string, val interface{}) {
 		val = err.Error()
 	}
 	s.span.AddField("app."+key, val)
+}
+
+func (s *span) AddRawField(key string, val interface{}) {
+	if err, ok := val.(error); ok {
+		val = err.Error()
+	}
+	s.span.AddField(key, val)
 }
 
 func (s *span) RecordMetric(metric o11y.Metric) {

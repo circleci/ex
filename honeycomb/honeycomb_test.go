@@ -27,8 +27,10 @@ func TestHoneycomb(t *testing.T) {
 
 		assert.Check(t, cmp.Contains(event, `"version":42`))
 		assert.Check(t, cmp.Contains(event, `"name":"test-span"`))
-		assert.Check(t, cmp.Contains(event, `"app.span-key":"span-value"`))
-		assert.Check(t, cmp.Contains(event, `"app.trace-key":"trace-value"`))
+		assert.Check(t, cmp.Contains(event, `"app.span-key":"span-value"`), "span.AddField is prefixed")
+		assert.Check(t, cmp.Contains(event, `"raw-key":"span-value"`), "span.AddRawField is unprefixed")
+		assert.Check(t, cmp.Contains(event, `"app.another-key":"span-value"`), "o11y.AddField is prefixed")
+		assert.Check(t, cmp.Contains(event, `"app.trace-key":"trace-value"`), "o11y.AddFieldToTrace is prefixed")
 	}
 	// set up a minimal server with the check defined above
 	url := honeycombServer(t, check)
@@ -39,11 +41,15 @@ func TestHoneycomb(t *testing.T) {
 		Host:       url,
 		SendTraces: true,
 	})
+
 	h.AddGlobalField("version", 42)
 
-	ctx, span := h.StartSpan(ctx, "test-span")
-	h.AddFieldToTrace(ctx, "trace-key", "trace-value")
+	ctx = o11y.WithProvider(ctx, h)
+	ctx, span := o11y.StartSpan(ctx, "test-span")
+	o11y.AddFieldToTrace(ctx, "trace-key", "trace-value")
+	o11y.AddField(ctx, "another-key", "span-value")
 	span.AddField("span-key", "span-value")
+	span.AddRawField("raw-key", "span-value")
 	span.End()
 	h.Close(ctx)
 
@@ -122,12 +128,9 @@ func TestHoneycombWithError(t *testing.T) {
 	check := func(event string) {
 		gotEvent = true
 
-		assert.Check(t, cmp.Contains(event, `"version":123`))
 		assert.Check(t, cmp.Contains(event, `"name":"test-span-with-error"`))
-		assert.Check(t, cmp.Contains(event, `"app.span-key":"span-value-error"`))
-		assert.Check(t, cmp.Contains(event, `"app.trace-key":"trace-value-error"`))
-		assert.Check(t, cmp.Contains(event, `"app.result":"error"`))
-		assert.Check(t, cmp.Contains(event, `"app.error":"example error"`))
+		assert.Check(t, cmp.Contains(event, `"result":"error"`))
+		assert.Check(t, cmp.Contains(event, `"error":"example error"`))
 	}
 	// set up a minimal server with the check defined above
 	url := honeycombServer(t, check)
@@ -138,13 +141,10 @@ func TestHoneycombWithError(t *testing.T) {
 		Host:       url,
 		SendTraces: true,
 	})
-	h.AddGlobalField("version", 123)
 
 	_ = func() (err error) {
-		ctx, span := h.StartSpan(ctx, "test-span-with-error")
+		_, span := h.StartSpan(ctx, "test-span-with-error")
 		defer o11y.End(span, &err)
-		h.AddFieldToTrace(ctx, "trace-key", "trace-value-error")
-		span.AddField("span-key", "span-value-error")
 		return errors.New("example error")
 	}()
 
@@ -159,8 +159,8 @@ func TestHoneycombWithNilError(t *testing.T) {
 	check := func(event string) {
 		gotEvent = true
 
-		assert.Check(t, cmp.Contains(event, `"app.result":"success"`))
-		assert.Check(t, not(cmp.Contains(event, `"app.error"`)))
+		assert.Check(t, cmp.Contains(event, `"result":"success"`))
+		assert.Check(t, not(cmp.Contains(event, `"error"`)))
 	}
 	// set up a minimal server with the check defined above
 	url := honeycombServer(t, check)
@@ -171,7 +171,6 @@ func TestHoneycombWithNilError(t *testing.T) {
 		Host:       url,
 		SendTraces: true,
 	})
-	h.AddGlobalField("version", 123)
 
 	_, _ = func() (result string, err error) {
 		_, span := h.StartSpan(ctx, "test-span-with-nil-error")

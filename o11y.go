@@ -26,12 +26,12 @@ type Provider interface {
 	//   defer span.End()
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
 
-	// AddField is for adding useful information to the currently active span
+	// GetSpan returns the currently active span
+	GetSpan(ctx context.Context) Span
+
+	// AddField is for adding application-level information to the currently active span
 	//
-	// eg. result, http.status_code
-	//
-	// Refer to the opentelemetry draft spec for naming inspiration
-	// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md
+	// Any field name will be prefixed with "app."
 	AddField(ctx context.Context, key string, val interface{})
 
 	// AddFieldToTrace is for adding useful information to the root span.
@@ -48,13 +48,19 @@ type Provider interface {
 }
 
 type Span interface {
-	// AddField is for adding useful information to the currently active span
+	// AddField is for adding application-level information to the span
 	//
-	// eg. result, http.status_code
+	// Any field name will be prefixed with "app."
+	AddField(key string, val interface{})
+
+	// AddRawField is for adding useful information to the span in library/plumbing code
+	// Generally application code should prefer AddField() to avoid namespace clashes
+	//
+	// eg. result, http.status_code, db.system etc
 	//
 	// Refer to the opentelemetry draft spec for naming inspiration
-	// https://github.com/open-telemetry/opentelemetry-specification/blob/master/specification/data-semantic-conventions.md
-	AddField(key string, val interface{})
+	// https://github.com/open-telemetry/opentelemetry-specification/tree/7ae3d066c95c716ef3086228ef955d84ba03ac88/specification/trace/semantic_conventions
+	AddRawField(key string, val interface{})
 
 	// RecordMetric tells the provider to emit a metric to its metric backend when the span ends
 	RecordMetric(metric Metric)
@@ -145,12 +151,12 @@ func AddResultToSpan(span Span, err error) {
 	}
 
 	if err != nil {
-		span.AddField("result", "error")
-		span.AddField("error", err.Error())
+		span.AddRawField("result", "error")
+		span.AddRawField("error", err.Error())
 		return
 	}
 
-	span.AddField("result", "success")
+	span.AddRawField("result", "success")
 }
 
 // Pair is a key value pair used to add metadata to a span.
@@ -173,6 +179,9 @@ func (c *noopProvider) AddGlobalField(key string, val interface{}) {}
 func (c *noopProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return ctx, &noopSpan{}
 }
+func (c *noopProvider) GetSpan(ctx context.Context) Span {
+	return &noopSpan{}
+}
 
 func (c *noopProvider) AddField(ctx context.Context, key string, val interface{}) {}
 
@@ -185,6 +194,8 @@ func (c *noopProvider) Log(ctx context.Context, name string, fields ...Pair) {}
 type noopSpan struct{}
 
 func (s *noopSpan) AddField(key string, val interface{}) {}
+
+func (s *noopSpan) AddRawField(key string, val interface{}) {}
 
 func (s *noopSpan) RecordMetric(metric Metric) {}
 

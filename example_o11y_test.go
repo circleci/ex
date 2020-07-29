@@ -15,6 +15,7 @@ func (w *Worker) Work(ctx context.Context) (err error) {
 	ctx, span := o11y.StartSpan(ctx, "job-store: job-info")
 	defer o11y.End(span, &err) // the pointer is needed to grab the changing content of the returned error.
 	span.AddField("add-other", "fields as needed")
+	o11y.AddField(ctx, "also-via", "context")
 
 	// Do some work, using the modified context
 	if _, err := (&net.Dialer{}).DialContext(ctx, "tcp", "localhost:80"); err != nil {
