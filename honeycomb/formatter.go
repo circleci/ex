@@ -15,24 +15,19 @@ import (
 // TextFormatter provides human readable output from honeycomb JSON output.
 // It writes the formatted output to the wrapped io.Writer.
 type TextFormatter struct {
-	// fieldPrefixes are compared against the keys in entry.data. If any keys
-	// match the prefix, the field will be included in the formatted output.
-	fieldPrefixes []string
-	w             io.Writer
-	colour        bool
+	w      io.Writer
+	colour bool
 }
 
 // DefaultTextFormat writes human-readable traces to stderr.
 var DefaultTextFormat = &TextFormatter{
-	w:             os.Stderr,
-	fieldPrefixes: []string{"app", "request", "response"},
+	w: os.Stderr,
 }
 
 // ColourTextFormat writes colourful human-readable traces to stdout.
 var ColourTextFormat = &TextFormatter{
-	w:             os.Stdout,
-	colour:        true,
-	fieldPrefixes: []string{"app", "request", "response"},
+	w:      os.Stdout,
+	colour: true,
 }
 
 func (h *TextFormatter) Write(raw []byte) (int, error) {
@@ -61,18 +56,31 @@ func (h *TextFormatter) format(e *entry) []byte {
 	)
 
 	for _, k := range sortedKeys(e.Data) {
-		for _, field := range h.fieldPrefixes {
-			if strings.HasPrefix(k, field+".") {
-				label := k
-				if k == "app.error" && h.colour {
-					label = errorHighlight(k)
-				}
-				_, _ = fmt.Fprintf(buf, " %s=%v", label, e.Data[k])
-			}
+		if h.exclude(k) {
+			continue
 		}
+		label := k // we have to copy the key, so we can use the original to lookup the data
+		if k == "error" && h.colour {
+			label = errorHighlight(k)
+		}
+		_, _ = fmt.Fprintf(buf, " %s=%v", label, e.Data[k])
 	}
 	buf.WriteString("\n")
 	return buf.Bytes()
+}
+
+func (h *TextFormatter) exclude(k string) bool {
+	switch k {
+	case "name", "version", "service", "duration_ms":
+		return true
+	}
+	// these are noisy prefixes so exclude them from the output.
+	for _, prefix := range []string{"trace", "meta"} {
+		if strings.HasPrefix(k, prefix+".") {
+			return true
+		}
+	}
+	return false
 }
 
 func errorHighlight(s string) string {

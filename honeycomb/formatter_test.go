@@ -36,8 +36,7 @@ func TestTextFormatter_Write(t *testing.T) {
 		t.Run(fmt.Sprintf("%v", i), func(t *testing.T) {
 			buf := new(bytes.Buffer)
 			h := &TextFormatter{
-				w:             buf,
-				fieldPrefixes: []string{"app", "request", "response"},
+				w: buf,
 			}
 
 			_, err := h.Write([]byte(tc.source))
