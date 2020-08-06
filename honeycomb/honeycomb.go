@@ -106,6 +106,7 @@ func New(conf Config) o11y.Provider {
 func stripMetrics(fields map[string]interface{}) {
 	delete(fields, metricKey)
 }
+
 func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{}) {
 	return func(fields map[string]interface{}) {
 		metrics, ok := fields[metricKey].([]o11y.Metric)
@@ -126,6 +127,7 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 		}
 	}
 }
+
 func extractTagsFromFields(tags []string, fields map[string]interface{}) []string {
 	result := make([]string, 0, len(tags))
 	for _, name := range tags {

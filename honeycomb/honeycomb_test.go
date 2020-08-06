@@ -10,11 +10,9 @@ import (
 	"testing"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/klauspost/compress/zstd"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/assert/opt"
 
 	"github.com/circleci/distributor/o11y"
 )
@@ -111,13 +109,14 @@ func TestHoneycombMetrics(t *testing.T) {
 	span.End()
 	h.Close(ctx)
 
-	assert.Check(t, cmp.Len(fakeMetrics.calls, 1))
+	assert.Assert(t, cmp.Len(fakeMetrics.calls, 1))
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[0], metricCall{
 		Metric: "timer",
 		Name:   "test-metric",
 		Tags:   []string{"low-card-tag:tag-value", "status.code:500"},
 		Rate:   1,
-	}, similarMetricValue))
+		Value:  10,
+	}, cmpNonZeroValue))
 
 	assert.Assert(t, gotEvent, "expected honeycomb to receive event")
 }
@@ -202,10 +201,9 @@ func honeycombServer(t *testing.T, cb func(string)) string {
 	return ts.URL
 }
 
-var similarMetricValue = gocmp.FilterPath(
-	opt.PathField(metricCall{}, "Value"),
-	cmpopts.EquateApprox(0, 0.1),
-)
+var cmpNonZeroValue = gocmp.Options{gocmp.Comparer(func(a, b float64) bool {
+	return a > 0 && b > 0
+})}
 
 type metricCall struct {
 	Metric string
