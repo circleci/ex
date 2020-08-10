@@ -38,7 +38,7 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		span.AddField("response.status_code", sw.status)
 
 		honeycomb.WrapSpan(span).RecordMetric(o11y.Timing("handler",
-			"server_name", "request.method", "request.path", "response.status_code"))
+			"server_name", "request.method", "request.path", "response.status_code", "has_panicked"))
 	})
 }
 
