@@ -123,6 +123,12 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 					extractTagsFromFields(m.TagFields, fields),
 					1,
 				)
+			case o11y.MetricIncr:
+				_ = mp.Incr(
+					m.Name,
+					extractTagsFromFields(m.TagFields, fields),
+					1,
+				)
 			}
 		}
 	}

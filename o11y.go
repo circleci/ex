@@ -74,6 +74,7 @@ type MetricType string
 
 const (
 	MetricTimer = "timer"
+	MetricIncr  = "incr"
 )
 
 type Metric struct {
@@ -90,8 +91,13 @@ func Timing(name string, fields ...string) Metric {
 	return Metric{MetricTimer, name, "duration_ms", fields}
 }
 
+func Incr(name string, fields ...string) Metric {
+	return Metric{MetricIncr, name, "", fields}
+}
+
 type MetricsProvider interface {
 	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
+	Incr(name string, tags []string, rate float64) error
 }
 
 type providerKey struct{}

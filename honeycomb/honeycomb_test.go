@@ -102,21 +102,29 @@ func TestHoneycombMetrics(t *testing.T) {
 	h.AddGlobalField("version", 42)
 
 	ctx, span := h.StartSpan(ctx, "test-span")
-	span.RecordMetric(o11y.Timing("test-metric", "low-card-tag", "status.code"))
+	span.RecordMetric(o11y.Timing("test-metric-timing", "low-card-tag", "status.code"))
+	span.RecordMetric(o11y.Incr("test-metric-incr", "low-card-tag", "status.code"))
 	span.AddField("low-card-tag", "tag-value")
 	span.AddField("status.code", 500)
 	span.AddField("another-tag", "another-value")
 	span.End()
 	h.Close(ctx)
 
-	assert.Assert(t, cmp.Len(fakeMetrics.calls, 1))
+	assert.Assert(t, cmp.Len(fakeMetrics.calls, 2))
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[0], metricCall{
 		Metric: "timer",
-		Name:   "test-metric",
+		Name:   "test-metric-timing",
 		Tags:   []string{"low-card-tag:tag-value", "status.code:500"},
 		Rate:   1,
 		Value:  10,
 	}, cmpNonZeroValue))
+
+	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[1], metricCall{
+		Metric: "incr",
+		Name:   "test-metric-incr",
+		Tags:   []string{"low-card-tag:tag-value", "status.code:500"},
+		Rate:   1,
+	}))
 
 	assert.Assert(t, gotEvent, "expected honeycomb to receive event")
 }
@@ -220,6 +228,11 @@ type fakeMetrics struct {
 
 func (f *fakeMetrics) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
 	f.calls = append(f.calls, metricCall{"timer", name, value, tags, rate})
+	return nil
+}
+
+func (f *fakeMetrics) Incr(name string, tags []string, rate float64) error {
+	f.calls = append(f.calls, metricCall{"incr", name, 0, tags, rate})
 	return nil
 }
 
