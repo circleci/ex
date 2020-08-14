@@ -4,6 +4,11 @@ package o11y
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"runtime/debug"
+
+	"github.com/rollbar/rollbar-go"
 )
 
 var ErrDoNotTrace = errors.New("this error should not be treated as an error in trace reporting")
@@ -201,3 +206,18 @@ func (s *noopSpan) AddRawField(key string, val interface{}) {}
 func (s *noopSpan) RecordMetric(metric Metric) {}
 
 func (s *noopSpan) End() {}
+
+func HandlePanic(span Span, panic interface{}, r *http.Request) (err error) {
+	err = fmt.Errorf("panic handled: %+v", panic)
+	span.AddRawField("panic", panic)
+	span.AddRawField("has_panicked", "true")
+	span.AddRawField("stack", debug.Stack())
+	span.RecordMetric(Incr("panics", "name"))
+
+	if r != nil {
+		rollbar.RequestError(rollbar.CRIT, r, err)
+	} else {
+		rollbar.LogPanic(panic, true)
+	}
+	return err
+}

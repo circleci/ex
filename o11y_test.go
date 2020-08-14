@@ -30,3 +30,20 @@ func TestStartSpan_WithoutProvider(t *testing.T) {
 	assert.Assert(t, span != nil, "should have returned a noop span")
 	assert.Equal(t, ctx, nCtx, "should have returned ctx unmodified")
 }
+
+func TestHandlePanic(t *testing.T) {
+	t.Run("handling panic should return error with panic wrapped", func(t *testing.T) {
+		ctx := context.Background()
+		var err error
+		dummyPanic := func(f func()) {
+			defer func() {
+				x := recover()
+				err = HandlePanic(FromContext(ctx).GetSpan(ctx), x, nil)
+			}()
+			f()
+		}
+
+		dummyPanic(func() { panic("oh no") })
+		assert.ErrorContains(t, err, "oh no")
+	})
+}
