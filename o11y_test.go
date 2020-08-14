@@ -38,7 +38,7 @@ func TestHandlePanic(t *testing.T) {
 		dummyPanic := func(f func()) {
 			defer func() {
 				x := recover()
-				err = HandlePanic(FromContext(ctx).GetSpan(ctx), x, nil)
+				err = HandlePanic(ctx, FromContext(ctx).GetSpan(ctx), x, nil)
 			}()
 			f()
 		}

@@ -207,17 +207,27 @@ func (s *noopSpan) RecordMetric(metric Metric) {}
 
 func (s *noopSpan) End() {}
 
-func HandlePanic(span Span, panic interface{}, r *http.Request) (err error) {
+func HandlePanic(ctx context.Context, span Span, panic interface{}, r *http.Request) (err error) {
 	err = fmt.Errorf("panic handled: %+v", panic)
 	span.AddRawField("panic", panic)
 	span.AddRawField("has_panicked", "true")
 	span.AddRawField("stack", debug.Stack())
 	span.RecordMetric(Incr("panics", "name"))
 
+	provider := FromContext(ctx)
+	rollable, ok := provider.(rollbarAble)
+	if !ok {
+		return err
+	}
+	rollbarClient := rollable.RollBarClient()
 	if r != nil {
-		rollbar.RequestError(rollbar.CRIT, r, err)
+		rollbarClient.RequestError(rollbar.CRIT, r, err)
 	} else {
-		rollbar.LogPanic(panic, true)
+		rollbarClient.LogPanic(panic, true)
 	}
 	return err
+}
+
+type rollbarAble interface {
+	RollBarClient() *rollbar.Client
 }
