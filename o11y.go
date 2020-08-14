@@ -211,7 +211,7 @@ func HandlePanic(ctx context.Context, span Span, panic interface{}, r *http.Requ
 	err = fmt.Errorf("panic handled: %+v", panic)
 	span.AddRawField("panic", panic)
 	span.AddRawField("has_panicked", "true")
-	span.AddRawField("stack", debug.Stack())
+	span.AddRawField("stack", string(debug.Stack()))
 	span.RecordMetric(Incr("panics", "name"))
 
 	provider := FromContext(ctx)
