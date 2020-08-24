@@ -3,10 +3,13 @@ package o11y
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"runtime/debug"
+	"strings"
 
 	"github.com/rollbar/rollbar-go"
 )
@@ -176,6 +179,33 @@ func Field(key string, value interface{}) Pair {
 	return Pair{Key: key, Value: value}
 }
 
+// Baggage is a map of values used for telemetry purposes.
+// See: https://github.com/open-telemetry/opentelemetry-specification/blob/14b5b6a944e390e368dd2e2ef234d220d8287d19/specification/baggage/api.md
+type Baggage map[string]string
+
+// AddToTrace adds all entries in the Baggage to the root span.
+func (b Baggage) addToTrace(ctx context.Context) {
+	o := FromContext(ctx)
+	for k, v := range b {
+		o.AddFieldToTrace(ctx, k, v)
+	}
+}
+
+type baggageKey struct{}
+
+func WithBaggage(ctx context.Context, baggage Baggage) context.Context {
+	baggage.addToTrace(ctx)
+	return context.WithValue(ctx, baggageKey{}, baggage)
+}
+
+func GetBaggage(ctx context.Context) Baggage {
+	b, ok := ctx.Value(baggageKey{}).(Baggage)
+	if !ok {
+		return Baggage{}
+	}
+	return b
+}
+
 var defaultProvider = &noopProvider{}
 
 type noopProvider struct{}
@@ -230,4 +260,30 @@ func HandlePanic(ctx context.Context, span Span, panic interface{}, r *http.Requ
 
 type rollbarAble interface {
 	RollBarClient() *rollbar.Client
+}
+
+// Scan satisfies the `Scanner` interface to allow the database driver to un-marshall
+// it back into a struct from the JSON blob in the database.
+func (b *Baggage) Scan(value interface{}) error {
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
+	}
+
+	return json.Unmarshal(bytes, b)
+}
+
+func DeserializeBaggage(s string) (Baggage, error) {
+	result := Baggage{}
+	// an encoded baggage is very much like a query string, so
+	// make it look like one first and then parse it as such
+	queryString := strings.ReplaceAll(s, ",", "&")
+	values, err := url.ParseQuery(queryString)
+	if err != nil {
+		return Baggage{}, err
+	}
+	for k, v := range values {
+		result[k] = v[0]
+	}
+	return result, nil
 }

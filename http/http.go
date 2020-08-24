@@ -2,6 +2,7 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sync"
@@ -22,6 +23,7 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		defer span.Send()
 
 		ctx = o11y.WithProvider(ctx, provider)
+		ctx = o11y.WithBaggage(ctx, getBaggage(ctx, r))
 		r = r.WithContext(ctx)
 
 		provider.AddFieldToTrace(ctx, "server_name", name)
@@ -53,4 +55,17 @@ func (w *statusWriter) WriteHeader(status int) {
 		w.status = status
 	})
 	w.ResponseWriter.WriteHeader(status)
+}
+
+func getBaggage(ctx context.Context, r *http.Request) o11y.Baggage {
+	serialized := r.Header.Get("otcorrelations")
+	if serialized == "" {
+		return o11y.Baggage{}
+	}
+	b, err := o11y.DeserializeBaggage(serialized)
+	if err != nil {
+		provider := o11y.FromContext(ctx)
+		provider.Log(ctx, "malformed baggage", o11y.Field("baggage", serialized))
+	}
+	return b
 }
