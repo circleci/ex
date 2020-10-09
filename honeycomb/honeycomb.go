@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	beeline "github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
@@ -150,6 +151,7 @@ func extractTagsFromFields(tags []string, fields map[string]interface{}) []strin
 }
 
 func (h *honeycomb) AddGlobalField(key string, val interface{}) {
+	mustValidateKey(key)
 	client.AddField(key, val)
 }
 
@@ -163,10 +165,12 @@ func (h *honeycomb) GetSpan(ctx context.Context) o11y.Span {
 }
 
 func (h *honeycomb) AddField(ctx context.Context, key string, val interface{}) {
+	mustValidateKey(key)
 	beeline.AddField(ctx, key, val)
 }
 
 func (h *honeycomb) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
+	mustValidateKey(key)
 	beeline.AddFieldToTrace(ctx, key, val)
 }
 
@@ -193,6 +197,7 @@ type span struct {
 }
 
 func (s *span) AddField(key string, val interface{}) {
+	mustValidateKey(key)
 	if err, ok := val.(error); ok {
 		val = err.Error()
 	}
@@ -200,6 +205,7 @@ func (s *span) AddField(key string, val interface{}) {
 }
 
 func (s *span) AddRawField(key string, val interface{}) {
+	mustValidateKey(key)
 	if err, ok := val.(error); ok {
 		val = err.Error()
 	}
@@ -214,4 +220,10 @@ func (s *span) RecordMetric(metric o11y.Metric) {
 
 func (s *span) End() {
 	s.span.Send()
+}
+
+func mustValidateKey(key string) {
+	if strings.Contains(key, "-") {
+		panic(fmt.Errorf("key %q cannot contain '-'", key))
+	}
 }

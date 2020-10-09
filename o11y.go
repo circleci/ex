@@ -187,6 +187,7 @@ type Baggage map[string]string
 func (b Baggage) addToTrace(ctx context.Context) {
 	o := FromContext(ctx)
 	for k, v := range b {
+		k := strings.ReplaceAll(k, "-", "_")
 		o.AddFieldToTrace(ctx, k, v)
 	}
 }

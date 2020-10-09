@@ -25,10 +25,10 @@ func TestHoneycomb(t *testing.T) {
 
 		assert.Check(t, cmp.Contains(event, `"version":42`))
 		assert.Check(t, cmp.Contains(event, `"name":"test-span"`))
-		assert.Check(t, cmp.Contains(event, `"app.span-key":"span-value"`), "span.AddField is prefixed")
-		assert.Check(t, cmp.Contains(event, `"raw-key":"span-value"`), "span.AddRawField is unprefixed")
-		assert.Check(t, cmp.Contains(event, `"app.another-key":"span-value"`), "o11y.AddField is prefixed")
-		assert.Check(t, cmp.Contains(event, `"app.trace-key":"trace-value"`), "o11y.AddFieldToTrace is prefixed")
+		assert.Check(t, cmp.Contains(event, `"app.span_key":"span-value"`), "span.AddField is prefixed")
+		assert.Check(t, cmp.Contains(event, `"raw_key":"span-value"`), "span.AddRawField is unprefixed")
+		assert.Check(t, cmp.Contains(event, `"app.another_key":"span-value"`), "o11y.AddField is prefixed")
+		assert.Check(t, cmp.Contains(event, `"app.trace_key":"trace-value"`), "o11y.AddFieldToTrace is prefixed")
 	}
 	// set up a minimal server with the check defined above
 	url := honeycombServer(t, check)
@@ -44,14 +44,56 @@ func TestHoneycomb(t *testing.T) {
 
 	ctx = o11y.WithProvider(ctx, h)
 	ctx, span := o11y.StartSpan(ctx, "test-span")
-	o11y.AddFieldToTrace(ctx, "trace-key", "trace-value")
-	o11y.AddField(ctx, "another-key", "span-value")
-	span.AddField("span-key", "span-value")
-	span.AddRawField("raw-key", "span-value")
+	o11y.AddFieldToTrace(ctx, "trace_key", "trace-value")
+	o11y.AddField(ctx, "another_key", "span-value")
+	span.AddField("span_key", "span-value")
+	span.AddRawField("raw_key", "span-value")
 	span.End()
 	h.Close(ctx)
 
 	assert.Assert(t, gotEvent, "expected to receive an event")
+}
+
+func TestHoneycomb_ValidatesKeys(t *testing.T) {
+	h := New(Config{
+		Dataset:    "test-dataset",
+		Host:       "invalid-url",
+		SendTraces: true,
+	})
+
+	recovery := func(key string) {
+		p := recover()
+		err, success := p.(error)
+		assert.Assert(t, success)
+		assert.ErrorContains(t, err, key)
+	}
+
+	ctx := o11y.WithProvider(context.Background(), h)
+	defer h.Close(ctx)
+
+	func() {
+		defer recovery("invalid-global-field")
+		h.AddGlobalField("invalid-global-field", "value")
+	}()
+
+	ctx, span := o11y.StartSpan(ctx, "test-span")
+	func() {
+		defer recovery("invalid-trace-key")
+		o11y.AddFieldToTrace(ctx, "invalid-trace-key", "value")
+	}()
+	func() {
+		defer recovery("invalid-another-key")
+		o11y.AddField(ctx, "invalid-another-key", "value")
+	}()
+	func() {
+		defer recovery("invalid-span-key")
+		span.AddField("invalid-span-key", "value")
+	}()
+	func() {
+		defer recovery("invalid-raw-key")
+		span.AddRawField("invalid-raw-key", "value")
+	}()
+	span.End()
 }
 
 func TestHoneycombMetricsDoesntPolluteWhenNotConfigured(t *testing.T) {
@@ -102,11 +144,11 @@ func TestHoneycombMetrics(t *testing.T) {
 	h.AddGlobalField("version", 42)
 
 	ctx, span := h.StartSpan(ctx, "test-span")
-	span.RecordMetric(o11y.Timing("test-metric-timing", "low-card-tag", "status.code"))
-	span.RecordMetric(o11y.Incr("test-metric-incr", "low-card-tag", "status.code"))
-	span.AddField("low-card-tag", "tag-value")
+	span.RecordMetric(o11y.Timing("test-metric-timing", "low_card_tag", "status.code"))
+	span.RecordMetric(o11y.Incr("test-metric-incr", "low_card_tag", "status.code"))
+	span.AddField("low_card_tag", "tag-value")
 	span.AddField("status.code", 500)
-	span.AddField("another-tag", "another-value")
+	span.AddField("another_tag", "another-value")
 	span.End()
 	h.Close(ctx)
 
@@ -114,7 +156,7 @@ func TestHoneycombMetrics(t *testing.T) {
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[0], metricCall{
 		Metric: "timer",
 		Name:   "test-metric-timing",
-		Tags:   []string{"low-card-tag:tag-value", "status.code:500"},
+		Tags:   []string{"low_card_tag:tag-value", "status.code:500"},
 		Rate:   1,
 		Value:  10,
 	}, cmpNonZeroValue))
@@ -122,7 +164,7 @@ func TestHoneycombMetrics(t *testing.T) {
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[1], metricCall{
 		Metric: "incr",
 		Name:   "test-metric-incr",
-		Tags:   []string{"low-card-tag:tag-value", "status.code:500"},
+		Tags:   []string{"low_card_tag:tag-value", "status.code:500"},
 		Rate:   1,
 	}))
 
