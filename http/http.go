@@ -19,6 +19,7 @@ import (
 // This code is based on github.com/beeline-go/wrappers/hnynethttp/nethttp.go
 func Middleware(provider o11y.Provider, name string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// TODO: stop using honeycomb's built-in request parsing, use our own that follows otel naming specs
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Send()
 
@@ -27,10 +28,10 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		r = r.WithContext(ctx)
 
 		provider.AddFieldToTrace(ctx, "server_name", name)
-		// TODO: In future this should ideally be the route name, not the Path,
-		//       but in order to do that, we'll need a standard routing
-		//       abstraction that can be read when wrapped by more middleware
-		span.AddField("name", fmt.Sprintf("%s: %s %s", name, r.Method, r.URL.Path))
+		// We default to using the Path as the name and route - which could be high cardinality
+		// We expect consumers to override these fields if they have something better
+		span.AddField("name", fmt.Sprintf("http-server %s: %s %s", name, r.Method, r.URL.Path))
+		span.AddField("request.route", r.URL.Path)
 
 		sw := &statusWriter{ResponseWriter: w}
 		handler.ServeHTTP(sw, r)
@@ -40,7 +41,7 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		span.AddField("response.status_code", sw.status)
 
 		honeycomb.WrapSpan(span).RecordMetric(o11y.Timing("handler",
-			"server_name", "request.method", "request.path", "response.status_code", "has_panicked"))
+			"server_name", "request.method", "request.route", "response.status_code", "has_panicked"))
 	})
 }
 
