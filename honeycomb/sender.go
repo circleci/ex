@@ -80,3 +80,13 @@ func (s *MultiSender) SendResponse(resp transmission.Response) bool {
 	}
 	return pending
 }
+
+func (s *MultiSender) Flush() error {
+	var result error
+	for _, tx := range s.Senders {
+		if err := tx.Flush(); err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+	return result
+}
