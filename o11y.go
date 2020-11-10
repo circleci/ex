@@ -160,9 +160,13 @@ func End(span Span, err *error) {
 
 // AddResultToSpan takes a possibly nil error, and updates the "error" and "result" fields of the span appropriately.
 func AddResultToSpan(span Span, err error) {
-	if err != nil && !errors.Is(err, ErrDoNotTrace) {
-		span.AddRawField("result", "error")
-		span.AddRawField("error", err.Error())
+	if err != nil {
+		if errors.Is(err, ErrDoNotTrace) {
+			span.AddRawField("warning", err.Error())
+		} else {
+			span.AddRawField("result", "error")
+			span.AddRawField("error", err.Error())
+		}
 		return
 	}
 	span.AddRawField("result", "success")
