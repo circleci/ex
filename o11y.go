@@ -164,6 +164,12 @@ func AddResultToSpan(span Span, err error) {
 	case errors.Is(err, ErrDoNotTraceAsError):
 		warn := strings.Replace(err.Error(), ErrDoNotTraceAsError.Error(), "(dnt)", -1)
 		span.AddRawField("warning", warn)
+	case errors.Is(err, context.Canceled):
+		// Context cancellation is expected, for instance in timeout and shutdown scenarios.
+		// Tracing as an error adds clutter when looking for real errors.
+		span.AddRawField("result", "canceled")
+		span.AddRawField("warning", err.Error())
+		return
 	case err != nil:
 		span.AddRawField("result", "error")
 		span.AddRawField("error", err.Error())

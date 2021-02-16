@@ -2,6 +2,8 @@ package o11y
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -46,4 +48,89 @@ func TestHandlePanic(t *testing.T) {
 		dummyPanic(func() { panic("oh no") })
 		assert.ErrorContains(t, err, "oh no")
 	})
+}
+
+func TestAddResultToSpan(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		result  string
+		error   string
+		warning string
+	}{
+		{
+			name:    "all-good",
+			err:     nil,
+			result:  "success",
+			error:   "",
+			warning: "",
+		},
+		{
+			name:    "normal-error",
+			err:     errors.New("my error"),
+			result:  "error",
+			error:   "my error",
+			warning: "",
+		},
+		{
+			name:    "do-not-trace",
+			err:     ErrDoNotTraceAsError,
+			result:  "success",
+			error:   "",
+			warning: "(dnt)",
+		},
+		{
+			name:    "wrapped-do-not-trace",
+			err:     fmt.Errorf("wrapped: %w", ErrDoNotTraceAsError),
+			result:  "success",
+			error:   "",
+			warning: "wrapped: (dnt)",
+		},
+		{
+			name:    "context-canceled",
+			err:     context.Canceled,
+			result:  "canceled",
+			error:   "",
+			warning: "context canceled",
+		},
+		{
+			name:    "wrapped-context-canceled",
+			err:     fmt.Errorf("wrapped: %w", context.Canceled),
+			result:  "canceled",
+			error:   "",
+			warning: "wrapped: context canceled",
+		},
+	}
+
+	checkField := func(span *fakeSpan, key, expect string) {
+		if expect != "" {
+			gotResult := span.fields[key].(string)
+			assert.Equal(t, expect, gotResult)
+		} else {
+			_, ok := span.fields[key]
+			assert.Assert(t, !ok)
+		}
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			span := newFakeSpan()
+			AddResultToSpan(span, tt.err)
+			checkField(span, "result", tt.result)
+			checkField(span, "error", tt.error)
+			checkField(span, "warning", tt.warning)
+		})
+	}
+}
+
+func newFakeSpan() *fakeSpan {
+	return &fakeSpan{fields: map[string]interface{}{}}
+}
+
+type fakeSpan struct {
+	Span
+	fields map[string]interface{}
+}
+
+func (s *fakeSpan) AddRawField(key string, val interface{}) {
+	s.fields[key] = val
 }
