@@ -100,6 +100,20 @@ func TestAddResultToSpan(t *testing.T) {
 			error:   "",
 			warning: "wrapped: context canceled",
 		},
+		{
+			name:    "deadline-exceeded",
+			err:     context.DeadlineExceeded,
+			result:  "canceled",
+			error:   "",
+			warning: "context deadline exceeded",
+		},
+		{
+			name:    "wrapped-deadline-exceeded",
+			err:     fmt.Errorf("wrapped: %w", context.DeadlineExceeded),
+			result:  "canceled",
+			error:   "",
+			warning: "wrapped: context deadline exceeded",
+		},
 	}
 
 	checkField := func(span *fakeSpan, key, expect string) {
