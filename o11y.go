@@ -14,8 +14,6 @@ import (
 	"github.com/rollbar/rollbar-go"
 )
 
-var ErrDoNotTraceAsError = errors.New("this error should not be treated as an error in trace reporting")
-
 type Provider interface {
 	// AddGlobalField adds data which should apply to every span in the application
 	//
@@ -161,9 +159,8 @@ func End(span Span, err *error) {
 // AddResultToSpan takes a possibly nil error, and updates the "error" and "result" fields of the span appropriately.
 func AddResultToSpan(span Span, err error) {
 	switch {
-	case errors.Is(err, ErrDoNotTraceAsError):
-		warn := strings.Replace(err.Error(), ErrDoNotTraceAsError.Error(), "(dnt)", -1)
-		span.AddRawField("warning", warn)
+	case IsWarning(err):
+		span.AddRawField("warning", err.Error())
 	case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 		// Context cancellation and timeouts are expected, for instance in timeout and shutdown scenarios.
 		// Tracing as an error adds clutter when looking for real errors.

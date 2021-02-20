@@ -74,17 +74,17 @@ func TestAddResultToSpan(t *testing.T) {
 		},
 		{
 			name:    "do-not-trace",
-			err:     ErrDoNotTraceAsError,
+			err:     NewWarning("handled error"),
 			result:  "success",
 			error:   "",
-			warning: "(dnt)",
+			warning: "handled error",
 		},
 		{
 			name:    "wrapped-do-not-trace",
-			err:     fmt.Errorf("wrapped: %w", ErrDoNotTraceAsError),
+			err:     fmt.Errorf("wrapped: %w", NewWarning("warning error (odd pair of words)")),
 			result:  "success",
 			error:   "",
-			warning: "wrapped: (dnt)",
+			warning: "wrapped: warning error (odd pair of words)",
 		},
 		{
 			name:    "context-canceled",
