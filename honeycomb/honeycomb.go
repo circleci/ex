@@ -130,6 +130,17 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 					extractTagsFromFields(m.TagFields, fields),
 					1,
 				)
+			case o11y.MetricGauge:
+				val, ok := fields[m.Field].(float64)
+				if !ok {
+					continue
+				}
+				_ = mp.Gauge(
+					m.Name,
+					val,
+					extractTagsFromFields(m.TagFields, fields),
+					1,
+				)
 			}
 		}
 	}

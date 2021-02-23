@@ -81,6 +81,7 @@ type MetricType string
 const (
 	MetricTimer = "timer"
 	MetricIncr  = "incr"
+	MetricGauge = "gauge"
 )
 
 type Metric struct {
@@ -101,9 +102,20 @@ func Incr(name string, fields ...string) Metric {
 	return Metric{MetricIncr, name, "", fields}
 }
 
+func Gauge(name string, valueField string, tagFields ...string) Metric {
+	return Metric{
+		Type:      MetricGauge,
+		Name:      name,
+		Field:     valueField,
+		TagFields: tagFields,
+	}
+}
+
 type MetricsProvider interface {
 	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
 	Incr(name string, tags []string, rate float64) error
+	// Gauge measures the value of a metric at a particular time.
+	Gauge(name string, value float64, tags []string, rate float64) error
 }
 
 type providerKey struct{}
