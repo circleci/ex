@@ -162,10 +162,11 @@ func TestHoneycombMetrics(t *testing.T) {
 	}, cmpNonZeroValue))
 
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[1], metricCall{
-		Metric: "incr",
-		Name:   "test-metric-incr",
-		Tags:   []string{"low_card_tag:tag-value", "status.code:500"},
-		Rate:   1,
+		Metric:   "count",
+		Name:     "test-metric-incr",
+		Tags:     []string{"low_card_tag:tag-value", "status.code:500"},
+		Rate:     1,
+		ValueInt: 1,
 	}))
 
 	assert.Assert(t, gotEvent, "expected honeycomb to receive event")
@@ -256,11 +257,12 @@ var cmpNonZeroValue = gocmp.Options{gocmp.Comparer(func(a, b float64) bool {
 })}
 
 type metricCall struct {
-	Metric string
-	Name   string
-	Value  float64
-	Tags   []string
-	Rate   float64
+	Metric   string
+	Name     string
+	Value    float64
+	ValueInt int64
+	Tags     []string
+	Rate     float64
 }
 
 type fakeMetrics struct {
@@ -269,12 +271,12 @@ type fakeMetrics struct {
 }
 
 func (f *fakeMetrics) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
-	f.calls = append(f.calls, metricCall{"timer", name, value, tags, rate})
+	f.calls = append(f.calls, metricCall{Metric: "timer", Name: name, Value: value, Tags: tags, Rate: rate})
 	return nil
 }
 
-func (f *fakeMetrics) Incr(name string, tags []string, rate float64) error {
-	f.calls = append(f.calls, metricCall{"incr", name, 0, tags, rate})
+func (f *fakeMetrics) Count(name string, value int64, tags []string, rate float64) error {
+	f.calls = append(f.calls, metricCall{Metric: "count", Name: name, ValueInt: value, Tags: tags, Rate: rate})
 	return nil
 }
 

@@ -80,8 +80,8 @@ type MetricType string
 
 const (
 	MetricTimer = "timer"
-	MetricIncr  = "incr"
 	MetricGauge = "gauge"
+	MetricCount = "count"
 )
 
 type Metric struct {
@@ -90,16 +90,27 @@ type Metric struct {
 	Name string
 	// Field is the span field to use as the metric's value
 	Field string
+	// FixedTag is an optional tag added at Metric definition time
+	FixedTag *Tag
 	// TagFields are additional span fields to use as metric tags
 	TagFields []string
 }
 
+type Tag struct {
+	Name  string
+	Value interface{}
+}
+
+func NewTag(name string, value interface{}) *Tag {
+	return &Tag{Name: name, Value: value}
+}
+
 func Timing(name string, fields ...string) Metric {
-	return Metric{MetricTimer, name, "duration_ms", fields}
+	return Metric{Type: MetricTimer, Name: name, Field: "duration_ms", TagFields: fields}
 }
 
 func Incr(name string, fields ...string) Metric {
-	return Metric{MetricIncr, name, "", fields}
+	return Metric{Type: MetricCount, Name: name, TagFields: fields}
 }
 
 func Gauge(name string, valueField string, tagFields ...string) Metric {
@@ -111,11 +122,22 @@ func Gauge(name string, valueField string, tagFields ...string) Metric {
 	}
 }
 
+func Count(name string, valueField string, fixedTag *Tag, tagFields ...string) Metric {
+	return Metric{
+		Type:      MetricGauge,
+		Name:      name,
+		Field:     valueField,
+		FixedTag:  fixedTag,
+		TagFields: tagFields,
+	}
+}
+
 type MetricsProvider interface {
 	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
-	Incr(name string, tags []string, rate float64) error
 	// Gauge measures the value of a metric at a particular time.
 	Gauge(name string, value float64, tags []string, rate float64) error
+	// Count sends an individual value in time.
+	Count(name string, value int64, tags []string, rate float64) error
 }
 
 type providerKey struct{}

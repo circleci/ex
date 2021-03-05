@@ -124,10 +124,19 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 					extractTagsFromFields(m.TagFields, fields),
 					1,
 				)
-			case o11y.MetricIncr:
-				_ = mp.Incr(
+			case o11y.MetricCount:
+				val, ok := fields[m.Field].(int64)
+				if !ok {
+					val = 1
+				}
+				tags := extractTagsFromFields(m.TagFields, fields)
+				if m.FixedTag != nil {
+					tags = append(tags, fmtTag(m.FixedTag.Name, m.FixedTag.Value))
+				}
+				_ = mp.Count(
 					m.Name,
-					extractTagsFromFields(m.TagFields, fields),
+					val,
+					tags,
 					1,
 				)
 			case o11y.MetricGauge:
@@ -155,10 +164,14 @@ func extractTagsFromFields(tags []string, fields map[string]interface{}) []strin
 			val, ok = fields["app."+name]
 		}
 		if ok {
-			result = append(result, fmt.Sprintf("%s:%v", name, val))
+			result = append(result, fmtTag(name, val))
 		}
 	}
 	return result
+}
+
+func fmtTag(name string, val interface{}) string {
+	return fmt.Sprintf("%s:%v", name, val)
 }
 
 func (h *honeycomb) AddGlobalField(key string, val interface{}) {
