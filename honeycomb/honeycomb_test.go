@@ -149,10 +149,17 @@ func TestHoneycombMetrics(t *testing.T) {
 	span.AddField("low_card_tag", "tag-value")
 	span.AddField("status.code", 500)
 	span.AddField("another_tag", "another-value")
+
+	span.AddField("to_gauge", 122.87)
+	span.RecordMetric(o11y.Gauge("test_metric_gauge", "to_gauge"))
+	span.AddField("to_count", 134)
+	span.AddField("to_count_2", 145)
+	span.RecordMetric(o11y.Count("test_metric_count", "to_count", o11y.NewTag("type", "first")))
+	span.RecordMetric(o11y.Count("test_metric_count", "to_count_2", o11y.NewTag("type", "second")))
 	span.End()
 	h.Close(ctx)
 
-	assert.Assert(t, cmp.Len(fakeMetrics.calls, 2))
+	assert.Assert(t, cmp.Len(fakeMetrics.calls, 5))
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[0], metricCall{
 		Metric: "timer",
 		Name:   "test-metric-timing",
@@ -167,6 +174,30 @@ func TestHoneycombMetrics(t *testing.T) {
 		Tags:     []string{"low_card_tag:tag-value", "status.code:500"},
 		Rate:     1,
 		ValueInt: 1,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[2], metricCall{
+		Metric: "gauge",
+		Name:   "test_metric_gauge",
+		Tags:   []string{},
+		Rate:   1,
+		Value:  122.87,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[3], metricCall{
+		Metric:   "count",
+		Name:     "test_metric_count",
+		Tags:     []string{"type:first"},
+		Rate:     1,
+		ValueInt: 134,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[4], metricCall{
+		Metric:   "count",
+		Name:     "test_metric_count",
+		Tags:     []string{"type:second"},
+		Rate:     1,
+		ValueInt: 145,
 	}))
 
 	assert.Assert(t, gotEvent, "expected honeycomb to receive event")
@@ -272,6 +303,11 @@ type fakeMetrics struct {
 
 func (f *fakeMetrics) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
 	f.calls = append(f.calls, metricCall{Metric: "timer", Name: name, Value: value, Tags: tags, Rate: rate})
+	return nil
+}
+
+func (f *fakeMetrics) Gauge(name string, value float64, tags []string, rate float64) error {
+	f.calls = append(f.calls, metricCall{Metric: "gauge", Name: name, Value: value, Tags: tags, Rate: rate})
 	return nil
 }
 

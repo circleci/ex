@@ -125,9 +125,16 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 					1,
 				)
 			case o11y.MetricCount:
-				val, ok := fields[m.Field].(int64)
-				if !ok {
-					val = 1
+				var valInt int64 = 1
+				if m.Field != "" {
+					val, ok := getField(m.Field, fields)
+					if !ok {
+						continue
+					}
+					valInt, ok = toInt64(val)
+					if !ok {
+						panic("not an int")
+					}
 				}
 				tags := extractTagsFromFields(m.TagFields, fields)
 				if m.FixedTag != nil {
@@ -135,18 +142,22 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 				}
 				_ = mp.Count(
 					m.Name,
-					val,
+					valInt,
 					tags,
 					1,
 				)
 			case o11y.MetricGauge:
-				val, ok := fields[m.Field].(float64)
+				val, ok := getField(m.Field, fields)
+				if !ok {
+					continue
+				}
+				valFloat, ok := val.(float64)
 				if !ok {
 					continue
 				}
 				_ = mp.Gauge(
 					m.Name,
-					val,
+					valFloat,
 					extractTagsFromFields(m.TagFields, fields),
 					1,
 				)
@@ -158,16 +169,31 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 func extractTagsFromFields(tags []string, fields map[string]interface{}) []string {
 	result := make([]string, 0, len(tags))
 	for _, name := range tags {
-		val, ok := fields[name]
-		if !ok {
-			// Also support the app. prefix, for interop with honeycomb's prefixed fields
-			val, ok = fields["app."+name]
-		}
+		val, ok := getField(name, fields)
 		if ok {
 			result = append(result, fmtTag(name, val))
 		}
 	}
 	return result
+}
+
+func getField(name string, fields map[string]interface{}) (interface{}, bool) {
+	val, ok := fields[name]
+	if !ok {
+		// Also support the app. prefix, for interop with honeycomb's prefixed fields
+		val, ok = fields["app."+name]
+	}
+	return val, ok
+}
+
+func toInt64(val interface{}) (int64, bool) {
+	if i, ok := val.(int64); ok {
+		return i, true
+	}
+	if i, ok := val.(int); ok {
+		return int64(i), true
+	}
+	return 0, false
 }
 
 func fmtTag(name string, val interface{}) string {

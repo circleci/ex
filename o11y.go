@@ -124,7 +124,7 @@ func Gauge(name string, valueField string, tagFields ...string) Metric {
 
 func Count(name string, valueField string, fixedTag *Tag, tagFields ...string) Metric {
 	return Metric{
-		Type:      MetricGauge,
+		Type:      MetricCount,
 		Name:      name,
 		Field:     valueField,
 		FixedTag:  fixedTag,
