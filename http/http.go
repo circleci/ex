@@ -31,7 +31,7 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		// We default to using the Path as the name and route - which could be high cardinality
 		// We expect consumers to override these fields if they have something better
 		span.AddField("name", fmt.Sprintf("http-server %s: %s %s", name, r.Method, r.URL.Path))
-		span.AddField("request.route", r.URL.Path)
+		span.AddField("request.route", "unknown")
 
 		sw := &statusWriter{ResponseWriter: w}
 		handler.ServeHTTP(sw, r)
