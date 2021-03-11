@@ -2,74 +2,88 @@ package honeycomb
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"hash/crc32"
 	"io"
-	"os"
 	"sort"
 	"strings"
-	"time"
+	"sync"
+
+	"github.com/honeycombio/libhoney-go/transmission"
 )
 
-// TextFormatter provides human readable output from honeycomb JSON output.
-// It writes the formatted output to the wrapped io.Writer.
-type TextFormatter struct {
+// TextSender implements the transmission.Sender interface by marshalling events to
+// human-readable text and writing to the writer w, with optional colour
+//
+// the implementation is heavily cribbed from honeycomb's transmission.WriterSender
+type TextSender struct {
 	w      io.Writer
 	colour bool
+
+	responses chan transmission.Response
+
+	sync.Mutex
 }
 
-// DefaultTextFormat writes human-readable traces to stderr.
-var DefaultTextFormat = &TextFormatter{
-	w: os.Stderr,
+func (t *TextSender) Start() error {
+	t.responses = make(chan transmission.Response, 100)
+	return nil
 }
 
-// ColourTextFormat writes colourful human-readable traces to stdout.
-var ColourTextFormat = &TextFormatter{
-	w:      os.Stdout,
-	colour: true,
-}
+func (t *TextSender) Stop() error { return nil }
 
-func (h *TextFormatter) Write(raw []byte) (int, error) {
-	data := &entry{}
-	err := json.Unmarshal(raw, data)
-	if err != nil {
-		return 0, err
+func (t *TextSender) Flush() error { return nil }
+
+func (t *TextSender) Add(ev *transmission.Event) {
+	m := t.format(ev)
+
+	t.Lock()
+	defer t.Unlock()
+	_, _ = t.w.Write(m)
+	resp := transmission.Response{
+		// TODO what makes sense to set in the response here?
+		Metadata: ev.Metadata,
 	}
-	_, err = h.w.Write(h.format(data))
-	return len(raw), err
+	t.SendResponse(resp)
 }
 
-type entry struct {
-	Dataset string                 `json:"dataset"`
-	Time    time.Time              `json:"time"`
-	Data    map[string]interface{} `json:"data"`
+func (t *TextSender) TxResponses() chan transmission.Response {
+	return t.responses
 }
 
-func (h *TextFormatter) format(e *entry) []byte {
+func (t *TextSender) SendResponse(r transmission.Response) bool {
+	select {
+	case t.responses <- r:
+	default:
+		return true
+	}
+	return false
+}
+
+func (t *TextSender) format(ev *transmission.Event) []byte {
 	buf := new(bytes.Buffer)
 	_, _ = fmt.Fprintf(buf, "%s %s %.3fms %s",
-		e.Time.Format("15:04:05"),
-		h.applyColour(formatTraceID(e.Data["trace.trace_id"])),
-		e.Data["duration_ms"],
-		h.applyColour(fmt.Sprintf("%s", e.Data["name"])),
+		ev.Timestamp.Format("15:04:05"),
+		t.applyColour(formatTraceID(ev.Data["trace.trace_id"])),
+		ev.Data["duration_ms"],
+		t.applyColour(fmt.Sprintf("%s", ev.Data["name"])),
 	)
 
-	for _, k := range sortedKeys(e.Data) {
-		if h.exclude(k) {
+	for _, k := range sortedKeys(ev.Data) {
+		if t.exclude(k) {
 			continue
 		}
 		label := k // we have to copy the key, so we can use the original to lookup the data
-		if k == "error" && h.colour {
+		if k == "error" && t.colour {
 			label = errorHighlight(k)
 		}
-		_, _ = fmt.Fprintf(buf, " %s=%v", label, e.Data[k])
+		_, _ = fmt.Fprintf(buf, " %s=%v", label, ev.Data[k])
 	}
 	buf.WriteString("\n")
 	return buf.Bytes()
 }
 
-func (h *TextFormatter) exclude(k string) bool {
+func (t *TextSender) exclude(k string) bool {
 	switch k {
 	case "name", "version", "service", "duration_ms":
 		return true
@@ -81,6 +95,15 @@ func (h *TextFormatter) exclude(k string) bool {
 		}
 	}
 	return false
+}
+
+func (t *TextSender) applyColour(value string) string {
+	if !t.colour {
+		return value
+	}
+
+	i := crc32.Checksum([]byte(value), crc32.IEEETable) % uint32(len(colours))
+	return fmt.Sprintf("\033[1;38;5;%dm%s\033[0m", colours[i], value)
 }
 
 func errorHighlight(s string) string {
@@ -98,15 +121,6 @@ var colours = []uint8{
 	182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204,
 	205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227,
 	228, 229, 230, 231,
-}
-
-func (h *TextFormatter) applyColour(value string) string {
-	if !h.colour {
-		return value
-	}
-
-	i := crc32.Checksum([]byte(value), crc32.IEEETable) % uint32(len(colours))
-	return fmt.Sprintf("\033[1;38;5;%dm%s\033[0m", colours[i], value)
 }
 
 func formatTraceID(raw interface{}) string {

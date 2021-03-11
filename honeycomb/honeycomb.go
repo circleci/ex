@@ -14,6 +14,7 @@ import (
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/dynsampler-go"
 	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/libhoney-go/transmission"
 
 	"github.com/circleci/distributor/o11y"
 )
@@ -36,27 +37,43 @@ func (c *Config) Validate() error {
 	if c.SendTraces && c.Key == "" {
 		return errors.New("honeycomb_key key required for honeycomb")
 	}
-	if _, err := c.writer(); err != nil {
+	if _, err := c.sender(); err != nil {
 		return err
 	}
 	return nil
 }
 
-// writer returns the writer as given by the config or returns
-// a stderr writer to write events to based on the config Format.
-func (c *Config) writer() (io.Writer, error) {
-	if c.Writer != nil {
-		return c.Writer, nil
+// sender returns the transmission.Sender to handle events to based on Format and SampleTraces.
+func (c *Config) sender() transmission.Sender {
+	writer := c.Writer
+	if writer == nil {
+		writer = os.Stderr
 	}
+
+	s := &MultiSender{}
+
+	if c.SendTraces {
+		s.Senders = append(s.Senders, &transmission.Honeycomb{
+			MaxBatchSize:         libhoney.DefaultMaxBatchSize,
+			BatchTimeout:         libhoney.DefaultBatchTimeout,
+			MaxConcurrentBatches: libhoney.DefaultMaxConcurrentBatches,
+			PendingWorkCapacity:  libhoney.DefaultPendingWorkCapacity,
+			UserAgentAddition:    libhoney.UserAgentAddition,
+		})
+	}
+
 	switch c.Format {
-	case "json":
-		return os.Stderr, nil
 	case "text":
-		return DefaultTextFormat, nil
+		s.Senders = append(s.Senders, &TextSender{w: writer})
 	case "colour", "color":
-		return ColourTextFormat, nil
+		s.Senders = append(s.Senders, &TextSender{w: writer, colour: true})
+	case "json":
+		fallthrough
+	default:
+		s.Senders = append(s.Senders, &transmission.WriterSender{W: writer})
 	}
-	return nil, fmt.Errorf("unknown format: %s", c.Format)
+
+	return s
 }
 
 const metricKey = "__MAGIC_METRIC_KEY__"
@@ -64,17 +81,13 @@ const metricKey = "__MAGIC_METRIC_KEY__"
 // New creates a new honeycomb o11y provider, which emits traces to STDOUT
 // and optionally also sends them to a honeycomb server
 func New(conf Config) o11y.Provider {
-	writer, err := conf.writer()
-	if err != nil {
-		writer = ColourTextFormat
-	}
 
 	// error is ignored in default constructor in beeline, so we do the same here.
 	client, _ := libhoney.NewClient(libhoney.ClientConfig{
 		APIKey:       conf.Key,
 		Dataset:      conf.Dataset,
 		APIHost:      conf.Host,
-		Transmission: newSender(writer, conf.SendTraces),
+		Transmission: conf.sender(),
 	})
 
 	bc := beeline.Config{
