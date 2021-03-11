@@ -17,12 +17,12 @@ import (
 //
 // the implementation is heavily cribbed from honeycomb's transmission.WriterSender
 type TextSender struct {
+	sync.Mutex
+
 	w      io.Writer
 	colour bool
 
 	responses chan transmission.Response
-
-	sync.Mutex
 }
 
 func (t *TextSender) Start() error {

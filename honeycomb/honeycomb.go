@@ -37,8 +37,8 @@ func (c *Config) Validate() error {
 	if c.SendTraces && c.Key == "" {
 		return errors.New("honeycomb_key key required for honeycomb")
 	}
-	if _, err := c.sender(); err != nil {
-		return err
+	if s := c.sender(); s == nil {
+		return errors.New("no honeycomb sender configured")
 	}
 	return nil
 }
