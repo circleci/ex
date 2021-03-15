@@ -1,6 +1,9 @@
 package o11y
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 // NewWarning will return a generic error that can be tested for warning.
 // No two errors created with NewWarning will be tested as equal with Is.
@@ -24,6 +27,11 @@ func IsWarning(err error) bool {
 // to check if it is being directly tested for warning.
 func IsWarningNoUnwrap(err error) bool {
 	return err == errWarning
+}
+
+// DontErrorTrace returns true if all errors in the chain is a warning or context canceled or context deadline errors.
+func DontErrorTrace(err error) bool {
+	return IsWarning(err) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 // wrapWarnError is a wrapping error to be tested for warning.
