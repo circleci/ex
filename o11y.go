@@ -109,6 +109,10 @@ func Timing(name string, fields ...string) Metric {
 	return Metric{Type: MetricTimer, Name: name, Field: "duration_ms", TagFields: fields}
 }
 
+func Duration(name string, valueField string, fields ...string) Metric {
+	return Metric{Type: MetricTimer, Name: name, Field: valueField, TagFields: fields}
+}
+
 func Incr(name string, fields ...string) Metric {
 	return Metric{Type: MetricCount, Name: name, TagFields: fields}
 }

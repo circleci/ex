@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	gocmp "github.com/google/go-cmp/cmp"
 	"github.com/klauspost/compress/zstd"
@@ -146,9 +147,11 @@ func TestHoneycombMetrics(t *testing.T) {
 	ctx, span := h.StartSpan(ctx, "test-span")
 	span.RecordMetric(o11y.Timing("test-metric-timing", "low_card_tag", "status.code"))
 	span.RecordMetric(o11y.Incr("test-metric-incr", "low_card_tag", "status.code"))
+	span.RecordMetric(o11y.Duration("test-duration-ms", "latency", "status.code"))
 	span.AddField("low_card_tag", "tag-value")
 	span.AddField("status.code", 500)
 	span.AddField("another_tag", "another-value")
+	span.AddField("latency", time.Second)
 
 	span.AddField("to_gauge", 122.87)
 	span.RecordMetric(o11y.Gauge("test_metric_gauge", "to_gauge"))
@@ -159,7 +162,7 @@ func TestHoneycombMetrics(t *testing.T) {
 	span.End()
 	h.Close(ctx)
 
-	assert.Assert(t, cmp.Len(fakeMetrics.calls, 5))
+	assert.Assert(t, cmp.Len(fakeMetrics.calls, 6))
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[0], metricCall{
 		Metric: "timer",
 		Name:   "test-metric-timing",
@@ -177,6 +180,14 @@ func TestHoneycombMetrics(t *testing.T) {
 	}))
 
 	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[2], metricCall{
+		Metric: "timer",
+		Name:   "test-duration-ms",
+		Tags:   []string{"status.code:500"},
+		Rate:   1,
+		Value:  1000,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[3], metricCall{
 		Metric: "gauge",
 		Name:   "test_metric_gauge",
 		Tags:   []string{},
@@ -184,7 +195,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		Value:  122.87,
 	}))
 
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[3], metricCall{
+	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[4], metricCall{
 		Metric:   "count",
 		Name:     "test_metric_count",
 		Tags:     []string{"type:first"},
@@ -192,7 +203,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		ValueInt: 134,
 	}))
 
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[4], metricCall{
+	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[5], metricCall{
 		Metric:   "count",
 		Name:     "test_metric_count",
 		Tags:     []string{"type:second"},
