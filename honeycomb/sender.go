@@ -3,7 +3,6 @@ package honeycomb
 import (
 	"errors"
 
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/honeycombio/libhoney-go/transmission"
 )
 
@@ -40,7 +39,7 @@ func (s *MultiSender) Stop() error {
 	var result error
 	for _, tx := range s.Senders {
 		if err := tx.Stop(); err != nil {
-			result = multierror.Append(result, err)
+			result = err
 		}
 	}
 	return result
@@ -64,7 +63,7 @@ func (s *MultiSender) Flush() error {
 	var result error
 	for _, tx := range s.Senders {
 		if err := tx.Flush(); err != nil {
-			result = multierror.Append(result, err)
+			result = err
 		}
 	}
 	return result

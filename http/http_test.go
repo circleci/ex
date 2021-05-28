@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/circleci/distributor/o11y"
+	"github.com/circleci/go-o11y"
 
 	"gotest.tools/v3/assert"
 )

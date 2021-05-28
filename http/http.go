@@ -9,8 +9,8 @@ import (
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
 
-	"github.com/circleci/distributor/o11y"
-	"github.com/circleci/distributor/o11y/honeycomb"
+	"github.com/circleci/go-o11y"
+	"github.com/circleci/go-o11y/honeycomb"
 )
 
 // Middleware returns an http.Handler which wraps an http.Handler and adds

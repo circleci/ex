@@ -15,7 +15,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/circleci/distributor/o11y"
+	"github.com/circleci/go-o11y"
 )
 
 func TestHoneycomb(t *testing.T) {

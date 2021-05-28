@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/circleci/distributor/o11y"
+	"github.com/circleci/go-o11y"
 )
 
 type Worker struct{}
