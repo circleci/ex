@@ -7,6 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -46,7 +47,7 @@ func get(t *testing.T, baseurl, path string) (string, int) {
 		assert.Assert(t, r.Body.Close())
 	}()
 
-	b, err := io.ReadAll(r.Body)
+	b, err := ioutil.ReadAll(r.Body)
 	assert.Assert(t, err)
 
 	return string(b), r.StatusCode
