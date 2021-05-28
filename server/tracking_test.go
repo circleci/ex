@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert/cmp"
 	"net/http"
 	"testing"
 	"time"
@@ -27,10 +29,17 @@ func TestTrackedListener(t *testing.T) {
 			handled <- struct{}{}
 			w.WriteHeader(http.StatusNoContent)
 		}))
-	assert.NilError(t, err)
+	assert.Assert(t, err)
+
+	g, ctx := errgroup.WithContext(ctx)
+	t.Cleanup(func() {
+		assert.Check(t, g.Wait())
+	})
 
 	// and start the server
-	go func() { _ = s.Serve() }() // (heh, looks a bit like Clojure)
+	g.Go(func() error {
+		return s.Serve(ctx)
+	})
 
 	const (
 		concurrency = 23 // we will send this may requests at once
@@ -45,16 +54,12 @@ func TestTrackedListener(t *testing.T) {
 		Timeout:   10 * time.Second,
 	}
 
-	//cl := httpclient.New("test", "http://"+s.Addr().String(), "", "", time.Second)
-	//err = cl.SetMaxConnectionsPerHost(maxCons)
-	assert.NilError(t, err)
-
 	// fire off all the requests - knowing that the
 	for i := 0; i < concurrency; i++ {
-		go func() {
+		g.Go(func() error {
 			_, err := cl.Get(fmt.Sprintf("http://%s", s.Addr()))
-			assert.NilError(t, err)
-		}()
+			return err
+		})
 	}
 
 	// wait for the calls from the now full pool to have have arrived
@@ -83,7 +88,7 @@ func TestTrackedListener(t *testing.T) {
 	// Should still be within the pool limits, and no further connections opened
 	gauges = s.MetricsProducer().Gauges(ctx)
 	// the client uses the pooled connections so the total new connections does not grow
-	assert.Equal(t, gauges["total_connections"], float64(maxCons))
+	assert.Check(t, cmp.Equal(gauges["total_connections"], float64(maxCons)))
 	assert.Check(t, gauges["active_connections"] <= float64(maxCons))
 
 	// make sure all remaining requests finish
@@ -110,13 +115,13 @@ func TestTrackedListener(t *testing.T) {
 		poll.WithDelay(20*time.Millisecond), poll.WithTimeout(time.Second),
 	)
 
-	assert.Equal(t, gauges["number_of_remotes"], float64(0))
-	assert.Equal(t, gauges["max_connections_per_remote"], float64(0))
-	assert.Equal(t, gauges["min_connections_per_remote"], float64(0))
+	assert.Check(t, cmp.Equal(gauges["number_of_remotes"], float64(0)))
+	assert.Check(t, cmp.Equal(gauges["max_connections_per_remote"], float64(0)))
+	assert.Check(t, cmp.Equal(gauges["min_connections_per_remote"], float64(0)))
 }
 
 func TestTrackedListenerName(t *testing.T) {
 	s, err := NewServer(context.Background(), "test-server", "localhost:0", nil)
-	assert.NilError(t, err)
-	assert.Equal(t, s.MetricsProducer().MetricName(), "test-server-listener")
+	assert.Assert(t, err)
+	assert.Check(t, cmp.Equal(s.MetricsProducer().MetricName(), "test-server-listener"))
 }

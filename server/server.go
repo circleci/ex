@@ -13,7 +13,6 @@ import (
 )
 
 type Server struct {
-	ctx      context.Context
 	listener *trackedListener
 	server   *http.Server
 }
@@ -38,7 +37,6 @@ func NewServer(ctx context.Context, name, addr string, handler http.Handler) (s 
 	span.AddField("address", ln.Addr().String())
 
 	return &Server{
-		ctx:      ctx,
 		listener: tr,
 		server: &http.Server{
 			Addr:         addr,
@@ -49,8 +47,8 @@ func NewServer(ctx context.Context, name, addr string, handler http.Handler) (s 
 	}, nil
 }
 
-func (s *Server) Serve() error {
-	g, ctx := errgroup.WithContext(s.ctx)
+func (s *Server) Serve(ctx context.Context) error {
+	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
 		<-ctx.Done()

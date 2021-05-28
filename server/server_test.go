@@ -30,7 +30,9 @@ func TestRunServer(t *testing.T) {
 	t.Cleanup(func() {
 		assert.Check(t, g.Wait())
 	})
-	g.Go(srv.Serve)
+	g.Go(func() error {
+		return srv.Serve(ctx)
+	})
 
 	body, status := get(t, srv.Addr(), "test")
 	assert.Check(t, cmp.Equal(status, http.StatusOK))
