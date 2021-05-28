@@ -17,7 +17,7 @@ import (
 	libhoney "github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 
-	"github.com/circleci/go-o11y"
+	"github.com/circleci/ex/o11y"
 )
 
 type honeycomb struct{}

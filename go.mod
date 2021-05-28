@@ -1,4 +1,4 @@
-module github.com/circleci/go-o11y
+module github.com/circleci/ex
 
 go 1.16
 

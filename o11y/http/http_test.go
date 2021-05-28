@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/circleci/go-o11y"
-
 	"gotest.tools/v3/assert"
+	
+	"github.com/circleci/ex/o11y"
 )
 
 func TestGetBaggage(t *testing.T) {
