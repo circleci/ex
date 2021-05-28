@@ -1,4 +1,4 @@
-package http
+package baggage
 
 import (
 	"context"
@@ -6,15 +6,15 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-	
+
 	"github.com/circleci/ex/o11y"
 )
 
-func TestGetBaggage(t *testing.T) {
+func TestGet(t *testing.T) {
 	ctx := context.Background()
 	t.Run("no baggage", func(t *testing.T) {
 		req := &http.Request{}
-		assert.DeepEqual(t, getBaggage(ctx, req), o11y.Baggage{})
+		assert.DeepEqual(t, Get(ctx, req), o11y.Baggage{})
 	})
 
 	t.Run("build url", func(t *testing.T) {
@@ -27,6 +27,6 @@ func TestGetBaggage(t *testing.T) {
 			"build-url": "https://circleci.com/gh/circleci/distributor/123",
 			"foo":       "bar",
 		}
-		assert.DeepEqual(t, getBaggage(ctx, req), expected)
+		assert.DeepEqual(t, Get(ctx, req), expected)
 	})
 }
