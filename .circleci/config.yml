@@ -1,0 +1,49 @@
+version: 2.1
+
+workflows:
+  test:
+    jobs:
+      - test:
+          matrix:
+            parameters:
+              executor:
+                - go_15
+                - go_16
+
+jobs:
+  test:
+    parameters:
+      executor:
+        type: executor
+    executor: <<parameters.executor>>
+    steps:
+      - run:
+          name: Adding GOPATH bin to PATH
+          command: echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> "$BASH_ENV"
+      - run:
+          name: Install gotestsum
+          command: |
+            curl -fsSL 'https://github.com/gotestyourself/gotestsum/releases/download/v1.6.2/gotestsum_1.6.2_linux_amd64.tar.gz' \
+              | $([[ $EUID -ne 0 ]] && echo sudo) tar -C '/usr/local/bin' -zxv gotestsum
+      - checkout
+      - run: mkdir -p test-results
+      - run:
+          name: Download dependencies
+          command: go mod download
+
+      - run:
+          name: Run tests
+          command: gotestsum --junitfile test-results/junit.xml -- ./...
+
+      - store_artifacts:
+          path: test-results
+      - store_test_results:
+          path: test-results
+
+executors:
+  go_15:
+    docker:
+      - image: cimg/go:1.15
+  go_16:
+    docker:
+      - image: cimg/go:1.16
