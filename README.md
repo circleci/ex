@@ -1,1 +1,1 @@
-# go-o11y
+# Common Go modules for execution
