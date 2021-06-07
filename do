@@ -6,12 +6,12 @@ reportDir="test-reports"
 gitref=$(git rev-parse --short HEAD 2>/dev/null || echo latest)
 if [[ "${CI-}" == "true" ]]; then
     if [[ "${CIRCLE_BRANCH-}" == "main" ]]; then
-        readonly _version="1.0.${CIRCLE_BUILD_NUM-0}-${gitref}"
+        readonly _version="v1.0.${CIRCLE_BUILD_NUM-0}-${gitref}"
     else
-        readonly _version="0.1.${CIRCLE_BUILD_NUM-0}-branch-${gitref}"
+        readonly _version="v0.1.${CIRCLE_BUILD_NUM-0}-branch-${gitref}"
     fi
 else
-    readonly _version="0.0.0-local-${gitref}"
+    readonly _version="v0.0.0-local-${gitref}"
 fi
 
 help_check_gomod="Check go.mod is tidy"
