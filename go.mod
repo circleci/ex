@@ -3,6 +3,7 @@ module github.com/circleci/ex
 go 1.15
 
 require (
+	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/gin-gonic/gin v1.7.2
 	github.com/google/go-cmp v0.5.6
 	github.com/honeycombio/beeline-go v1.1.2
