@@ -19,4 +19,3 @@ func Get(ctx context.Context, r *http.Request) o11y.Baggage {
 	}
 	return b
 }
-

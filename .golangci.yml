@@ -1,0 +1,101 @@
+run:
+  build-tags:
+    - e2e
+
+# Do not treat these as gospel, adjust as appropriate
+linters-settings:
+  govet:
+    check-shadowing: false
+  golint:
+    min-confidence: 0
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  depguard:
+    list-type: blacklist
+    include-go-root: true
+    packages:
+      - log
+      - github.com/davecgh/go-spew
+      - gotest.tools/assert # use gotest.tools/v3/assert instead
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 6
+    min-occurrences: 8
+  lll:
+    line-length: 120
+  goimports:
+    local-prefixes: github.com/circleci/ex
+  nakedret:
+    max-func-lines: 0
+
+issues:
+  # The default exclude list seems rather aggresive, opt-in when needed instead
+  exclude-use-default: false
+
+  exclude-rules:
+    # Duplicated errcheck checks
+    - linters: [gosec]
+      text: G104
+    # Duplicated errcheck checks
+    - linters: [staticcheck]
+      text: SA5001
+    # We don't require comments on everything
+    - linters: [golint]
+      text: should have( a package)? comment
+    # very long lines are ok if they're URLs
+    - linters: [lll]
+      source: https?://
+    # very long lines are ok if they're in http response message fields
+    - linters: [ lll ]
+      source: '"message":'
+    # Ignore errcheck on deferred Close
+    - linters: [errcheck]
+      source: ^\s*defer .*\.Close(.*)$
+    # Ignore ineffective assignments to ctx
+    - linters: [ineffassign]
+      source: ^\s*ctx.*=.*$
+    - linters: [staticcheck]
+      source: ^\s*ctx.*=.*$
+    # Ignore long tests
+    - linters: [funlen]
+      text: ^Function 'Test.*
+    # We don't require package docs
+    - linters: [stylecheck]
+      text: ST1000
+    # Unparam is allowed in tests
+    - linters: [unparam]
+      path: _test\.go
+
+linters:
+  disable-all: true
+  enable:
+    - gochecknoinits
+    - bodyclose
+    - deadcode
+    - depguard
+    - errcheck
+    - errorlint
+    - funlen
+    - goconst
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
