@@ -3,44 +3,97 @@ version: 2.1
 workflows:
   test:
     jobs:
+      - lint:
+          matrix:
+            parameters:
+              executor:
+                - go_15
+                - go_16
       - test:
           matrix:
             parameters:
               executor:
                 - go_15
                 - go_16
+      - release:
+          requires:
+            - lint
+            - test
+          filters:
+            branches:
+              only: main
 
 jobs:
+
+  lint:
+    parameters:
+      executor:
+        type: executor
+    executor: <<parameters.executor>>
+    steps:
+      - checkout
+      - setup
+      - run:
+          name: Verify modules are tidy
+          command: ./do check-gomod
+      - run:
+          name: Lint
+          command: ./do lint-report
+      - cleanup
+
   test:
     parameters:
       executor:
         type: executor
     executor: <<parameters.executor>>
     steps:
+      - checkout
+      - setup
+      - run:
+          name: Run tests
+          command: ./do test
+      - cleanup
+
+  release:
+    executor: base
+    steps:
+      - checkout
+      - run:
+          name: Configure Git
+          command: |
+            git config --global user.email "eng-execution@circleci.com"
+            git config --global user.name "Execution Team"
+      - run:
+          name: Tag release
+          command: ./do release
+
+commands:
+  setup:
+    steps:
       - run:
           name: Adding GOPATH bin to PATH
           command: echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> "$BASH_ENV"
       - run:
-          name: Install gotestsum
-          command: |
-            curl -fsSL 'https://github.com/gotestyourself/gotestsum/releases/download/v1.6.2/gotestsum_1.6.2_linux_amd64.tar.gz' \
-              | $([[ $EUID -ne 0 ]] && echo sudo) tar -C '/usr/local/bin' -zxv gotestsum
-      - checkout
-      - run: mkdir -p test-results
+          name: Install devtools
+          command: ./do install-devtools
+      - run:
+          name: Make test-reports dir
+          command: mkdir -p test-reports
       - run:
           name: Download dependencies
           command: go mod download
 
-      - run:
-          name: Run tests
-          command: gotestsum --junitfile test-results/junit.xml -- ./...
-
+  cleanup:
+    steps:
       - store_artifacts:
-          path: test-results
+          path: test-reports
       - store_test_results:
-          path: test-results
+          path: test-reports
 
 executors:
+  base:
+    docker:
+      - image: cimg/base:stable
   go_15:
     docker:
       - image: cimg/go:1.15

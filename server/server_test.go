@@ -3,13 +3,14 @@ package server
 import (
 	"context"
 	"fmt"
-	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"testing"
+
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/testing/testcontext"
 )

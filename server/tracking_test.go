@@ -3,13 +3,13 @@ package server
 import (
 	"context"
 	"fmt"
-	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert/cmp"
 	"net/http"
 	"testing"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
 	"github.com/circleci/ex/testing/testcontext"
@@ -57,8 +57,12 @@ func TestTrackedListener(t *testing.T) {
 	// fire off all the requests - knowing that the
 	for i := 0; i < concurrency; i++ {
 		g.Go(func() error {
-			_, err := cl.Get(fmt.Sprintf("http://%s", s.Addr()))
-			return err
+			r, err := cl.Get(fmt.Sprintf("http://%s", s.Addr()))
+			if err != nil {
+				return err
+			}
+			defer r.Body.Close()
+			return nil
 		})
 	}
 
