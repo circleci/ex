@@ -26,7 +26,9 @@ func IsWarning(err error) bool {
 // This will not check wrapped errors. This can be used in Is in other errors
 // to check if it is being directly tested for warning.
 func IsWarningNoUnwrap(err error) bool {
-	return errors.Is(err, errWarning)
+	// This is intentionally not unwrapping
+	// nolint: errorlint
+	return err == errWarning
 }
 
 // DontErrorTrace returns true if all errors in the chain is a warning or context canceled or context deadline errors.
