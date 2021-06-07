@@ -23,6 +23,7 @@ const JSON = "application/json; charset=utf-8"
 type Config struct {
 	Name                  string
 	BaseURL               string
+	AuthHeader            string
 	AuthToken             string
 	AcceptType            string
 	Timeout               time.Duration
@@ -49,6 +50,7 @@ func New(cfg Config) *Client {
 		baseURL:               cfg.BaseURL,
 		backOffMaxInterval:    10 * time.Second,
 		backOffMaxElapsedTime: cfg.Timeout,
+		authHeader:            cfg.AuthHeader,
 		authToken:             cfg.AuthToken,
 		acceptType:            cfg.AcceptType,
 		httpClient: &http.Client{
@@ -63,12 +65,6 @@ func New(cfg Config) *Client {
 // but it is handy for testing.
 func (c *Client) CloseIdleConnections() {
 	c.httpClient.CloseIdleConnections()
-}
-
-// SetAuthHeader will cause the client to use this header instead of standard
-// bearer token auth.
-func (c *Client) SetAuthHeader(h string) {
-	c.authHeader = h
 }
 
 type Decoder func(r io.Reader) error
