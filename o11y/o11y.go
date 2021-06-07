@@ -74,6 +74,8 @@ type Span interface {
 	// End sets the duration of the span and tells the related provider that the span is complete
 	// so it can do it's appropriate processing. The span should not be used after End is called.
 	End()
+
+	SerializeHeaders() string
 }
 
 type MetricType string
@@ -274,6 +276,10 @@ func (c *noopProvider) Close(ctx context.Context) {}
 func (c *noopProvider) Log(ctx context.Context, name string, fields ...Pair) {}
 
 type noopSpan struct{}
+
+func (s *noopSpan) SerializeHeaders() string {
+	return ""
+}
 
 func (s *noopSpan) AddField(key string, val interface{}) {}
 

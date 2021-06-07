@@ -301,6 +301,10 @@ func (s *span) End() {
 	s.span.Send()
 }
 
+func (s *span) SerializeHeaders() string {
+	return s.span.SerializeHeaders()
+}
+
 func mustValidateKey(key string) {
 	if strings.Contains(key, "-") {
 		panic(fmt.Errorf("key %q cannot contain '-'", key))
