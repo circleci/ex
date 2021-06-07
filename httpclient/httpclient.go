@@ -13,11 +13,21 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/honeycombio/beeline-go/propagation"
 
 	"github.com/circleci/ex/o11y"
 )
 
 const JSON = "application/json; charset=utf-8"
+
+type Config struct {
+	Name                  string
+	BaseURL               string
+	AuthToken             string
+	AcceptType            string
+	Timeout               time.Duration
+	MaxConnectionsPerHost int
+}
 
 type Client struct {
 	name                  string
@@ -30,29 +40,23 @@ type Client struct {
 	acceptType            string
 }
 
-func New(name, baseURL, authToken, acceptType string, timeout time.Duration) *Client {
-	return &Client{
-		name:                  name,
-		baseURL:               baseURL,
-		httpClient:            &http.Client{},
-		backOffMaxInterval:    10 * time.Second,
-		backOffMaxElapsedTime: timeout,
-		authToken:             authToken,
-		acceptType:            acceptType,
-	}
-}
-
-// SetMaxConnectionsPerHost should only be called during initialisation before the
-// client has been used. It is not thread safe.
-// It sets the maximum connections that the client will use for a particular host name.
-func (c *Client) SetMaxConnectionsPerHost(n int) error {
-	if c.httpClient.Transport != nil {
-		return errors.New("can not set the client transport again")
-	}
+func New(cfg Config) *Client {
 	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.MaxConnsPerHost = n
-	c.httpClient.Transport = t
-	return nil
+	t.MaxConnsPerHost = cfg.MaxConnectionsPerHost
+
+	c := &Client{
+		name:                  cfg.Name,
+		baseURL:               cfg.BaseURL,
+		backOffMaxInterval:    10 * time.Second,
+		backOffMaxElapsedTime: cfg.Timeout,
+		authToken:             cfg.AuthToken,
+		acceptType:            cfg.AcceptType,
+		httpClient: &http.Client{
+			Transport: t,
+		},
+	}
+
+	return c
 }
 
 // CloseIdleConnections is never really needed in production with our persistent clients
@@ -186,9 +190,11 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		defer cancel()
 
 		req = req.WithContext(ctx)
+		req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
 
 		span.RecordMetric(o11y.Timing("httpclient",
 			"api.client", "api.route", "http.method", "http.status_code", "http.retry"))
+		span.AddField("meta.type", "http_client")
 		span.AddRawField("api.client", c.name)
 		span.AddRawField("api.route", r.Route)
 		span.AddRawField("http.scheme", req.URL.Scheme)
@@ -211,7 +217,16 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		defer res.Body.Close()
 
 		finalStatus = res.StatusCode
-		span.AddRawField("http.status_code", res.StatusCode)
+		if cl := res.Header.Get("Content-Length"); cl != "" {
+			span.AddField("response.content_length", cl)
+		}
+		if ct := res.Header.Get("Content-Type"); ct != "" {
+			span.AddField("response.content_type", ct)
+		}
+		if ce := res.Header.Get("Content-Encoding"); ce != "" {
+			span.AddField("response.content_encoding", ce)
+		}
+		span.AddField("response.status_code", res.StatusCode)
 
 		err = extractHTTPError(req, res, attemptCounter, r.Route)
 		if err != nil {

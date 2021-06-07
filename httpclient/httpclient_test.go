@@ -8,16 +8,56 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"testing"
 	"time"
 
+	"github.com/honeycombio/beeline-go/propagation"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/o11y/wrappers/o11ynethttp"
 	"github.com/circleci/ex/testing/httprecorder"
 	"github.com/circleci/ex/testing/testcontext"
 )
+
+func TestClient_Call_Propagates(t *testing.T) {
+	ctx := testcontext.Background()
+	re := regexp.MustCompile(`trace_id=([A-z0-9]+)`)
+
+	traceIDChan := make(chan string, 1)
+	defer close(traceIDChan)
+
+	rec := httprecorder.New()
+	okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, span := o11y.StartSpan(ctx, "test server span")
+		traceIDChan <- re.FindStringSubmatch(span.SerializeHeaders())[1]
+		_ = rec.Record(r)
+	})
+
+	server := httptest.NewServer(o11ynethttp.Middleware(o11y.FromContext(ctx), "name", okHandler))
+	client := New(Config{
+		Name:    "name",
+		BaseURL: server.URL,
+		Timeout: time.Second,
+	})
+	req := NewRequest("POST", "/", time.Second)
+
+	ctx, span := o11y.StartSpan(ctx, "test client span")
+	err := client.Call(ctx, req)
+	assert.Check(t, err)
+	span.End()
+
+	h := rec.LastRequest().Header
+	assert.Check(t, cmp.Contains(h.Get(propagation.TracePropagationHTTPHeader), "trace_id="))
+
+	httpClientSpanID := re.FindStringSubmatch(span.SerializeHeaders())[1]
+	t.Logf("httpClientSpanID: %q", httpClientSpanID)
+	httpServerSpanID := re.FindStringSubmatch(h.Get(propagation.TracePropagationHTTPHeader))[1]
+	assert.Check(t, cmp.Equal(httpClientSpanID, httpServerSpanID))
+	assert.Check(t, cmp.Equal(httpClientSpanID, <-traceIDChan))
+}
 
 func TestClient_Call_Decodes(t *testing.T) {
 	ctx := testcontext.Background()
@@ -28,7 +68,11 @@ func TestClient_Call_Decodes(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(okHandler))
-	client := New("name", server.URL, "", "", time.Second)
+	client := New(Config{
+		Name:    "name",
+		BaseURL: server.URL,
+		Timeout: time.Second,
+	})
 	req := NewRequest("POST", "/", time.Second)
 
 	m := make(map[string]string)
@@ -75,7 +119,11 @@ func TestClient_Call_Timeouts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(tt.handler))
-			client := New(tt.name, server.URL, "", "", tt.totalTimeout)
+			client := New(Config{
+				Name:    tt.name,
+				BaseURL: server.URL,
+				Timeout: tt.totalTimeout,
+			})
 			req := NewRequest("POST", "/", tt.perRequestTimeout)
 			ctx := testcontext.Background()
 			err := client.Call(ctx, req)
@@ -94,7 +142,11 @@ func TestClient_Call_ContextCancel(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 
-	client := New("context-cancel", server.URL, "", "", 10*time.Second)
+	client := New(Config{
+		Name:    "context-cancel",
+		BaseURL: server.URL,
+		Timeout: 10 * time.Second,
+	})
 	req := NewRequest("POST", "/", time.Minute)
 	ctx, cancel := context.WithCancel(testcontext.Background())
 	defer cancel()
@@ -122,7 +174,11 @@ func TestClient_Call_SetQuery(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 
-	client := New("context-cancel", server.URL, "", "", 10*time.Second)
+	client := New(Config{
+		Name:    "context-cancel",
+		BaseURL: server.URL,
+		Timeout: 10 * time.Second,
+	})
 	req := NewRequest("POST", "/", time.Second)
 	req.Query = url.Values{}
 	req.Query.Set("foo", "bar")
@@ -133,9 +189,10 @@ func TestClient_Call_SetQuery(t *testing.T) {
 		Method: "POST",
 		URL:    url.URL{Path: "/", RawQuery: "foo=bar"},
 		Header: http.Header{
-			"Accept-Encoding": {"gzip"},
-			"Content-Length":  {"0"},
-			"User-Agent":      {"Go-http-client/1.1"},
+			"Accept-Encoding":                      {"gzip"},
+			"Content-Length":                       {"0"},
+			"User-Agent":                           {"Go-http-client/1.1"},
+			propagation.TracePropagationHTTPHeader: {""},
 		},
 		Body: []uint8{},
 	}))
