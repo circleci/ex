@@ -18,6 +18,7 @@ linters-settings:
     packages:
       - log
       - github.com/davecgh/go-spew
+      - github.com/pkg/errors # use Go 1.13 errors instead: https://blog.golang.org/go1.13-errors
       - gotest.tools/assert # use gotest.tools/v3/assert instead
   dupl:
     threshold: 100
