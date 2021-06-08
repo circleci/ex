@@ -82,6 +82,8 @@ type Request struct {
 	url string
 }
 
+// NewRequest should generally be used to create a new request. This encourages the user
+// to specify a "route" for the tracing, and avoid high cardinality routes.
 func NewRequest(method, route string, timeout time.Duration, routeParams ...interface{}) Request {
 	return Request{
 		Method:  method,
