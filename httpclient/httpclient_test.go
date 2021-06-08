@@ -22,6 +22,14 @@ import (
 	"github.com/circleci/ex/testing/testcontext"
 )
 
+func TestNewRequest_Formats(t *testing.T) {
+	req := NewRequest("POST", "/%s.txt", time.Second, "the-path")
+	assert.Check(t, cmp.Equal(req.url, "/the-path.txt"))
+	assert.Check(t, cmp.Equal(req.Route, "/%s.txt"))
+	assert.Check(t, cmp.Equal(req.Method, "POST"))
+	assert.Check(t, cmp.Equal(req.Timeout, time.Second))
+}
+
 func TestClient_Call_Propagates(t *testing.T) {
 	ctx := testcontext.Background()
 	re := regexp.MustCompile(`trace_id=([A-z0-9]+)`)
