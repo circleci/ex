@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/circleci/ex/o11y"
 )
@@ -18,13 +19,15 @@ var ErrTerminated = o11y.NewWarning("terminated")
 // When a signal is received signalHandler returns an error. When the errgroup
 // receives the error it will cancel the context. All long running operations
 // should terminate once the context is canceled.
-func Handle(ctx context.Context) error {
+func Handle(ctx context.Context, delay time.Duration) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case s := <-quit:
 		o := o11y.FromContext(ctx)
-		o.Log(ctx, "system: shutdown signal received", o11y.Field("signal", s))
+		o.Log(ctx, "system: shutdown signal received", o11y.Field("signal", s),
+			o11y.Field("delay", delay))
+		time.Sleep(delay)
 		return ErrTerminated
 	case <-ctx.Done():
 		return nil
