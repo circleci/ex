@@ -2,7 +2,7 @@
 Package binary provides a convenient mechanism for building and running a service binary
 as part of an acceptance test suite.
 */
-package binary
+package compiler
 
 import (
 	"context"
