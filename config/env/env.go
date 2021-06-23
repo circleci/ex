@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/circleci/ex/config/secret"
 
@@ -109,6 +110,25 @@ func (l *Loader) Bool(fld *bool, env string) {
 		return
 	}
 	*fld = b
+}
+
+// Duration inspects the system env var given by env. If it is present
+// it will parse the value as a time.Duration as per time.ParseDuration
+// to set the contents of fld.
+// If the parse fails the content of fld is left unaltered and the
+// loader multi error added to.
+func (l *Loader) Duration(fld *time.Duration, env string) {
+	l.addVar(*fld, env, "Duration")
+	val, ok := os.LookupEnv(env)
+	if !ok {
+		return
+	}
+	d, err := time.ParseDuration(val)
+	if err != nil {
+		l.err = multierror.Append(l.err, fmt.Errorf("env var: %q caused an error: %w", env, err))
+		return
+	}
+	*fld = d
 }
 
 type Vars []Var

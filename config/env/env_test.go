@@ -3,6 +3,7 @@ package env
 import (
 	"os"
 	"testing"
+	"time"
 
 	gocmp "github.com/google/go-cmp/cmp"
 	"gotest.tools/v3/assert"
@@ -15,10 +16,12 @@ import (
 func TestLoader_FieldsUsed(t *testing.T) {
 	l := NewLoader()
 	defSecret := secret.String("default-secret")
+	defDuration := time.Second * 5
 	defStr := "default"
 	defBool := true
 	defInt := 47
 	l.SecretFromFile(&defSecret, "ENV_TEST_SECRET_FILE")
+	l.Duration(&defDuration, "ENV_TEST_DURATION")
 	l.String(&defStr, "ENV_TEST_STRING")
 	defStr = `i am a long string with newlines
 i am a long string with newlines
@@ -38,6 +41,7 @@ i am a long string with newlines
 	// N.B. Alphabetical order
 	expected := []string{
 		"ENV_TEST_BOOL                            bool         (true)",
+		"ENV_TEST_DURATION                        Duration     (5s)",
 		"ENV_TEST_INT                             int          (47)",
 		"ENV_TEST_LONG_STRING                     string       " +
 			`(i am a long string with newlines\ni am a long string with newlines\ni am a long  ...)`,
@@ -104,6 +108,23 @@ func TestLoader_SecretFile(t *testing.T) {
 		assert.Check(t, cmp.ErrorContains(l.Err(), "no such file"))
 		// confirm default value untouched
 		assert.Check(t, cmp.Equal(secret.Value(), "default"))
+	})
+}
+
+func TestLoader_Duration(t *testing.T) {
+	const durationEnvVar = "ENV_TEST_DURATION"
+	t.Run("good", func(t *testing.T) {
+		revert := changeEnv(durationEnvVar, "2h")
+		defer revert()
+
+		durationField := time.Hour * 5
+		NewLoader().Duration(&durationField, durationEnvVar)
+		assert.Check(t, cmp.Equal(durationField, time.Hour*2))
+	})
+	t.Run("env not set", func(t *testing.T) {
+		durationField := time.Hour
+		NewLoader().Duration(&durationField, durationEnvVar)
+		assert.Check(t, cmp.Equal(durationField, time.Hour))
 	})
 }
 
