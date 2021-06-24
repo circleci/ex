@@ -61,6 +61,7 @@ func TestDownloader_Download(t *testing.T) {
 		assert.NilError(t, os.RemoveAll(dir))
 	}()
 
+	// N.B. The latter sub tests depend on earlier tests, so should be run in order.
 	t.Run("First cold download", func(t *testing.T) {
 		target, err := d.Download(ctx, server.URL+"/test/file-1.txt", 0644)
 
@@ -80,8 +81,10 @@ func TestDownloader_Download(t *testing.T) {
 		}})
 	})
 
+	url2 := server.URL + "/test/file-2.txt"
+
 	t.Run("Second cold download", func(t *testing.T) {
-		target, err := d.Download(ctx, server.URL+"/test/file-2.txt", 0644)
+		target, err := d.Download(ctx, url2, 0644)
 
 		assert.NilError(t, err)
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
@@ -102,13 +105,40 @@ func TestDownloader_Download(t *testing.T) {
 	t.Run("Cached download", func(t *testing.T) {
 		originalRequests := recorder.AllRequests()
 
-		target, err := d.Download(ctx, server.URL+"/test/file-2.txt", 0644)
+		target, err := d.Download(ctx, url2, 0644)
 
 		assert.NilError(t, err)
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
 		assertFileContents(t, target, "Second compressed file")
 
 		assert.DeepEqual(t, recorder.AllRequests(), originalRequests)
+	})
+
+	t.Run("Remove cached and re-download", func(t *testing.T) {
+		recorder.Reset()
+
+		err := d.Remove(url2)
+		assert.NilError(t, err)
+
+		// It is fine to remove a downloader managed file that is no longer there.
+		err = d.Remove(url2)
+		assert.NilError(t, err)
+
+		target, err := d.Download(ctx, url2, 0644)
+		assert.NilError(t, err)
+		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
+		assertFileContents(t, target, "Second compressed file")
+
+		requests := recorder.FindRequests("GET", url.URL{Path: "/test/file-2.txt"})
+		assert.DeepEqual(t, requests, []httprecorder.Request{{
+			Method: "GET",
+			URL:    url.URL{Path: "/test/file-2.txt"},
+			Header: http.Header{
+				"Accept-Encoding": {"gzip"},
+				"User-Agent":      {"Go-http-client/1.1"},
+			},
+			Body: []byte(""),
+		}})
 	})
 
 	t.Run("Not found", func(t *testing.T) {
