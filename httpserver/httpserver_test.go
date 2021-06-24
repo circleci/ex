@@ -1,4 +1,4 @@
-package server
+package httpserver
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/circleci/ex/testing/testcontext"
 )
 
-func TestRunServer(t *testing.T) {
+func TestHTTPServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(testcontext.Background())
 	defer cancel()
 
@@ -24,7 +24,7 @@ func TestRunServer(t *testing.T) {
 		_, _ = io.WriteString(w, "hello world!")
 	})
 
-	srv, err := NewServer(ctx, "test server", "localhost:0", r)
+	srv, err := New(ctx, "test server", "localhost:0", r)
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)
