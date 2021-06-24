@@ -1,4 +1,4 @@
-package server
+package httpserver
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 	"github.com/circleci/ex/o11y"
 )
 
-type Server struct {
+type HTTPServer struct {
 	listener *trackedListener
 	server   *http.Server
 }
 
-func NewServer(ctx context.Context, name, addr string, handler http.Handler) (s *Server, err error) {
+func New(ctx context.Context, name, addr string, handler http.Handler) (s *HTTPServer, err error) {
 	ctx, span := o11y.StartSpan(ctx, "server: new-server "+name)
 	defer o11y.End(span, &err)
 	span.AddField("server_name", name)
@@ -36,7 +36,7 @@ func NewServer(ctx context.Context, name, addr string, handler http.Handler) (s 
 
 	span.AddField("address", ln.Addr().String())
 
-	return &Server{
+	return &HTTPServer{
 		listener: tr,
 		server: &http.Server{
 			Addr:         addr,
@@ -47,7 +47,7 @@ func NewServer(ctx context.Context, name, addr string, handler http.Handler) (s 
 	}, nil
 }
 
-func (s *Server) Serve(ctx context.Context) error {
+func (s *HTTPServer) Serve(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
@@ -68,10 +68,10 @@ func (s *Server) Serve(ctx context.Context) error {
 	return g.Wait()
 }
 
-func (s *Server) MetricsProducer() MetricProducer {
+func (s *HTTPServer) MetricsProducer() MetricProducer {
 	return s.listener
 }
 
-func (s Server) Addr() string {
+func (s HTTPServer) Addr() string {
 	return s.listener.Addr().String()
 }
