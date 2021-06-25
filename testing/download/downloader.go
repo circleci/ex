@@ -2,6 +2,7 @@ package download
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -35,7 +36,9 @@ func NewDownloader(timeout time.Duration, dir string) (*Downloader, error) {
 	}, nil
 }
 
-func (d *Downloader) Download(ctx context.Context, rawURL string, perm os.FileMode) (_ string, err error) {
+// Download downloads the file from the rawURL, to a location rooted at the location specified when constructing
+// the downloader nested to a file location based on the path part of the rawURL.
+func (d *Downloader) Download(ctx context.Context, rawURL string, perm os.FileMode) (string, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return "", fmt.Errorf("cannot parse URL: %w", err)
@@ -74,6 +77,20 @@ func (d *Downloader) Download(ctx context.Context, rawURL string, perm os.FileMo
 	}
 
 	return target, nil
+}
+
+// Remove removes any file that the downloader had previously downloaded from the rawURL
+func (d *Downloader) Remove(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("cannot parse URL: %w", err)
+	}
+	err = os.Remove(d.targetPath(u))
+	e := &os.PathError{}
+	if errors.As(e, &err) {
+		return nil
+	}
+	return err
 }
 
 func (d *Downloader) targetPath(u *url.URL) string {
