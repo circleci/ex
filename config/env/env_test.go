@@ -21,6 +21,7 @@ func TestLoader_FieldsUsed(t *testing.T) {
 	defBool := true
 	defInt := 47
 	l.SecretFromFile(&defSecret, "ENV_TEST_SECRET_FILE")
+	l.Secret(&defSecret, "ENV_TEST_SECRET_STRING")
 	l.Duration(&defDuration, "ENV_TEST_DURATION")
 	l.String(&defStr, "ENV_TEST_STRING")
 	defStr = `i am a long string with newlines
@@ -46,6 +47,7 @@ i am a long string with newlines
 		"ENV_TEST_LONG_STRING                     string       " +
 			`(i am a long string with newlines\ni am a long string with newlines\ni am a long  ...)`,
 		"ENV_TEST_SECRET_FILE                     file         (REDACTED)",
+		"ENV_TEST_SECRET_STRING                   string       (REDACTED)",
 		"ENV_TEST_STRING                          string       (default)",
 	}
 
@@ -108,6 +110,24 @@ func TestLoader_SecretFile(t *testing.T) {
 		assert.Check(t, cmp.ErrorContains(l.Err(), "no such file"))
 		// confirm default value untouched
 		assert.Check(t, cmp.Equal(secret.Value(), "default"))
+	})
+}
+
+func TestLoader_Secret(t *testing.T) {
+	const secretEnvVar = "ENV_TEST_SECRET"
+	t.Run("good", func(t *testing.T) {
+		const val = "super-duper-secret-value"
+		revert := changeEnv(secretEnvVar, val)
+		defer revert()
+
+		var secretField secret.String
+		NewLoader().Secret(&secretField, secretEnvVar)
+		assert.Check(t, cmp.Equal(secretField.Value(), val))
+	})
+	t.Run("env not set", func(t *testing.T) {
+		secretField := secret.String("super-duper-secret-value")
+		NewLoader().Secret(&secretField, secretEnvVar)
+		assert.Check(t, cmp.Equal(secretField.Value(), "super-duper-secret-value"))
 	})
 }
 

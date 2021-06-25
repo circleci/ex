@@ -64,6 +64,17 @@ func (l *Loader) SecretFromFile(fld *secret.String, env string) {
 	*fld = secret.String(content)
 }
 
+// Secret inspects the system env var given by env. If it is present it will
+// set the contents of fld.
+func (l *Loader) Secret(fld *secret.String, env string) {
+	l.addVar(*fld, env, "string")
+	val, ok := os.LookupEnv(env)
+	if !ok {
+		return
+	}
+	*fld = secret.String(val)
+}
+
 // String inspects the system env var given by env. If it is present it will
 // set the contents of fld.
 func (l *Loader) String(fld *string, env string) {
