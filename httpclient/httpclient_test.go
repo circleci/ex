@@ -206,6 +206,63 @@ func TestClient_Call_SetQuery(t *testing.T) {
 	}))
 }
 
+func TestClient_Call_Spans(t *testing.T) {
+	numTries := 0
+	tests := []struct {
+		name     string
+		handler  func(w http.ResponseWriter, r *http.Request)
+		numSpans int
+		decoder  Decoder
+	}{
+		{
+			name: "No retries", numSpans: 1,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(200)
+			},
+		},
+		{
+			name:     "decode error",
+			numSpans: 1,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(200)
+			},
+			decoder: func(r io.Reader) error {
+				return errors.New("oh no")
+			},
+		},
+		{
+			name:     "3 tries",
+			numSpans: 4,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				numTries++
+				if numTries < 3 {
+					w.WriteHeader(500)
+				} else {
+					w.WriteHeader(200)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			provider := stubProvider{
+				spanCount: 0,
+			}
+			ctx := o11y.WithProvider(context.Background(), &provider)
+			server := httptest.NewServer(http.HandlerFunc(tt.handler))
+			client := New(Config{
+				Name:    tt.name,
+				BaseURL: server.URL,
+			})
+			req := NewRequest("POST", "/", time.Second)
+			req.Decoder = tt.decoder
+			_ = client.Call(ctx, req)
+			assert.Equal(t, provider.spanCount, tt.numSpans)
+		})
+	}
+}
+
 func TestHTTPError_Is(t *testing.T) {
 	tests := []struct {
 		code int
@@ -345,4 +402,42 @@ func TestIsRequestProblem(t *testing.T) {
 			assert.Check(t, cmp.Equal(IsRequestProblem(tt.err), tt.want))
 		})
 	}
+}
+
+type stubProvider struct {
+	spanCount int
+}
+
+func (c *stubProvider) AddGlobalField(key string, val interface{}) {}
+
+func (c *stubProvider) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
+	return ctx, &noopSpan{provider: c}
+}
+
+func (c *stubProvider) GetSpan(ctx context.Context) o11y.Span {
+	return &noopSpan{provider: c}
+}
+
+func (c *stubProvider) AddField(ctx context.Context, key string, val interface{}) {}
+
+func (c *stubProvider) AddFieldToTrace(ctx context.Context, key string, val interface{}) {}
+
+func (c *stubProvider) Close(ctx context.Context) {}
+
+func (c *stubProvider) Log(ctx context.Context, name string, fields ...o11y.Pair) {}
+
+type noopSpan struct{ provider *stubProvider }
+
+func (s *noopSpan) SerializeHeaders() string {
+	return ""
+}
+
+func (s *noopSpan) AddField(key string, val interface{}) {}
+
+func (s *noopSpan) AddRawField(key string, val interface{}) {}
+
+func (s *noopSpan) RecordMetric(metric o11y.Metric) {}
+
+func (s *noopSpan) End() {
+	s.provider.spanCount++
 }

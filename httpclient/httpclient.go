@@ -169,8 +169,18 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 	attemptCounter := 0
 	attempt := func() (err error) {
 		attemptCounter++
+		var decodeError error
 		_, span := o11y.StartSpan(ctx, "httpclient: call")
-		defer o11y.End(span, &err)
+		defer func() {
+			success := err == nil
+			isDecodeError := decodeError != nil
+			isFirstTry := attemptCounter == 1
+
+			// Only send spans on retries
+			if !(isFirstTry && (success || isDecodeError)) {
+				o11y.End(span, &err)
+			}
+		}()
 
 		req, err := newRequestFn()
 		if err != nil {
@@ -236,6 +246,7 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		err = r.Decoder(res.Body)
 		if err != nil {
 			// do not retry decoding errors
+			decodeError = err
 			return backoff.Permanent(fmt.Errorf("call: %s %s decoding failed with: %w after %d attempt(s)",
 				req.Method, r.Route, err, attemptCounter))
 		}
