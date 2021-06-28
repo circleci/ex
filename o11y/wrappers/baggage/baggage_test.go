@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
 )
@@ -14,7 +15,7 @@ func TestGet(t *testing.T) {
 	ctx := context.Background()
 	t.Run("no baggage", func(t *testing.T) {
 		req := &http.Request{}
-		assert.DeepEqual(t, Get(ctx, req), o11y.Baggage{})
+		assert.Check(t, cmp.DeepEqual(Get(ctx, req), o11y.Baggage{}))
 	})
 
 	t.Run("build url", func(t *testing.T) {
@@ -27,6 +28,6 @@ func TestGet(t *testing.T) {
 			"build-url": "https://circleci.com/gh/circleci/distributor/123",
 			"foo":       "bar",
 		}
-		assert.DeepEqual(t, Get(ctx, req), expected)
+		assert.Check(t, cmp.DeepEqual(Get(ctx, req), expected))
 	})
 }

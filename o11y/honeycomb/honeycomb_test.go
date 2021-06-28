@@ -65,8 +65,8 @@ func TestHoneycomb_ValidatesKeys(t *testing.T) {
 	recovery := func(key string) {
 		p := recover()
 		err, success := p.(error)
-		assert.Assert(t, success)
-		assert.ErrorContains(t, err, key)
+		assert.Check(t, success)
+		assert.Check(t, cmp.ErrorContains(err, key))
 	}
 
 	ctx := o11y.WithProvider(context.Background(), h)
@@ -123,7 +123,7 @@ func TestHoneycombMetricsDoesntPolluteWhenNotConfigured(t *testing.T) {
 	span.End()
 	h.Close(ctx)
 
-	assert.Assert(t, gotEvent, "expected honeycomb to receive event")
+	assert.Check(t, gotEvent, "expected honeycomb to receive event")
 }
 
 func TestHoneycombMetrics(t *testing.T) {
@@ -211,7 +211,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		ValueInt: 145,
 	}))
 
-	assert.Assert(t, gotEvent, "expected honeycomb to receive event")
+	assert.Check(t, gotEvent, "expected honeycomb to receive event")
 }
 
 func TestHoneycombWithError(t *testing.T) {
@@ -242,7 +242,7 @@ func TestHoneycombWithError(t *testing.T) {
 
 	h.Close(ctx)
 
-	assert.Assert(t, gotEvent, "expected to receive an event")
+	assert.Check(t, gotEvent, "expected to receive an event")
 }
 
 func TestHoneycombWithNilError(t *testing.T) {
@@ -273,7 +273,7 @@ func TestHoneycombWithNilError(t *testing.T) {
 
 	h.Close(ctx)
 
-	assert.Assert(t, gotEvent, "expected to receive an event")
+	assert.Check(t, gotEvent, "expected to receive an event")
 }
 
 func honeycombServer(t *testing.T, cb func(string)) string {

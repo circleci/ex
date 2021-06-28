@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestFromContext(t *testing.T) {
 	t.Run("no provider", func(t *testing.T) {
 		ctx := context.Background()
 		p := FromContext(ctx)
-		assert.Equal(t, p, defaultProvider)
+		assert.Check(t, cmp.Equal(p, defaultProvider))
 	})
 
 	t.Run("with provider in context", func(t *testing.T) {
@@ -21,16 +22,22 @@ func TestFromContext(t *testing.T) {
 		ctx := WithProvider(context.Background(), expected)
 
 		actual := FromContext(ctx)
-		assert.Equal(t, actual, expected)
+		assert.Check(t, cmp.Equal(actual, expected))
 	})
+}
+
+func TestLog_WithoutProvider(t *testing.T) {
+	ctx := context.Background()
+
+	Log(ctx, "foo", Field("name", "value"))
 }
 
 func TestStartSpan_WithoutProvider(t *testing.T) {
 	ctx := context.Background()
 
 	nCtx, span := StartSpan(ctx, "foo")
-	assert.Assert(t, span != nil, "should have returned a noop span")
-	assert.Equal(t, ctx, nCtx, "should have returned ctx unmodified")
+	assert.Check(t, span != nil, "should have returned a noop span")
+	assert.Check(t, cmp.Equal(ctx, nCtx), "should have returned ctx unmodified")
 }
 
 func TestHandlePanic(t *testing.T) {
@@ -46,7 +53,7 @@ func TestHandlePanic(t *testing.T) {
 		}
 
 		dummyPanic(func() { panic("oh no") })
-		assert.ErrorContains(t, err, "oh no")
+		assert.Check(t, cmp.ErrorContains(err, "oh no"))
 	})
 }
 
@@ -119,10 +126,10 @@ func TestAddResultToSpan(t *testing.T) {
 	checkField := func(span *fakeSpan, key, expect string) {
 		if expect != "" {
 			gotResult := span.fields[key].(string)
-			assert.Equal(t, expect, gotResult)
+			assert.Check(t, cmp.Equal(expect, gotResult))
 		} else {
 			_, ok := span.fields[key]
-			assert.Assert(t, !ok)
+			assert.Check(t, !ok)
 		}
 	}
 	for _, tt := range tests {

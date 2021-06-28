@@ -163,6 +163,11 @@ func FromContext(ctx context.Context) Provider {
 	return provider
 }
 
+// Log sends a zero duration trace event.
+func Log(ctx context.Context, name string, fields ...Pair) {
+	FromContext(ctx).Log(ctx, name, fields...)
+}
+
 // StartSpan starts a span from a context that must contain a provider for this to have any effect.
 func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return FromContext(ctx).StartSpan(ctx, name)
