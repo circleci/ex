@@ -26,6 +26,12 @@ func TestFromContext(t *testing.T) {
 	})
 }
 
+func TestLog_WithoutProvider(t *testing.T) {
+	ctx := context.Background()
+
+	Log(ctx, "foo", Field("name", "value"))
+}
+
 func TestStartSpan_WithoutProvider(t *testing.T) {
 	ctx := context.Background()
 
