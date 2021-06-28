@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestWarning(t *testing.T) {
@@ -17,38 +18,38 @@ func TestWarning(t *testing.T) {
 
 	origErr := NewWarning(msg)
 	warning := &wrapWarnError{}
-	assert.Assert(t, errors.As(origErr, &warning))
-	assert.Equal(t, origErr.Error(), expected)
-	assert.Assert(t, IsWarning(origErr))
+	assert.Check(t, errors.As(origErr, &warning))
+	assert.Check(t, cmp.Equal(origErr.Error(), expected))
+	assert.Check(t, IsWarning(origErr))
 
 	err = fmt.Errorf("some other error: %w", origErr)
-	assert.Assert(t, errors.As(err, &warning), "one wrap")
-	assert.Assert(t, errors.Is(err, origErr))
-	assert.ErrorContains(t, err, expected)
-	assert.Assert(t, IsWarning(err))
+	assert.Check(t, errors.As(err, &warning), "one wrap")
+	assert.Check(t, errors.Is(err, origErr))
+	assert.Check(t, cmp.ErrorContains(err, expected))
+	assert.Check(t, IsWarning(err))
 
 	err = fmt.Errorf("another error: %w", err)
-	assert.Assert(t, errors.As(err, &warning), "two wraps")
-	assert.Assert(t, errors.Is(err, origErr))
-	assert.ErrorContains(t, err, expected)
+	assert.Check(t, errors.As(err, &warning), "two wraps")
+	assert.Check(t, errors.Is(err, origErr))
+	assert.Check(t, cmp.ErrorContains(err, expected))
 }
 
 func TestWarning_TwoWarningsNotIs(t *testing.T) {
 	err1 := NewWarning("warning 1")
 	err2 := NewWarning("warning 2")
 
-	assert.Assert(t, !errors.Is(err1, err2))
+	assert.Check(t, !errors.Is(err1, err2))
 }
 
 func TestDontErrorTrace(t *testing.T) {
 	err := NewWarning("warn")
 	warning := &wrapWarnError{}
-	assert.Assert(t, errors.As(err, &warning))
-	assert.Assert(t, DontErrorTrace(err))
+	assert.Check(t, errors.As(err, &warning))
+	assert.Check(t, DontErrorTrace(err))
 
 	err = fmt.Errorf("wrapped: %w", context.DeadlineExceeded)
-	assert.Assert(t, DontErrorTrace(err))
+	assert.Check(t, DontErrorTrace(err))
 
 	err = fmt.Errorf("wrapped: %w", context.Canceled)
-	assert.Assert(t, DontErrorTrace(err))
+	assert.Check(t, DontErrorTrace(err))
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/honeycombio/libhoney-go/transmission"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestTextSender(t *testing.T) {
@@ -54,7 +55,7 @@ func TestTextSender(t *testing.T) {
 			}
 
 			h.Add(tc.source)
-			assert.Equal(t, buf.String(), tc.expected)
+			assert.Check(t, cmp.Equal(buf.String(), tc.expected))
 		})
 	}
 }
