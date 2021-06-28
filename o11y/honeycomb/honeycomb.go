@@ -32,6 +32,8 @@ type Config struct {
 	SampleKeyFunc func(map[string]interface{}) string
 	Writer        io.Writer
 	Metrics       o11y.MetricsProvider
+
+	Debug bool
 }
 
 func (c *Config) Validate() error {
@@ -90,6 +92,7 @@ func New(conf Config) o11y.Provider {
 
 	bc := beeline.Config{
 		Client: client,
+		Debug:  conf.Debug,
 	}
 
 	if conf.SampleTraces {
