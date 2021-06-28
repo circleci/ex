@@ -27,7 +27,8 @@ type Config struct {
 	StatsNamespace   string
 
 	// Optional
-	Mode string
+	Mode  string
+	Debug bool
 }
 
 // Setup is some crazy hackery to handle the fact that the beeline lib uses a
@@ -128,6 +129,7 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 				fields["response.status_code"],
 			)
 		},
+		Debug: o.Debug,
 	}
 	return conf, conf.Validate()
 }
