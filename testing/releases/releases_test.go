@@ -42,7 +42,9 @@ func TestReleases_ResolveURL(t *testing.T) {
 24a3df3bc4b67763e465d20118e5856b60a1cb70147195177f03f3e948c0ae86 *linux/amd64/agent
 42199f7de7bbac08653c1c6ddb16df1c9838f1e852f4583d5dcf20b478055532 *linux/arm64/agent
 51ff01417a07dab940eb69078997ec607c0cde6e317c7ff1cdbe353217e7f04e *linux/arm/agent
-2706af5f6e6dd19c9fe38725383abcb83da68bc729632dabca2d2bb190591162 *windows/amd64/agent.exe`)
+2706af5f6e6dd19c9fe38725383abcb83da68bc729632dabca2d2bb190591162 *windows/amd64/agent.exe
+51ff01417a07dab940eb69078997ec607c0cde6e317c7ff1cdbe353217e7f04g *./linux/arm1/agent
+51ff01417a07dab940eb69078997ec607c0cde6e317c7ff1cdbe353217e7f04h */linux/arm2/agent`)
 	}))
 
 	rel := New(srv.URL)
@@ -53,4 +55,18 @@ func TestReleases_ResolveURL(t *testing.T) {
 	})
 	assert.Assert(t, err)
 	assert.Check(t, cmp.Equal(ver, srv.URL+"/1.2.3-abc/linux/amd64/agent"))
+	ver, err = rel.ResolveURL(ctx, Requirements{
+		Version: "1.2.3-abc",
+		OS:      "linux",
+		Arch:    "arm1",
+	})
+	assert.Assert(t, err)
+	assert.Check(t, cmp.Equal(ver, srv.URL+"/1.2.3-abc/linux/arm1/agent"))
+	ver, err = rel.ResolveURL(ctx, Requirements{
+		Version: "1.2.3-abc",
+		OS:      "linux",
+		Arch:    "arm2",
+	})
+	assert.Assert(t, err)
+	assert.Check(t, cmp.Equal(ver, srv.URL+"/1.2.3-abc/linux/arm2/agent"))
 }

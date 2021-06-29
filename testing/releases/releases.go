@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -76,7 +77,11 @@ func (d *Releases) decodeDownload(r io.Reader, rq Requirements) (string, error) 
 		txt := scanner.Text()
 		if strings.Contains(txt, rq.OS) && strings.Contains(txt, rq.Arch) {
 			parts := strings.Split(txt, " ")
-			filename := parts[1][1:]
+
+			// with some releases the file part is stored with a leading *./
+			filename := path.Clean(parts[1][1:])
+			filename = strings.TrimPrefix(filename, "/")
+
 			return fmt.Sprintf("%s/%s/%s", d.baseURL, rq.Version, filename), nil
 		}
 	}
