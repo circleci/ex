@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/DataDog/datadog-go v4.8.0+incompatible
 	github.com/Microsoft/go-winio v0.5.0 // indirect
+	github.com/alecthomas/kong v0.2.17
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/gin-gonic/gin v1.7.2
 	github.com/google/go-cmp v0.5.6
