@@ -1,0 +1,9 @@
+Usage: test-app
+
+Flags:
+  -h, --help                Show context-sensitive help.
+      --string-var="string-default"
+                            ($STRING_VAR)
+      --int-var=123         ($INT_VAR)
+      --bool-var            ($BOOL_VAR)
+      --duration-var=10s    ($DURATION_VAR)
