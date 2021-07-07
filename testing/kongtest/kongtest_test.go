@@ -18,7 +18,7 @@ func TestHelp(t *testing.T) {
 	}
 
 	c := cli{}
-	s := Help(t, &c)
+	s := Help(t, &c, "test-app")
 	assert.Check(t, golden.String(s, "help.txt"))
 	assert.Check(t, cmp.Equal(c, cli{
 		StringVar:   "string-default",

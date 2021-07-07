@@ -9,11 +9,11 @@ import (
 	"gotest.tools/v3/assert/cmp"
 )
 
-func Help(t *testing.T, cli interface{}) string {
+func Help(t *testing.T, cli interface{}, appName string) string {
 	w := bytes.NewBuffer(nil)
 	exited := false
 	app, err := kong.New(cli,
-		kong.Name("test-app"),
+		kong.Name(appName),
 		kong.Writers(w, w),
 		kong.Exit(func(int) {
 			exited = true
