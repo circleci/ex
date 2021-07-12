@@ -238,8 +238,20 @@ func (h *honeycomb) AddGlobalField(key string, val interface{}) {
 }
 
 func (h *honeycomb) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
-	ctx, s := beeline.StartSpan(ctx, name)
-	return ctx, WrapSpan(s)
+	span := trace.GetSpanFromContext(ctx)
+	var newSpan *trace.Span
+	if span != nil {
+		ctx, newSpan = span.CreateAsyncChild(ctx)
+	} else {
+		// there is no trace active; we should make one, but use the root span
+		// as the "new" span instead of creating a child of this mostly empty
+		// span
+		ctx, _ = trace.NewTrace(ctx, nil)
+		newSpan = trace.GetSpanFromContext(ctx)
+	}
+	newSpan.AddField("name", name)
+
+	return ctx, WrapSpan(newSpan)
 }
 
 func (h *honeycomb) GetSpan(ctx context.Context) o11y.Span {
