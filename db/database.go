@@ -27,6 +27,8 @@ type Config struct {
 	MaxIdleConns    int
 }
 
+// New connects to a database. The context passed in is expected to carry an o11y provider
+// and is only used for reporting (not for cancellation),
 func New(ctx context.Context, dbName, appName string, options Config) (db *sqlx.DB, err error) {
 	_, span := o11y.StartSpan(ctx, "config: connect to database")
 	defer o11y.End(span, &err)
