@@ -12,6 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/circleci/ex/httpserver"
+
+	"golang.org/x/sync/errgroup"
+
 	"github.com/honeycombio/beeline-go/propagation"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -345,4 +349,40 @@ func TestIsRequestProblem(t *testing.T) {
 			assert.Check(t, cmp.Equal(IsRequestProblem(tt.err), tt.want))
 		})
 	}
+}
+
+func TestKeepAlive(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
+	defer cancel()
+
+	// start our server with a handler that writes a response
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"hello": "world!"} ...`)
+	})
+	srv, err := httpserver.New(ctx, "test server", "localhost:0", h)
+	assert.Assert(t, err)
+
+	g, ctx := errgroup.WithContext(ctx)
+	t.Cleanup(func() {
+		assert.Check(t, g.Wait())
+	})
+	g.Go(func() error {
+		return srv.Serve(ctx)
+	})
+
+	// Fire 100 requests at the server
+	client := New(Config{
+		Name:    "keep-alive",
+		BaseURL: "http://" + srv.Addr(),
+		Timeout: 1 * time.Second,
+	})
+	req := NewRequest("POST", "/", time.Second)
+
+	for n := 0; n < 100; n++ {
+		err := client.Call(context.Background(), req)
+		assert.NilError(t, err)
+	}
+
+	// all 100 sequential requests should have reused a single connection
+	assert.Equal(t, srv.MetricsProducer().Gauges(ctx)["total_connections"], float64(1))
 }

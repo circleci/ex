@@ -159,7 +159,6 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 // Any response body in non 2XX cases is discarded.
 // nolint: funlen
 func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func() (*http.Request, error)) error {
-
 	finalStatus := 0
 	defer func() {
 		// Add the status code from after all retries to the parent span
@@ -212,7 +211,12 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 			return fmt.Errorf("call: %s %s failed with: %w after %d attempt(s)",
 				req.Method, r.Route, err, attemptCounter)
 		}
-		defer res.Body.Close()
+		defer func() {
+			// drain anything left in the body and close it, to ensure we can take advantage of keep alive
+			// this is best efforts so any errors here are not important
+			_, _ = io.Copy(ioutil.Discard, res.Body)
+			_ = res.Body.Close()
+		}()
 
 		finalStatus = res.StatusCode
 		if cl := res.Header.Get("Content-Length"); cl != "" {
@@ -267,7 +271,7 @@ func extractHTTPError(req *http.Request, res *http.Response, attempts int, route
 }
 
 // NewJSONDecoder returns a decoder func enclosing the resp param
-// the func returned takes an io reader which will be passed rto a json decoder to
+// the func returned takes an io reader which will be passed to a json decoder to
 // decode into the resp.
 func NewJSONDecoder(resp interface{}) Decoder {
 	return func(r io.Reader) error {
