@@ -10,15 +10,12 @@ import (
 	"github.com/circleci/ex/o11y"
 )
 
-// ErrTerminated is used to indicate that the errgroup should cancel the
-// context, but that the shutdown is due to an expected signal, not an unhandled
-// error.
+// ErrTerminated is used to indicate that the Handle func received a shutdown signal.
 var ErrTerminated = o11y.NewWarning("terminated")
 
 // Handle is intended to be used with a x/sync/errgroup.WithContext group.
-// When a signal is received signalHandler returns an error. When the errgroup
-// receives the error it will cancel the context. All long running operations
-// should terminate once the context is canceled.
+// When a signal is received Handle returns ErrTerminated.
+// If the context is cancelled Handle will return with no error.
 func Handle(ctx context.Context, delay time.Duration) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

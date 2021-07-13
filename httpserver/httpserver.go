@@ -47,6 +47,8 @@ func New(ctx context.Context, name, addr string, handler http.Handler) (s *HTTPS
 	}, nil
 }
 
+// Serve the http server. On context cancellation the server is shutdown giving some time
+// for the in flight requests to be handled.
 func (s *HTTPServer) Serve(ctx context.Context) error {
 	g, ctx := errgroup.WithContext(ctx)
 

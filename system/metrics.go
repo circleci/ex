@@ -12,10 +12,6 @@ import (
 	"github.com/circleci/ex/worker"
 )
 
-type HealthChecker interface {
-	HealthChecks() (name string, ready, live func(ctx context.Context) error)
-}
-
 type MetricProducer interface {
 	// MetricName The name for this group of metrics
 	//(Name might be cleaner, but is much more likely to conflict in implementations)
@@ -42,6 +38,8 @@ func traceMetric(ctx context.Context, span o11y.Span, producer MetricProducer) {
 	}
 }
 
+// metrics reporter returns a function that is expected to be used in a call to errgroup.Go
+// that func starts a worker that periodically calls and publishes the gauges from the producers.
 func metricsReporter(ctx context.Context, makers []MetricProducer) func() error {
 	return func() error {
 		cfg := worker.Config{

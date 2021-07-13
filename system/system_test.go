@@ -7,12 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/circleci/ex/o11y"
-
-	"github.com/circleci/ex/termination"
-
 	"gotest.tools/v3/assert"
 
+	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/termination"
 	"github.com/circleci/ex/testing/testcontext"
 )
 
