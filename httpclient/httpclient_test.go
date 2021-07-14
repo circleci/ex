@@ -13,14 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/circleci/ex/httpserver"
-
-	"golang.org/x/sync/errgroup"
-
 	"github.com/honeycombio/beeline-go/propagation"
+	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/wrappers/o11ynethttp"
 	"github.com/circleci/ex/testing/httprecorder"
@@ -404,17 +402,19 @@ func TestIsRequestProblem(t *testing.T) {
 
 func TestClient_ConnectionPool(t *testing.T) {
 	ctx, cancel := context.WithCancel(testcontext.Background())
-	defer cancel()
 
 	// start our server with a handler that writes a response
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `{"hello": "world!"} ...`)
+		// to help the client have the full number of concurrent requests in flight
+		time.Sleep(2 * time.Millisecond)
 	})
 	srv, err := httpserver.New(ctx, "test server", "localhost:0", h)
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)
 	t.Cleanup(func() {
+		cancel()
 		assert.Check(t, g.Wait())
 	})
 	g.Go(func() error {
@@ -426,16 +426,16 @@ func TestClient_ConnectionPool(t *testing.T) {
 		client := New(Config{
 			Name:    "keep-alive",
 			BaseURL: "http://" + srv.Addr(),
-			Timeout: 1 * time.Second,
+			Timeout: time.Second,
 		})
 		req := NewRequest("POST", "/", time.Second)
 
-		for n := 0; n < 100; n++ {
+		for n := 0; n < 50; n++ {
 			err := client.Call(context.Background(), req)
 			assert.NilError(t, err)
 		}
 
-		// all 100 sequential requests should have reused a single connection
+		// all sequential requests should have reused a single connection
 		assert.Equal(t, srv.MetricsProducer().Gauges(ctx)["total_connections"], float64(1))
 	})
 
@@ -448,18 +448,18 @@ func TestClient_ConnectionPool(t *testing.T) {
 		client := New(Config{
 			Name:                  "keep-alive",
 			BaseURL:               "http://" + srv.Addr(),
-			Timeout:               1 * time.Second,
+			Timeout:               time.Second,
 			MaxConnectionsPerHost: maxConnections,
 		})
 		req := NewRequest("POST", "/", time.Second)
 
-		concurrency := 20
+		concurrency := 30
 		var wg sync.WaitGroup
 		wg.Add(concurrency)
 		for c := 0; c < concurrency; c++ {
 			go func() {
 				for n := 0; n < 10; n++ {
-					err := client.Call(context.Background(), req)
+					err := client.Call(testcontext.Background(), req)
 					assert.NilError(t, err)
 					// This delay increases the effect of not setting MaxIdleConnsPerHost
 					// on the client since this increases the chance that each connection may be
@@ -478,7 +478,14 @@ func TestClient_ConnectionPool(t *testing.T) {
 		// of idle connections hence we expect to not close and reopen any established connections.
 		// (remove the count of connections made in previous tests)
 		totalNewConnectionsMade := int(srv.MetricsProducer().Gauges(ctx)["total_connections"]) - startingServerConnections
-		// account for running this test as part of the parent
-		assert.Equal(t, totalNewConnectionsMade, maxConnections)
+
+		// Since the test is non deterministic (depending on the environment it is running in)
+		// we may drop some connections, but we should be using most of the pool
+		assert.Check(t, totalNewConnectionsMade >= maxConnections-5,
+			"made less connections (%d) than expected (%d)", totalNewConnectionsMade, maxConnections)
+
+		// but we would not expect a huge number of dropped connections
+		assert.Check(t, totalNewConnectionsMade < maxConnections+5,
+			"made mre connections (%d) than expected (%d)", totalNewConnectionsMade, maxConnections+5)
 	})
 }
