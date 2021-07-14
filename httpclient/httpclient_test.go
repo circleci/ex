@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -250,7 +251,7 @@ func TestHTTPError_Is(t *testing.T) {
 	}
 }
 
-func TestHasErrorCode(t *testing.T) {
+func TestHasErrorCode_DEPRECATED(t *testing.T) {
 	tests := []struct {
 		name  string
 		err   error
@@ -296,6 +297,56 @@ func TestHasErrorCode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Check(t, cmp.Equal(HasErrorCode(tt.err, tt.codes...), tt.want))
+		})
+	}
+}
+
+func TestHasStatusCode(t *testing.T) {
+	tests := []struct {
+		name  string
+		err   error
+		codes []int
+		want  bool
+	}{
+		{
+			name: "With matching code",
+			err: &HTTPError{
+				code: 400,
+			},
+			codes: []int{400, 500},
+			want:  true,
+		},
+		{
+			name: "With different code",
+			err: &HTTPError{
+				code: 200,
+			},
+			codes: []int{400, 500},
+			want:  false,
+		},
+		{
+			name:  "Empty error",
+			err:   &HTTPError{},
+			codes: []int{400},
+			want:  false,
+		},
+		{
+			name:  "Nil error",
+			err:   nil,
+			codes: []int{400},
+			want:  false,
+		},
+		{
+			name:  "Other kind of error",
+			err:   errors.New("some other error"),
+			codes: []int{400},
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Check(t, cmp.Equal(HasStatusCode(tt.err, tt.codes...), tt.want))
 		})
 	}
 }
@@ -351,7 +402,7 @@ func TestIsRequestProblem(t *testing.T) {
 	}
 }
 
-func TestKeepAlive(t *testing.T) {
+func TestClient_ConnectionPool(t *testing.T) {
 	ctx, cancel := context.WithCancel(testcontext.Background())
 	defer cancel()
 
@@ -370,19 +421,64 @@ func TestKeepAlive(t *testing.T) {
 		return srv.Serve(ctx)
 	})
 
-	// Fire 100 requests at the server
-	client := New(Config{
-		Name:    "keep-alive",
-		BaseURL: "http://" + srv.Addr(),
-		Timeout: 1 * time.Second,
+	t.Run("keep-alive", func(t *testing.T) {
+		// Fire 100 requests at the server
+		client := New(Config{
+			Name:    "keep-alive",
+			BaseURL: "http://" + srv.Addr(),
+			Timeout: 1 * time.Second,
+		})
+		req := NewRequest("POST", "/", time.Second)
+
+		for n := 0; n < 100; n++ {
+			err := client.Call(context.Background(), req)
+			assert.NilError(t, err)
+		}
+
+		// all 100 sequential requests should have reused a single connection
+		assert.Equal(t, srv.MetricsProducer().Gauges(ctx)["total_connections"], float64(1))
 	})
-	req := NewRequest("POST", "/", time.Second)
 
-	for n := 0; n < 100; n++ {
-		err := client.Call(context.Background(), req)
-		assert.NilError(t, err)
-	}
+	t.Run("connection-reuse", func(t *testing.T) {
+		// record the number of connections previous tests have added to the server so far
+		startingServerConnections := int(srv.MetricsProducer().Gauges(ctx)["total_connections"])
 
-	// all 100 sequential requests should have reused a single connection
-	assert.Equal(t, srv.MetricsProducer().Gauges(ctx)["total_connections"], float64(1))
+		maxConnections := 15
+		// Fire 100 requests at the server
+		client := New(Config{
+			Name:                  "keep-alive",
+			BaseURL:               "http://" + srv.Addr(),
+			Timeout:               1 * time.Second,
+			MaxConnectionsPerHost: maxConnections,
+		})
+		req := NewRequest("POST", "/", time.Second)
+
+		concurrency := 20
+		var wg sync.WaitGroup
+		wg.Add(concurrency)
+		for c := 0; c < concurrency; c++ {
+			go func() {
+				for n := 0; n < 10; n++ {
+					err := client.Call(context.Background(), req)
+					assert.NilError(t, err)
+					// This delay increases the effect of not setting MaxIdleConnsPerHost
+					// on the client since this increases the chance that each connection may be
+					// considered idle and therefore be closed and a new connection created.
+					time.Sleep(time.Millisecond)
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+
+		// The total new connections made should be at least as much as the max (concurrent) connections
+		// since that is lower than the number of concurrent requests. If we were not allowing as many
+		// idle connections we would see more total connections made (since they would have been closed
+		// and recreated). The server should only see maxConnections made since we allow the same number
+		// of idle connections hence we expect to not close and reopen any established connections.
+		// (remove the count of connections made in previous tests)
+		totalNewConnectionsMade := int(srv.MetricsProducer().Gauges(ctx)["total_connections"]) - startingServerConnections
+		// account for running this test as part of the parent
+		assert.Equal(t, totalNewConnectionsMade, maxConnections)
+	})
 }

@@ -1,3 +1,5 @@
+// Package httpclient provides an http client instrumented with the ex/o11y package, and includes
+// configurable timeouts, retries, authentication and connection pooling.
 package httpclient
 
 import (
@@ -20,16 +22,26 @@ import (
 
 const JSON = "application/json; charset=utf-8"
 
+// Config provides the client configuration
 type Config struct {
-	Name                  string
-	BaseURL               string
-	AuthHeader            string
-	AuthToken             string
-	AcceptType            string
-	Timeout               time.Duration
+	// Name is used to identify the client in spans
+	Name string
+	// BaseURL is the URL and optional path prefix to the server that this is a client of.
+	BaseURL string
+	// AuthHeader the name of the header that the AuthToken will be set on. If empty then
+	// the AuthToken will be used in a bearer token authorization header
+	AuthHeader string
+	// AuthToken is the token to use for authentication.
+	AuthToken string
+	// AcceptType if set will be used to set the Accept header.
+	AcceptType string
+	// Timeout is the maximum time any call can take including any retries
+	Timeout time.Duration
+	// MaxConnectionsPerHost sets the connection pool size
 	MaxConnectionsPerHost int
 }
 
+// Client is the o11y instrumented http client
 type Client struct {
 	name                  string
 	baseURL               string
@@ -41,9 +53,14 @@ type Client struct {
 	acceptType            string
 }
 
+// New creates a client configured with the config param
 func New(cfg Config) *Client {
 	t := http.DefaultTransport.(*http.Transport).Clone()
+	if cfg.MaxConnectionsPerHost == 0 {
+		cfg.MaxConnectionsPerHost = 10
+	}
 	t.MaxConnsPerHost = cfg.MaxConnectionsPerHost
+	t.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
 
 	c := &Client{
 		name:                  cfg.Name,
@@ -61,29 +78,31 @@ func New(cfg Config) *Client {
 	return c
 }
 
-// CloseIdleConnections is never really needed in production with our persistent clients
-// but it is handy for testing.
+// CloseIdleConnections is only used for testing.
 func (c *Client) CloseIdleConnections() {
 	c.httpClient.CloseIdleConnections()
 }
 
-type Decoder func(r io.Reader) error
+type decoder func(r io.Reader) error
 
+// Request is an individual http request that the Client will send
 type Request struct {
 	Method  string
 	Route   string
-	Body    interface{}
-	Decoder Decoder
+	Body    interface{} // If set this will be sent as JSON
+	Decoder decoder     // If set will be used to decode the response body
 	Cookie  *http.Cookie
 	Headers map[string]string
-	Timeout time.Duration
+	Timeout time.Duration // The individual per call timeout
 	Query   url.Values
 
 	url string
 }
 
-// NewRequest should generally be used to create a new request. This encourages the user
-// to specify a "route" for the tracing, and avoid high cardinality routes.
+// NewRequest should be used to create a new request rather than constructing a Request directly.
+// This encourages the user to specify a "route" for the tracing, and avoid high cardinality routes
+// (when parts of the url may contain many varying values).
+// The returned Request can be further altered before being passed to the client.Call.
 func NewRequest(method, route string, timeout time.Duration, routeParams ...interface{}) Request {
 	return Request{
 		Method:  method,
@@ -93,6 +112,10 @@ func NewRequest(method, route string, timeout time.Duration, routeParams ...inte
 	}
 }
 
+// Call makes the request call. It will trace out a top level span and a span for any retry attempts.
+// Retries will be attempted on any 5XX responses.
+// If the http call completed with a non 2XX status code then an HTTPError will be returned containing
+// details of result of the call.
 func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	spanName := fmt.Sprintf("httpclient: %s %s", c.name, r.Route)
 	// most clients should use NewRequest, but if they created a Request directly
@@ -252,28 +275,10 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
 }
 
-func extractHTTPError(req *http.Request, res *http.Response, attempts int, route string) error {
-	httpErr := &HTTPError{
-		method:   req.Method,
-		route:    route,
-		code:     res.StatusCode,
-		attempts: attempts,
-	}
-	switch {
-	case res.StatusCode >= 500:
-		// 500 could be temporary server problems, so should retry.
-		return httpErr
-	case res.StatusCode >= 300:
-		// All other none 2XX codes are something we did wrong so exit the retry.
-		return backoff.Permanent(httpErr)
-	}
-	return nil
-}
-
 // NewJSONDecoder returns a decoder func enclosing the resp param
 // the func returned takes an io reader which will be passed to a json decoder to
 // decode into the resp.
-func NewJSONDecoder(resp interface{}) Decoder {
+func NewJSONDecoder(resp interface{}) decoder {
 	return func(r io.Reader) error {
 		if err := json.NewDecoder(r).Decode(resp); err != nil {
 			return fmt.Errorf("failed to unmarshal: %w", err)
@@ -282,6 +287,7 @@ func NewJSONDecoder(resp interface{}) Decoder {
 	}
 }
 
+// HTTPError represents an error in an HTTP call when the response status code is not 2XX
 type HTTPError struct {
 	method   string
 	route    string
@@ -299,6 +305,7 @@ func (e *HTTPError) Error() string {
 		e.method, e.route, e.code, http.StatusText(e.code), e.attempts)
 }
 
+// Code returns the status code recorded in this error.
 func (e *HTTPError) Code() int {
 	return e.code
 }
@@ -314,6 +321,7 @@ func (e *HTTPError) Is(target error) bool {
 	return false
 }
 
+// HasErrorCode is DEPRECATED - use HasStatusCode instead.
 func HasErrorCode(err error, codes ...int) bool {
 	e := &HTTPError{}
 	if errors.As(err, &e) {
@@ -326,10 +334,46 @@ func HasErrorCode(err error, codes ...int) bool {
 	return false
 }
 
+// HasStatusCode tests err for HTTPError and returns true if any of the codes
+// match the stored code.
+func HasStatusCode(err error, codes ...int) bool {
+	e := &HTTPError{}
+	if errors.As(err, &e) {
+		for _, code := range codes {
+			if e.code == code {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// IsRequestProblem checks the err for HTTPError and returns true if the stored status code
+// is in the 4xx range
 func IsRequestProblem(err error) bool {
 	e := &HTTPError{}
 	if errors.As(err, &e) {
 		return e.code >= 400 && e.code < 500
 	}
 	return false
+}
+
+// extractHTTPError returns an HTTPError if the response status code is >=300, otherwise it
+// returns nil.
+func extractHTTPError(req *http.Request, res *http.Response, attempts int, route string) error {
+	httpErr := &HTTPError{
+		method:   req.Method,
+		route:    route,
+		code:     res.StatusCode,
+		attempts: attempts,
+	}
+	switch {
+	case res.StatusCode >= 500:
+		// 500 could be temporary server problems, so should retry.
+		return httpErr
+	case res.StatusCode >= 300:
+		// All other none 2XX codes are something we did wrong so exit the retry.
+		return backoff.Permanent(httpErr)
+	}
+	return nil
 }
