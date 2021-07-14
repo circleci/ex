@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
@@ -54,9 +55,12 @@ func (s *HTTPServer) Serve(ctx context.Context) error {
 
 	g.Go(func() error {
 		<-ctx.Done()
-		cctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return s.server.Shutdown(cctx)
+		if err := s.server.Shutdown(cctx); err != nil {
+			return fmt.Errorf("server shutdown failed: %w", err)
+		}
+		return nil
 	})
 
 	g.Go(func() error {
