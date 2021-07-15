@@ -42,7 +42,7 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 		}
 
 		provider.AddFieldToTrace(ctx, "server_name", serverName)
-		span.AddField("name", fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.Request.URL.Path))
+		span.AddField("name", fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()))
 		span.AddField("request.route", c.FullPath())
 
 		// Run the next function in the Middleware chain
