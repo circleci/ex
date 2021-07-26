@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/honeycombio/beeline-go v1.1.3
 	github.com/honeycombio/dynsampler-go v0.2.1
-	github.com/honeycombio/libhoney-go v1.15.3
+	github.com/honeycombio/libhoney-go v1.15.4
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/klauspost/compress v1.13.1
 	github.com/lib/pq v1.10.2
