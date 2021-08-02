@@ -97,6 +97,35 @@ func TestClient_Call_Decodes(t *testing.T) {
 	}))
 }
 
+func TestClient_Call_NoContent(t *testing.T) {
+	ctx := testcontext.Background()
+
+	okHandler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(okHandler))
+	client := New(Config{
+		Name:    "name",
+		BaseURL: server.URL,
+		Timeout: time.Second,
+	})
+	req := NewRequest("POST", "/", time.Second)
+
+	type res struct {
+		A string `json:"a"`
+		B string `json:"b"`
+	}
+
+	var m res
+	req.Decoder = NewJSONDecoder(&m)
+
+	err := client.Call(ctx, req)
+	assert.Check(t, errors.Is(err, ErrNoContent))
+	assert.Check(t, IsNoContent(err))
+	assert.Check(t, cmp.DeepEqual(m, res{}))
+}
+
 func TestClient_Call_Timeouts(t *testing.T) {
 	okHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -389,6 +418,11 @@ func TestIsRequestProblem(t *testing.T) {
 		{
 			name: "Other kind of error",
 			err:  errors.New("some other error"),
+			want: false,
+		},
+		{
+			name: "No content error",
+			err:  ErrNoContent,
 			want: false,
 		},
 	}
