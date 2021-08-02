@@ -89,14 +89,15 @@ type decoder func(r io.Reader) error
 
 // Request is an individual http request that the Client will send
 type Request struct {
-	Method  string
-	Route   string
-	Body    interface{} // If set this will be sent as JSON
-	Decoder decoder     // If set will be used to decode the response body
-	Cookie  *http.Cookie
-	Headers map[string]string
-	Timeout time.Duration // The individual per call timeout
-	Query   url.Values
+	Method        string
+	Route         string
+	Body          interface{} // If set this will be sent as JSON
+	Decoder       decoder     // If set will be used to decode the response body
+	Cookie        *http.Cookie
+	Headers       map[string]string
+	Timeout       time.Duration // The individual per call timeout
+	Query         url.Values
+	NoPropagation bool
 
 	url string
 }
@@ -212,7 +213,9 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		defer cancel()
 
 		req = req.WithContext(ctx)
-		req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+		if !r.NoPropagation {
+			req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+		}
 
 		span.RecordMetric(o11y.Timing("httpclient",
 			"api.client", "api.route", "http.method", "http.status_code", "http.retry"))
