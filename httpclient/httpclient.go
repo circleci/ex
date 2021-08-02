@@ -22,6 +22,8 @@ import (
 
 const JSON = "application/json; charset=utf-8"
 
+var ErrNoContent = o11y.NewWarning("no content")
+
 // Config provides the client configuration
 type Config struct {
 	// Name is used to identify the client in spans
@@ -358,6 +360,10 @@ func IsRequestProblem(err error) bool {
 	return false
 }
 
+func IsNoContent(err error) bool {
+	return errors.Is(err, ErrNoContent)
+}
+
 // extractHTTPError returns an HTTPError if the response status code is >=300, otherwise it
 // returns nil.
 func extractHTTPError(req *http.Request, res *http.Response, attempts int, route string) error {
@@ -374,6 +380,8 @@ func extractHTTPError(req *http.Request, res *http.Response, attempts int, route
 	case res.StatusCode >= 300:
 		// All other none 2XX codes are something we did wrong so exit the retry.
 		return backoff.Permanent(httpErr)
+	case res.StatusCode == http.StatusNoContent:
+		return backoff.Permanent(ErrNoContent)
 	}
 	return nil
 }
