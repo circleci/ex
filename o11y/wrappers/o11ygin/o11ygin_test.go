@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/httpserver"
@@ -21,13 +22,18 @@ func TestMiddleware(t *testing.T) {
 	defer cancel()
 
 	r := gin.New()
-	r.Use(Middleware(o11y.FromContext(ctx), "test-server", nil))
+	r.Use(
+		Middleware(o11y.FromContext(ctx), "test-server", nil),
+		Recovery(),
+	)
 	r.UseRawPath = true
 
-	r.PUT("/api/:id", func(c *gin.Context) {
+	r.POST("/api/:id", func(c *gin.Context) {
 		switch id := c.Param("id"); id {
 		case "exists":
 			c.String(http.StatusOK, id)
+		case "panic":
+			panic("oh noes!")
 		default:
 			c.Status(http.StatusNotFound)
 		}
@@ -50,12 +56,19 @@ func TestMiddleware(t *testing.T) {
 	})
 
 	t.Run("Hit an ID that exists", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("PUT", "/api/%s", time.Second, "exists"))
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s", time.Second, "exists"))
 		assert.Assert(t, err)
 	})
 
 	t.Run("Hit an ID that does not exist", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("PUT", "/api/%s", time.Second, "does-not-exist"))
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s", time.Second, "does-not-exist"))
 		assert.Check(t, httpclient.HasStatusCode(err, http.StatusNotFound))
+	})
+
+	t.Run("Hit an ID that panics", func(t *testing.T) {
+		resp, err := http.Post("http://"+srv.Addr()+"/api/panic", "", nil)
+		assert.Assert(t, err)
+		_ = resp.Body.Close()
+		assert.Check(t, cmp.Equal(resp.StatusCode, http.StatusInternalServerError))
 	})
 }
