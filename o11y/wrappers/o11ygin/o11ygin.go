@@ -2,6 +2,7 @@ package o11ygin
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/honeycombio/beeline-go/wrappers/common"
@@ -52,4 +53,13 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 		honeycomb.WrapSpan(span).RecordMetric(o11y.Timing("handler",
 			"server_name", "request.method", "request.route", "response.status_code", "has_panicked"))
 	}
+}
+
+func Recovery() func(c *gin.Context) {
+	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err interface{}) {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		ctx := c.Request.Context()
+		span := o11y.FromContext(ctx).GetSpan(ctx)
+		_ = o11y.HandlePanic(ctx, span, err, c.Request)
+	})
 }
