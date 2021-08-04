@@ -3,22 +3,28 @@ This repository contains a collection of packages designed to aid building
 reliable, observable, zero-downtime services using Go.
 
 ## What is in here?
-- `conf/env` Load application config from environment variables (we are moving away from this).
-- `conf/o11y` Wiring code for the `o11y` package.
-- `conf/secret` Don't store your secrets in a string that can be accidentally logged.
+- `config/env` Load application config from environment variables (we are moving away from this).
+- `config/o11y` Wiring code for the `o11y` package.
+- `config/secret` Don't store your secrets in a string that can be accidentally logged.
   Use a `secret.String` instead.
-- `db` Common patterns using when talking to an RDBMS. Currnetly only supports PostgreSQL.
+- `datadog` A basic Datadog API client for retrieving metrics back from Datadog.
+- `db` Common patterns using when talking to an RDBMS. Only supports PostgreSQL at present.
 - `httpclient` A simple HTTP client that adds observability and resilience to the standard
   Go HTTP client.
 - `httpserver` Starting and stopping the standard Go http server cleanly.
+- `httpserver/ginrouter` A common base for configuring a Gin router instance.
 - `o11y` Observability that is currently backed by Honeycomb. It also supports outputting
   trace data as JSON and plain or colored text output.
+- `o11y/honeycomb` The honeycomb-backed implementation of `o11y`.
+- `o11y/wrappers/o11ygin` `o11y` middleware for the Gin router.
+- `o11y/wrappers/o11ynethttp` `o11y` middleware for the standard Go HTTP server.
 - `system` Manage the startup, running, metrics and shutdown of a Go service.
 - `termination` A handler to aid signal based service termination. (Used internally by
   the `system` package).
 - `testing/compiler` At CircleCI we aim to acceptance test whole compiled binaries. This
   package lets us do that, while capturing test coverage for the binary.
 - `testing/download` Download releases of binaries for using in end to end service testing.
+- `testing/fakemetrics` A fake recording `o11y` metrics implementation.
 - `testing/httprecorder` Record HTTP requests inside an HTTP server, and search them.
 - `testing/kongtest` If you are using [kong](https://github.com/alecthomas/kong) for your
   CLI parsing, this helps in writing golden tests for the CLI definition.
