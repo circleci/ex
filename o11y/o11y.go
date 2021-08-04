@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/rollbar/rollbar-go"
 )
 
@@ -51,6 +52,9 @@ type Provider interface {
 	Log(ctx context.Context, name string, fields ...Pair)
 
 	Close(ctx context.Context)
+
+	// MetricsProvider grants lower control over the metrics that o11y sends, allowing skipping spans.
+	MetricsProvider() MetricsProvider
 }
 
 type Span interface {
@@ -279,6 +283,10 @@ func (c *noopProvider) AddFieldToTrace(ctx context.Context, key string, val inte
 func (c *noopProvider) Close(ctx context.Context) {}
 
 func (c *noopProvider) Log(ctx context.Context, name string, fields ...Pair) {}
+
+func (c *noopProvider) MetricsProvider() MetricsProvider {
+	return &statsd.NoOpClient{}
+}
 
 type noopSpan struct{}
 

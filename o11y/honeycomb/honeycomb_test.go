@@ -16,6 +16,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/testing/fakemetrics"
 )
 
 func TestHoneycomb(t *testing.T) {
@@ -135,7 +136,7 @@ func TestHoneycombMetrics(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	fakeMetrics := &fakeMetrics{}
+	fakeMetrics := &fakemetrics.Provider{}
 	h := New(Config{
 		Dataset:    "test-dataset",
 		Host:       url,
@@ -162,8 +163,9 @@ func TestHoneycombMetrics(t *testing.T) {
 	span.End()
 	h.Close(ctx)
 
-	assert.Assert(t, cmp.Len(fakeMetrics.calls, 6))
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[0], metricCall{
+	calls := fakeMetrics.Calls()
+	assert.Assert(t, cmp.Len(fakeMetrics.Calls(), 6))
+	assert.Check(t, cmp.DeepEqual(calls[0], fakemetrics.MetricCall{
 		Metric: "timer",
 		Name:   "test-metric-timing",
 		Tags:   []string{"low_card_tag:tag-value", "status.code:500"},
@@ -171,7 +173,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		Value:  10,
 	}, cmpNonZeroValue))
 
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[1], metricCall{
+	assert.Check(t, cmp.DeepEqual(calls[1], fakemetrics.MetricCall{
 		Metric:   "count",
 		Name:     "test-metric-incr",
 		Tags:     []string{"low_card_tag:tag-value", "status.code:500"},
@@ -179,7 +181,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		ValueInt: 1,
 	}))
 
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[2], metricCall{
+	assert.Check(t, cmp.DeepEqual(calls[2], fakemetrics.MetricCall{
 		Metric: "timer",
 		Name:   "test-duration-ms",
 		Tags:   []string{"status.code:500"},
@@ -187,7 +189,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		Value:  1000,
 	}))
 
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[3], metricCall{
+	assert.Check(t, cmp.DeepEqual(calls[3], fakemetrics.MetricCall{
 		Metric: "gauge",
 		Name:   "test_metric_gauge",
 		Tags:   []string{},
@@ -195,7 +197,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		Value:  122.87,
 	}))
 
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[4], metricCall{
+	assert.Check(t, cmp.DeepEqual(calls[4], fakemetrics.MetricCall{
 		Metric:   "count",
 		Name:     "test_metric_count",
 		Tags:     []string{"type:first"},
@@ -203,7 +205,7 @@ func TestHoneycombMetrics(t *testing.T) {
 		ValueInt: 134,
 	}))
 
-	assert.Check(t, cmp.DeepEqual(fakeMetrics.calls[5], metricCall{
+	assert.Check(t, cmp.DeepEqual(calls[5], fakemetrics.MetricCall{
 		Metric:   "count",
 		Name:     "test_metric_count",
 		Tags:     []string{"type:second"},
@@ -297,35 +299,6 @@ func honeycombServer(t *testing.T, cb func(string)) string {
 var cmpNonZeroValue = gocmp.Options{gocmp.Comparer(func(a, b float64) bool {
 	return a > 0 && b > 0
 })}
-
-type metricCall struct {
-	Metric   string
-	Name     string
-	Value    float64
-	ValueInt int64
-	Tags     []string
-	Rate     float64
-}
-
-type fakeMetrics struct {
-	o11y.MetricsProvider
-	calls []metricCall
-}
-
-func (f *fakeMetrics) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
-	f.calls = append(f.calls, metricCall{Metric: "timer", Name: name, Value: value, Tags: tags, Rate: rate})
-	return nil
-}
-
-func (f *fakeMetrics) Gauge(name string, value float64, tags []string, rate float64) error {
-	f.calls = append(f.calls, metricCall{Metric: "gauge", Name: name, Value: value, Tags: tags, Rate: rate})
-	return nil
-}
-
-func (f *fakeMetrics) Count(name string, value int64, tags []string, rate float64) error {
-	f.calls = append(f.calls, metricCall{Metric: "count", Name: name, ValueInt: value, Tags: tags, Rate: rate})
-	return nil
-}
 
 func not(c cmp.Comparison) cmp.Comparison {
 	return func() cmp.Result {

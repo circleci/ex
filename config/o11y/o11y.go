@@ -67,7 +67,9 @@ func setup(ctx context.Context, o Config) (context.Context, func(context.Context
 
 	hostname, _ := os.Hostname()
 
-	if o.Statsd != "" {
+	if o.Statsd == "" {
+		honeyConfig.Metrics = &statsd.NoOpClient{}
+	} else {
 		stats, err := statsd.New(o.Statsd)
 		if err != nil {
 			return nil, nil, err
