@@ -8,14 +8,20 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/termination"
-	"github.com/circleci/ex/testing/testcontext"
+	"github.com/circleci/ex/testing/fakemetrics"
 )
 
 func TestSystem_Run(t *testing.T) {
-	ctx := testcontext.Background()
+	metrics := &fakemetrics.Provider{}
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: metrics,
+	}))
 
 	// Wait until everything has been exercised before terminating
 	terminationWait := &sync.WaitGroup{}
@@ -52,6 +58,37 @@ func TestSystem_Run(t *testing.T) {
 
 	sys.Cleanup(ctx)
 	assert.Check(t, cleanupCalled)
+
+	assert.Check(t, cmp.DeepEqual(metrics.Calls(), []fakemetrics.MetricCall{
+		{
+			Metric: "gauge",
+			Name:   "gauge..key_a",
+			Value:  1,
+			Tags:   []string{},
+			Rate:   1,
+		},
+		{
+			Metric: "gauge",
+			Name:   "gauge..key_b",
+			Value:  2,
+			Tags:   []string{},
+			Rate:   1,
+		},
+		{
+			Metric: "timer",
+			Name:   "worker_loop",
+			Value:  0.01,
+			Tags:   []string{"loop_name:metric-loop", "result:success"},
+			Rate:   1,
+		},
+		{
+			Metric: "timer",
+			Name:   "system.run",
+			Value:  0.3,
+			Tags:   []string{"result:success"},
+			Rate:   1,
+		},
+	}, fakemetrics.CMPMetrics))
 }
 
 type mockMetricProducer struct {
@@ -68,7 +105,7 @@ func (m *mockMetricProducer) MetricName() string {
 	return ""
 }
 
-func (m *mockMetricProducer) Gauges(ctx context.Context) map[string]float64 {
+func (m *mockMetricProducer) Gauges(_ context.Context) map[string]float64 {
 	m.wg.Done()
 	return map[string]float64{
 		"key_a": 1,

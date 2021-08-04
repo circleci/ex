@@ -21,20 +21,17 @@ type MetricProducer interface {
 }
 
 func traceMetrics(ctx context.Context, producers []MetricProducer) {
-	// acquire a span from the context that called traceMetrics, this saves on
-	// unnecessary spans, (we don't care about the time it takes to generate the metrics.)
-	parentSpan := o11y.FromContext(ctx).GetSpan(ctx)
+	metrics := o11y.FromContext(ctx).MetricsProvider()
 	for _, producer := range producers {
-		traceMetric(ctx, parentSpan, producer)
+		traceMetric(ctx, metrics, producer)
 	}
 }
 
-func traceMetric(ctx context.Context, span o11y.Span, producer MetricProducer) {
+func traceMetric(ctx context.Context, provider o11y.MetricsProvider, producer MetricProducer) {
 	producerName := strings.Replace(producer.MetricName(), "-", "_", -1)
 	for f, v := range producer.Gauges(ctx) {
 		scopedField := fmt.Sprintf("gauge.%s.%s", producerName, f)
-		span.AddRawField(scopedField, v)
-		span.RecordMetric(o11y.Gauge(scopedField, scopedField))
+		_ = provider.Gauge(scopedField, v, []string{}, 1)
 	}
 }
 

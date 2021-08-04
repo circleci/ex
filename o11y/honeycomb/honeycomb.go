@@ -20,7 +20,9 @@ import (
 	"github.com/circleci/ex/o11y"
 )
 
-type honeycomb struct{}
+type honeycomb struct {
+	metricsProvider o11y.MetricsProvider
+}
 
 type Config struct {
 	Host          string
@@ -115,7 +117,9 @@ func New(conf Config) o11y.Provider {
 
 	beeline.Init(bc)
 
-	return &honeycomb{}
+	return &honeycomb{
+		metricsProvider: conf.Metrics,
+	}
 }
 
 func stripMetrics(fields map[string]interface{}) {
@@ -279,6 +283,10 @@ func (h *honeycomb) Log(ctx context.Context, name string, fields ...o11y.Pair) {
 
 func (h *honeycomb) Close(_ context.Context) {
 	beeline.Close()
+}
+
+func (h *honeycomb) MetricsProvider() o11y.MetricsProvider {
+	return h.metricsProvider
 }
 
 func WrapSpan(s *trace.Span) o11y.Span {
