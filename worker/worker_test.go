@@ -6,16 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/cenkalti/backoff/v4"
-	"gotest.tools/v3/assert"
-
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/testing/testcontext"
 )
 
-func TestRunWorkerLoop_SleepsAfterNoWorkCycle(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+func TestRun_SleepsAfterNoWorkCycle(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
 	counter := 0
 	expected := 10
 	f := func(ctx context.Context) error {
@@ -44,26 +43,41 @@ func TestRunWorkerLoop_SleepsAfterNoWorkCycle(t *testing.T) {
 		"reset should only be called once to initialize it")
 
 }
+func TestRun_SleepsAnyErrorWhenConfigured(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
+	counter := 0
+	expected := 10
+	f := func(ctx context.Context) error {
+		counter++
+		if counter == expected {
+			cancel()
+		}
+		return errors.New("a custom error")
+	}
 
-type fakeBackOff struct {
-	nextBackOff    time.Duration
-	nextCallCount  int
-	resetCallCount int
+	waitCalls := 0
+	waiter := func(_ context.Context, delay time.Duration) {
+		waitCalls++
+	}
+
+	backOff := new(fakeBackOff)
+	Run(ctx, Config{
+		BackoffOnAllErrors: true,
+
+		NoWorkBackOff: backOff,
+		WorkFunc:      f,
+		waiter:        waiter,
+	})
+
+	assert.Check(t, cmp.Equal(backOff.nextCallCount, expected))
+	assert.Check(t, cmp.Equal(waitCalls, expected))
+	assert.Check(t, cmp.Equal(backOff.resetCallCount, 1),
+		"reset should only be called once to initialize it")
+
 }
 
-func (b *fakeBackOff) NextBackOff() time.Duration {
-	b.nextCallCount++
-	return b.nextBackOff
-}
-
-func (b *fakeBackOff) Reset() {
-	b.resetCallCount++
-}
-
-var _ backoff.BackOff = &fakeBackOff{}
-
-func TestRunWorkerLoop_DoesNotSleepAfterWorkCycle(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+func TestRun_DoesNotSleepAfterWorkCycle(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
 	counter := 0
 	expected := 3
 	f := func(ctx context.Context) error {
@@ -90,8 +104,8 @@ func TestRunWorkerLoop_DoesNotSleepAfterWorkCycle(t *testing.T) {
 	assert.Check(t, cmp.Equal(backOff.resetCallCount, expected+1))
 }
 
-func TestRunWorkerLoop_DoesNotSleepAfterOtherErrors(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+func TestRun_DoesNotSleepAfterOtherErrors(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
 	counter := 0
 	expected := 3
 	f := func(ctx context.Context) error {
@@ -118,8 +132,8 @@ func TestRunWorkerLoop_DoesNotSleepAfterOtherErrors(t *testing.T) {
 	assert.Check(t, cmp.Equal(backOff.resetCallCount, expected+1))
 }
 
-func TestRunWorkerLoop_ExitsWhenContextIsCancelled(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+func TestRun_ExitsWhenContextIsCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
 
 	calls := 0
 	ran := make(chan struct{})
@@ -151,13 +165,28 @@ func TestRunWorkerLoop_ExitsWhenContextIsCancelled(t *testing.T) {
 	assert.Check(t, calls > 1)
 }
 
-func TestDoWork_WorkFuncPanics(t *testing.T) {
+func Test_doWork_WorkFuncPanics(t *testing.T) {
 	f := func(ctx context.Context) error {
 		panic("Oops")
 	}
 
-	ctx := context.Background()
+	ctx := testcontext.Background()
 	provider := o11y.FromContext(ctx)
 	cfg := Config{WorkFunc: f}
 	assert.Check(t, doWork(provider, cfg) < 0)
+}
+
+type fakeBackOff struct {
+	nextBackOff    time.Duration
+	nextCallCount  int
+	resetCallCount int
+}
+
+func (b *fakeBackOff) NextBackOff() time.Duration {
+	b.nextCallCount++
+	return b.nextBackOff
+}
+
+func (b *fakeBackOff) Reset() {
+	b.resetCallCount++
 }
