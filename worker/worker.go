@@ -16,9 +16,12 @@ type Config struct {
 	Name          string
 	NoWorkBackOff backoff.BackOff
 	MaxWorkTime   time.Duration
-	// WorkFunc should return ErrShouldBackoff if it wants the loop to begin backing off
+	// WorkFunc should return ErrShouldBackoff if it wants to back off, or set BackoffOnAllErrors
 	WorkFunc func(ctx context.Context) error
-	waiter   func(ctx context.Context, delay time.Duration)
+	// If backoff is desired for any returned error
+	BackoffOnAllErrors bool
+
+	waiter func(ctx context.Context, delay time.Duration)
 }
 
 // Run a worker, which calls WorkFunc in a loop.
@@ -75,7 +78,7 @@ func doWork(provider o11y.Provider, cfg Config) (backoff time.Duration) {
 	defer cancel()
 
 	ctx = o11y.WithProvider(ctx, provider)
-	ctx, span := provider.StartSpan(ctx, "worker loop: "+cfg.Name)
+	ctx, span := provider.StartSpan(ctx, "worker loop: do_work")
 	span.RecordMetric(o11y.Timing("worker_loop", "loop_name", "result"))
 	span.AddField("loop_name", cfg.Name)
 	var err error
@@ -87,16 +90,21 @@ func doWork(provider o11y.Provider, cfg Config) (backoff time.Duration) {
 		if r := recover(); r != nil {
 			err = o11y.HandlePanic(ctx, span, r, nil)
 		}
+
+		switch {
+		case errors.Is(err, ErrShouldBackoff):
+			backoff = cfg.NoWorkBackOff.NextBackOff()
+			err = nil
+		case cfg.BackoffOnAllErrors && err != nil:
+			backoff = cfg.NoWorkBackOff.NextBackOff()
+		default:
+			// By default, we don't back-off
+			backoff = -1
+		}
+
+		span.AddField("backoff_ms", backoff.Milliseconds())
 	}()
 
-	// By default, we don't back-off
-	backoff = -1
 	err = cfg.WorkFunc(ctx)
-	if errors.Is(err, ErrShouldBackoff) {
-		backoff = cfg.NoWorkBackOff.NextBackOff()
-		err = nil
-	}
-
-	span.AddField("backoff_ms", backoff.Milliseconds())
 	return backoff
 }
