@@ -61,7 +61,7 @@ func goPath() string {
 	if goroot == "" {
 		return "go"
 	}
-	return filepath.Join(filepath.Dir(goroot), "bin", "go")
+	return filepath.Join(goroot, "bin", "go")
 }
 
 func binaryPath(name, tempDir string) string {
