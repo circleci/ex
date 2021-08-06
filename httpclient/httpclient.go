@@ -136,10 +136,7 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	defer o11y.End(span, &err)
 	span.AddRawField("span.kind", "httpclient")
 	span.AddRawField("api.client", c.name)
-	span.AddRawField("api.route", r.Route)
 	span.AddRawField("http.base_url", c.baseURL)
-	span.AddRawField("http.url", u.String())
-	span.AddRawField("http.method", r.Method)
 
 	newRequestFn := func() (*http.Request, error) {
 		req, err := http.NewRequest(r.Method, u.String(), nil)
@@ -220,6 +217,7 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		span.RecordMetric(o11y.Timing("httpclient",
 			"api.client", "api.route", "http.method", "http.status_code", "http.retry"))
 		span.AddField("meta.type", "http_client")
+		span.AddRawField("span.kind", "Client")
 		span.AddRawField("api.client", c.name)
 		span.AddRawField("api.route", r.Route)
 		span.AddRawField("http.scheme", req.URL.Scheme)
@@ -228,6 +226,9 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		span.AddRawField("http.method", req.Method)
 		span.AddRawField("http.attempt", attemptCounter)
 		span.AddRawField("http.retry", attemptCounter > 1)
+		span.AddRawField("http.url", req.URL.String())
+		span.AddRawField("http.user_agent", req.UserAgent())
+		span.AddRawField("http.request_content_length", req.ContentLength)
 
 		res, err := c.httpClient.Do(req)
 		if err != nil {
@@ -248,15 +249,15 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 
 		finalStatus = res.StatusCode
 		if cl := res.Header.Get("Content-Length"); cl != "" {
-			span.AddField("response.content_length", cl)
+			span.AddField("http.response_content_length", cl)
 		}
 		if ct := res.Header.Get("Content-Type"); ct != "" {
-			span.AddField("response.content_type", ct)
+			span.AddField("http.response_content_type", ct)
 		}
 		if ce := res.Header.Get("Content-Encoding"); ce != "" {
-			span.AddField("response.content_encoding", ce)
+			span.AddField("http.response_content_encoding", ce)
 		}
-		span.AddField("response.status_code", res.StatusCode)
+		span.AddField("http.status_code", res.StatusCode)
 
 		err = extractHTTPError(req, res, attemptCounter, r.Route)
 		if err != nil {
