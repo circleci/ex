@@ -63,7 +63,7 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 			span.AddRawField("http.response_content_length", c.Writer.Size())
 
 			span.RecordMetric(o11y.Timing("handler",
-				"server_name", "http.method", "http.route", "http.status_code", "has_panicked"))
+				"http.server_name", "http.method", "http.route", "http.status_code", "has_panicked"))
 		}()
 		// Run the next function in the Middleware chain
 		c.Next()

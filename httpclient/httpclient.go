@@ -215,11 +215,11 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		}
 
 		span.RecordMetric(o11y.Timing("httpclient",
-			"api.client", "api.route", "http.method", "http.status_code", "http.retry"))
+			"http.client_name", "http.route", "http.method", "http.status_code", "http.retry"))
 		span.AddRawField("meta.type", "http_client")
 		span.AddRawField("span.kind", "Client")
-		span.AddRawField("api.client", c.name)
-		span.AddRawField("api.route", r.Route)
+		span.AddRawField("http.client_name", c.name)
+		span.AddRawField("http.route", r.Route)
 		span.AddRawField("http.scheme", req.URL.Scheme)
 		span.AddRawField("http.host", req.URL.Host)
 		span.AddRawField("http.target", req.URL.Path)
