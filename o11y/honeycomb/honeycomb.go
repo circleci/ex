@@ -290,6 +290,9 @@ func (h *honeycomb) MetricsProvider() o11y.MetricsProvider {
 }
 
 func WrapSpan(s *trace.Span) o11y.Span {
+	if s == nil {
+		return nil
+	}
 	return &span{span: s}
 }
 
