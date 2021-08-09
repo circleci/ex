@@ -53,7 +53,7 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 		span.AddRawField("http.url", c.Request.URL.String())
 		span.AddRawField("http.target", c.Request.URL.Path)
 		span.AddRawField("http.host", c.Request.Host)
-		span.AddRawField("http.scheme", c.Request.Host)
+		span.AddRawField("http.scheme", c.Request.URL.Scheme)
 		span.AddRawField("http.user_agent", c.Request.UserAgent())
 		span.AddRawField("http.request_content_length", c.Request.ContentLength)
 
