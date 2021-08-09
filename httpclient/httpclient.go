@@ -216,7 +216,7 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 
 		span.RecordMetric(o11y.Timing("httpclient",
 			"api.client", "api.route", "http.method", "http.status_code", "http.retry"))
-		span.AddField("meta.type", "http_client")
+		span.AddRawField("meta.type", "http_client")
 		span.AddRawField("span.kind", "Client")
 		span.AddRawField("api.client", c.name)
 		span.AddRawField("api.route", r.Route)
@@ -249,15 +249,15 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 
 		finalStatus = res.StatusCode
 		if cl := res.Header.Get("Content-Length"); cl != "" {
-			span.AddField("http.response_content_length", cl)
+			span.AddRawField("http.response_content_length", cl)
 		}
 		if ct := res.Header.Get("Content-Type"); ct != "" {
-			span.AddField("http.response_content_type", ct)
+			span.AddRawField("http.response_content_type", ct)
 		}
 		if ce := res.Header.Get("Content-Encoding"); ce != "" {
-			span.AddField("http.response_content_encoding", ce)
+			span.AddRawField("http.response_content_encoding", ce)
 		}
-		span.AddField("http.status_code", res.StatusCode)
+		span.AddRawField("http.status_code", res.StatusCode)
 
 		err = extractHTTPError(req, res, attemptCounter, r.Route)
 		if err != nil {
