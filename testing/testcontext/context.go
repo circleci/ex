@@ -3,6 +3,8 @@ package testcontext
 import (
 	"context"
 
+	"github.com/DataDog/datadog-go/statsd"
+
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
 )
@@ -17,5 +19,8 @@ func Background() context.Context {
 }
 
 func newContext() context.Context {
-	return o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{Format: "color"}))
+	return o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: &statsd.NoOpClient{},
+	}))
 }
