@@ -48,3 +48,26 @@ func TestO11Y_SecretRedactedColor(t *testing.T) {
 	span.End()
 	provider.Close(ctx)
 }
+
+func TestSetup_DoesNotError(t *testing.T) {
+	ctx := context.Background()
+	ctx, cleanup, err := Setup(ctx, Config{
+		Statsd:            "127.0.0.1:8125",
+		RollbarToken:      "qwertyuiop",
+		RollbarDisabled:   true,
+		RollbarEnv:        "production",
+		RollbarServerRoot: "github.com/circleci/ex",
+		HoneycombEnabled:  false,
+		HoneycombDataset:  "does-not-exist",
+		HoneycombKey:      "1234567890",
+		SampleTraces:      false,
+		Format:            "color",
+		Version:           "1.2.3",
+		Service:           "test-service",
+		StatsNamespace:    "test.service",
+		Mode:              "banana",
+		Debug:             true,
+	})
+	assert.Assert(t, err)
+	cleanup(ctx)
+}
