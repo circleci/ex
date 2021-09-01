@@ -14,21 +14,23 @@ import (
 )
 
 type Config struct {
-	Statsd           string
-	RollbarToken     secret.String
-	RollbarEnv       string
-	HoneycombEnabled bool
-	HoneycombDataset string
-	HoneycombKey     secret.String
-	SampleTraces     bool
-	Format           string
-	Version          string
-	Service          string
-	StatsNamespace   string
+	Statsd            string
+	RollbarToken      secret.String
+	RollbarEnv        string
+	RollbarServerRoot string
+	HoneycombEnabled  bool
+	HoneycombDataset  string
+	HoneycombKey      secret.String
+	SampleTraces      bool
+	Format            string
+	Version           string
+	Service           string
+	StatsNamespace    string
 
 	// Optional
-	Mode  string
-	Debug bool
+	Mode            string
+	Debug           bool
+	RollbarDisabled bool
 }
 
 // Setup is some crazy hackery to handle the fact that the beeline lib uses a
@@ -94,8 +96,9 @@ func setup(ctx context.Context, o Config) (context.Context, func(context.Context
 	}
 
 	if o.RollbarToken != "" {
-		client := rollbar.NewAsync(string(o.RollbarToken), o.RollbarEnv, o.Version, hostname, "")
-		client.SetEnabled(true)
+		client := rollbar.NewAsync(o.RollbarToken.Value(), o.RollbarEnv, o.Version, hostname, o.RollbarServerRoot)
+		client.SetEnabled(!o.RollbarDisabled)
+		client.Message(rollbar.INFO, "Deployment")
 		o11yProvider = rollBarHoneycombProvider{
 			Provider:      o11yProvider,
 			rollBarClient: client,
@@ -110,6 +113,11 @@ func setup(ctx context.Context, o Config) (context.Context, func(context.Context
 type rollBarHoneycombProvider struct {
 	o11y.Provider
 	rollBarClient *rollbar.Client
+}
+
+func (p rollBarHoneycombProvider) Close(ctx context.Context) {
+	p.Provider.Close(ctx)
+	_ = p.rollBarClient.Close()
 }
 
 func (p rollBarHoneycombProvider) RollBarClient() *rollbar.Client {

@@ -9,12 +9,14 @@ workflows:
               executor:
                 - go_15
                 - go_16
+                - go_17
       - test:
           matrix:
             parameters:
               executor:
                 - go_15
                 - go_16
+                - go_17
       - release:
           requires:
             - lint
@@ -100,3 +102,6 @@ executors:
   go_16:
     docker:
       - image: cimg/go:1.16
+  go_17:
+    docker:
+      - image: cimg/go:1.17
