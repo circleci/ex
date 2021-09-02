@@ -7,15 +7,11 @@ workflows:
           matrix:
             parameters:
               executor:
-                - go_15
-                - go_16
                 - go_17
       - test:
           matrix:
             parameters:
               executor:
-                - go_15
-                - go_16
                 - go_17
       - release:
           requires:
@@ -96,12 +92,6 @@ executors:
   base:
     docker:
       - image: cimg/base:stable
-  go_15:
-    docker:
-      - image: cimg/go:1.15
-  go_16:
-    docker:
-      - image: cimg/go:1.16
   go_17:
     docker:
       - image: cimg/go:1.17
