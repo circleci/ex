@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql/driver"
 	"errors"
 	"fmt"
 
@@ -28,7 +27,7 @@ func (s *TxManager) WithTransaction(ctx context.Context, f func(context.Context,
 	// Retry this transaction 3 times
 	for i := 0; i < 3; i++ {
 		err = s.WithOneTransaction(ctx, f)
-		if !errors.Is(err, driver.ErrBadConn) {
+		if !errors.Is(err, ErrBadConn) {
 			break
 		}
 		o11y.AddField(ctx, "bad_con", i)
