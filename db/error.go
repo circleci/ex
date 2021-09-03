@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 
@@ -15,6 +16,7 @@ var (
 	ErrConstrained = errors.New("violates constraints")
 	ErrException   = errors.New("exception")
 	ErrCanceled    = o11y.NewWarning("statement canceled")
+	ErrBadConn     = o11y.NewWarning("bad connection")
 )
 
 const (
@@ -42,11 +44,14 @@ func mapExecErrors(err error, res sql.Result) error {
 	return nil
 }
 
-// mapError maps a few pq errors to a errors defined in this package, some wrapping the original
+// mapError maps a few pq errors to errors defined in this package, some wrapping the original
 // error. If a mapping was made the returned bool will be true, if not the original error is returned and
 // the bool will be false.
 // nolint: golint - error, bool is fine for error mapping funcs
 func mapError(err error) (bool, error) {
+	if errors.Is(err, driver.ErrBadConn) {
+		return true, ErrBadConn
+	}
 	e := &pq.Error{}
 	if errors.As(err, &e) {
 		switch e.Code {
