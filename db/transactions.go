@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 
@@ -22,6 +23,24 @@ func NewTxManager(db *sqlx.DB) *TxManager {
 
 func (s *TxManager) WithTransaction(ctx context.Context, f func(context.Context, Querier) error) (err error) {
 	ctx, span := o11y.StartSpan(ctx, "tx-manager: with-transaction")
+	defer o11y.End(span, &err)
+
+	// Retry this transaction 3 times
+	for i := 0; i < 3; i++ {
+		err = s.WithOneTransaction(ctx, f)
+		if !errors.Is(err, driver.ErrBadConn) {
+			break
+		}
+		o11y.AddField(ctx, "bad_con", i)
+		o11y.AddField(ctx, "warning", err)
+	}
+
+	// Note that the above defer can reassign err
+	return err
+}
+
+func (s *TxManager) WithOneTransaction(ctx context.Context, f func(context.Context, Querier) error) (err error) {
+	ctx, span := o11y.StartSpan(ctx, "tx-manager: with-one-transaction")
 	defer o11y.End(span, &err)
 
 	tx, err := s.DB.BeginTxx(ctx, nil)
