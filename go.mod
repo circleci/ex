@@ -3,7 +3,7 @@ module github.com/circleci/ex
 go 1.17
 
 require (
-	github.com/DataDog/datadog-go v4.8.1+incompatible
+	github.com/DataDog/datadog-go v4.8.2+incompatible
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/alecthomas/kong v0.2.17
 	github.com/cenkalti/backoff/v4 v4.1.1
