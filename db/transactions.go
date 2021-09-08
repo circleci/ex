@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 
@@ -74,6 +75,12 @@ func (s *TxManager) WithOneTransaction(ctx context.Context, f func(context.Conte
 		default:
 			// all good, commit
 			err = tx.Commit()
+			// specifically trap the bad connection here which will allow a retry
+			if errors.Is(err, driver.ErrBadConn) {
+				err = ErrBadConn
+			}
+			// N.B there is no need for an explicit rollback - the db server automatically rolls back
+			// transactions where the connection (or session) is dropped.
 		}
 	}()
 
