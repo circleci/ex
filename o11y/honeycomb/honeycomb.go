@@ -30,6 +30,7 @@ type Config struct {
 	Key           string
 	Format        string
 	SendTraces    bool // Should we actually send the traces to the honeycomb server?
+	Sender        transmission.Sender
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
 	Writer        io.Writer
@@ -55,13 +56,17 @@ func (c *Config) sender() transmission.Sender {
 	s := &MultiSender{}
 
 	if c.SendTraces {
-		s.Senders = append(s.Senders, &transmission.Honeycomb{
-			MaxBatchSize:         libhoney.DefaultMaxBatchSize,
-			BatchTimeout:         libhoney.DefaultBatchTimeout,
-			MaxConcurrentBatches: libhoney.DefaultMaxConcurrentBatches,
-			PendingWorkCapacity:  libhoney.DefaultPendingWorkCapacity,
-			UserAgentAddition:    libhoney.UserAgentAddition,
-		})
+		if c.Sender == nil {
+			s.Senders = append(s.Senders, &transmission.Honeycomb{
+				MaxBatchSize:         libhoney.DefaultMaxBatchSize,
+				BatchTimeout:         libhoney.DefaultBatchTimeout,
+				MaxConcurrentBatches: libhoney.DefaultMaxConcurrentBatches,
+				PendingWorkCapacity:  libhoney.DefaultPendingWorkCapacity,
+				UserAgentAddition:    libhoney.UserAgentAddition,
+			})
+		} else {
+			s.Senders = append(s.Senders, c.Sender)
+		}
 	}
 
 	switch c.Format {
