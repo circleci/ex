@@ -11,6 +11,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.3
 	github.com/google/go-cmp v0.5.6
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/hellofresh/health-go/v4 v4.4.3
 	github.com/honeycombio/beeline-go v1.2.0
 	github.com/honeycombio/dynsampler-go v0.2.1
 	github.com/honeycombio/libhoney-go v1.15.4
@@ -24,7 +25,7 @@ require (
 )
 
 require (
-	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/facebookgo/limitgroup v0.0.0-20150612190941-6abd8d71ec01 // indirect
@@ -46,10 +47,10 @@ require (
 	github.com/vmihailenco/msgpack/v5 v5.2.0 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.opentelemetry.io/contrib/propagators v0.21.0 // indirect
-	go.opentelemetry.io/otel v1.0.0-RC1 // indirect
-	go.opentelemetry.io/otel/trace v1.0.0-RC1 // indirect
-	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
-	golang.org/x/sys v0.0.0-20210423082822-04245dca01da // indirect
+	go.opentelemetry.io/otel v1.0.0 // indirect
+	go.opentelemetry.io/otel/trace v1.0.0 // indirect
+	golang.org/x/crypto v0.0.0-20210920023735-84f357641f63 // indirect
+	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/grpc v1.38.0 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
