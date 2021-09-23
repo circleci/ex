@@ -13,11 +13,13 @@ reliable, observable, zero-downtime services using Go.
   Go HTTP client.
 - `httpserver` Starting and stopping the standard Go http server cleanly.
 - `httpserver/ginrouter` A common base for configuring a Gin router instance.
+- `httpserver/healthcheck` A healthcheck HTTP server that can accept all the checks from a `system`.
 - `o11y` Observability that is currently backed by Honeycomb. It also supports outputting
   trace data as JSON and plain or colored text output.
 - `o11y/honeycomb` The honeycomb-backed implementation of `o11y`.
 - `o11y/wrappers/o11ygin` `o11y` middleware for the Gin router.
 - `o11y/wrappers/o11ynethttp` `o11y` middleware for the standard Go HTTP server.
+- `redis` Wiring and observability for Redis.
 - `system` Manage the startup, running, metrics and shutdown of a Go service.
 - `termination` A handler to aid signal based service termination. (Used internally by
   the `system` package).
@@ -28,6 +30,7 @@ reliable, observable, zero-downtime services using Go.
 - `testing/httprecorder` Record HTTP requests inside an HTTP server, and search them.
 - `testing/kongtest` If you are using [kong](https://github.com/alecthomas/kong) for your
   CLI parsing, this helps in writing golden tests for the CLI definition.
+- `testing/redisfixture` Get an isolated Redis DB for your tests, so they don't interfere.
 - `testing/releases` Helper to determine which binaries to download for end to end tests.
 - `testing/testcontext` Setup a background context that includes `o11y`.
 - `worker` Run a service worker loop with observability and back-off for no work found.
