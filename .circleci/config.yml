@@ -88,6 +88,17 @@ commands:
       - store_test_results:
           path: test-reports
 
+x-images:
+  postgres: &postgres
+    image: circleci/postgres:13.3-ram
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+  redis: &redis
+    image: circleci/redis:5.0.6-alpine
+    command: [ "--databases", "2048" ]
+
 executors:
   base:
     docker:
@@ -95,3 +106,6 @@ executors:
   go_17:
     docker:
       - image: cimg/go:1.17
+      - *postgres
+      - *redis
+

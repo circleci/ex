@@ -1,0 +1,25 @@
+version: "3.7"
+
+services:
+  postgres:
+    image: circleci/postgres:13.3-ram
+    ports:
+      - '127.0.0.1:5432:5432'
+    shm_size: '512mb'
+    command: postgres -c shared_buffers=512MB -c max_connections=400
+    environment:
+      PGUSER: user
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+
+  redis:
+    image: circleci/redis:5.0.6-alpine
+    command: ["--databases", "2048"]
+    ports:
+      - '127.0.0.1:6379:6379'
+
+  statsd:
+    image: catkins/statsd-logger
+    ports:
+      - '127.0.0.1:8125:8125'
