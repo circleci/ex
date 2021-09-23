@@ -1,0 +1,138 @@
+run:
+  build-tags:
+    - e2e
+
+# Do not treat these as gospel, adjust as appropriate
+linters-settings:
+  govet:
+    check-shadowing: false
+  golint:
+    min-confidence: 0
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  depguard:
+    list-type: blacklist
+    include-go-root: true
+    packages:
+      - log
+      - github.com/davecgh/go-spew
+    packages-with-error-message:
+      - github.com/cenkalti/backof[f]: use github.com/cenkalti/backoff/v4 instead
+      - gotest.tools/assert: use gotest.tools/v3/assert instead
+      - gotest.tools/assert/cmp: use gotest.tools/v3/assert/cmp instead
+      - gotest.tools/env: use gotest.tools/v3/env instead
+      - gotest.tools/fs: use gotest.tools/v3/fs instead
+      - gotest.tools/golden: use gotest.tools/v3/golden instead
+      - gotest.tools/icmd: use gotest.tools/v3/icmd instead
+      - gotest.tools/poll: use gotest.tools/v3/poll instead
+      - gotest.tools/skip: use gotest.tools/v3/skip instead
+  dupl:
+    threshold: 100
+  goconst:
+    min-len: 6
+    min-occurrences: 8
+  lll:
+    line-length: 120
+  funlen:
+    lines: 80
+  goimports:
+    local-prefixes: github.com/circleci/ex/example
+  nakedret:
+    max-func-lines: 0
+
+issues:
+  # The default exclude list seems rather aggresive, opt-in when needed instead
+  exclude-use-default: false
+
+  exclude-rules:
+    # Duplicated errcheck checks
+    - linters: [gosec]
+      text: G104
+    # Ignore aliasing in tests
+    - linters: [gosec]
+      text: G601
+      path: _test\.go
+    # Non-secure URLs are okay in tests
+    - linters: [gosec]
+      text: G107
+      path: _test\.go
+    # Nil pointers will fail tests anyway
+    - linters: [staticcheck]
+      text: SA5011
+      path: _test\.go
+    # Duplicated errcheck checks
+    - linters: [staticcheck]
+      text: SA5001
+    # Duplicated function naming check
+    - linters: [stylecheck]
+      text: ST1003
+    # We don't require comments on everything
+    - linters: [golint]
+      text: should have( a package)? comment
+    # very long lines are ok if they're URLs
+    - linters: [lll]
+      source: https?://
+    # very long lines are ok if they're in http response message fields
+    - linters: [ lll ]
+      source: '"message":'
+    # very long lines are ok if they're in CLI config
+    - linters: [ lll ]
+      source: 'env:"'
+    # Ignore errcheck on deferred Close
+    - linters: [errcheck]
+      source: ^\s*defer .*\.Close(.*)$
+    # Ignore long tests
+    - linters: [funlen]
+      text: ^Function 'Test.*
+    # Ignore fixture setup
+    - linters: [funlen]
+      text: ^Function 'runServices.*
+    # We don't require package docs
+    - linters: [stylecheck]
+      text: ST1000
+    # Unparam is allowed in tests
+    - linters: [unparam]
+      path: _test\.go
+    - linters: [gosec]
+      path: rootcerts.go
+    # We are not that bothered about undocumented structs
+    - linters: [revive]
+      text: 'exported:'
+    # I'd rather keep all assignments to ctx, actually
+    - linters: [ineffassign]
+      text: 'ineffectual assignment to ctx'
+    # Duplicate of above
+    - linters: [staticcheck]
+      text: 'SA4006: this value of `ctx` is never used'
+
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - errcheck
+    - funlen
+    - goconst
+    - gocyclo
+    - gofmt
+    - goimports
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - revive
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
