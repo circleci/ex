@@ -2,6 +2,7 @@ package ginrouter
 
 import (
 	"context"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -9,8 +10,12 @@ import (
 	"github.com/circleci/ex/o11y/wrappers/o11ygin"
 )
 
+var once sync.Once
+
 func Default(ctx context.Context, serverName string) *gin.Engine {
-	gin.SetMode(gin.ReleaseMode)
+	once.Do(func() {
+		gin.SetMode(gin.ReleaseMode)
+	})
 
 	r := gin.New()
 	r.Use(
