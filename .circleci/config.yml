@@ -6,13 +6,13 @@ workflows:
       - lint:
           matrix:
             parameters:
-              executor:
-                - go_17
+              go_version:
+                - '1.17'
       - test:
           matrix:
             parameters:
-              executor:
-                - go_17
+              go_version:
+                - '1.17'
       - release:
           requires:
             - lint
@@ -25,9 +25,10 @@ jobs:
 
   lint:
     parameters:
-      executor:
-        type: executor
-    executor: <<parameters.executor>>
+      go_version:
+        type: string
+    docker:
+      - image: cimg/go:<<parameters.go_version>>
     steps:
       - checkout
       - setup
@@ -41,9 +42,17 @@ jobs:
 
   test:
     parameters:
-      executor:
-        type: executor
-    executor: <<parameters.executor>>
+      go_version:
+        type: string
+    docker:
+      - image: cimg/go:<<parameters.go_version>>
+      - image: circleci/postgres:13.3-ram
+        environment:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: dbname
+      - image: circleci/redis:5.0.6-alpine
+        command: [ "--databases", "2048" ]
     steps:
       - checkout
       - setup
@@ -53,7 +62,8 @@ jobs:
       - cleanup
 
   release:
-    executor: base
+    docker:
+      - image: cimg/base:stable
     steps:
       - checkout
       - run:
@@ -87,25 +97,4 @@ commands:
           path: test-reports
       - store_test_results:
           path: test-reports
-
-x-images:
-  postgres: &postgres
-    image: circleci/postgres:13.3-ram
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: dbname
-  redis: &redis
-    image: circleci/redis:5.0.6-alpine
-    command: [ "--databases", "2048" ]
-
-executors:
-  base:
-    docker:
-      - image: cimg/base:stable
-  go_17:
-    docker:
-      - image: cimg/go:1.17
-      - *postgres
-      - *redis
 
