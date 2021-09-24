@@ -1,13 +1,10 @@
 package redis
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"net"
 	"strconv"
-
-	"github.com/circleci/ex/system"
 
 	"github.com/go-redis/redis/v8"
 
@@ -23,21 +20,6 @@ type Options struct {
 	// Optional
 	TLS    bool
 	CAFunc func() *x509.CertPool
-}
-
-// Load will create a new Redis client, and wire it into the provided System with
-// default lifecycle management and observability.
-func Load(o Options, sys *system.System) *redis.Client {
-	client := New(o)
-
-	sys.AddCleanup(func(_ context.Context) error {
-		return client.Close()
-	})
-
-	sys.AddHealthCheck(NewHealthCheck(client))
-	sys.AddMetrics(NewMetrics("redis", client))
-
-	return client
 }
 
 // New will only construct a new Redis client with the provided options. It is the caller's
