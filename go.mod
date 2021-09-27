@@ -13,7 +13,7 @@ require (
 	github.com/hellofresh/health-go/v4 v4.4.3
 	github.com/honeycombio/beeline-go v1.2.0
 	github.com/honeycombio/dynsampler-go v0.2.1
-	github.com/honeycombio/libhoney-go v1.15.4
+	github.com/honeycombio/libhoney-go v1.15.5
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/klauspost/compress v1.13.6
 	github.com/lib/pq v1.10.3
@@ -42,7 +42,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.2.0 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.opentelemetry.io/contrib/propagators v0.21.0 // indirect
 	go.opentelemetry.io/otel v1.0.0 // indirect
