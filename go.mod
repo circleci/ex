@@ -18,7 +18,7 @@ require (
 	github.com/klauspost/compress v1.13.6
 	github.com/lib/pq v1.10.3
 	github.com/rollbar/rollbar-go v1.4.1
-	golang.org/x/mod v0.3.0
+	golang.org/x/mod v0.5.1
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	gotest.tools/v3 v3.0.3
 )
