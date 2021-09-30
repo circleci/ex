@@ -57,21 +57,21 @@ func (s *TxManager) WithOneTransaction(ctx context.Context, f func(context.Conte
 			panic(p)
 		case err != nil:
 			// never commit on an error
-			// but don't rollback if the transaction context has been canceled
-			// (the library code already handles rollback in the context canceled cases)
-			if errors.Is(ctx.Err(), context.Canceled) {
+			// but don't roll back if the transaction context is Done
+			// (the library code already handles rollback in the context Done cases)
+			if ctx.Err() != nil {
 				return
 			}
-			// something other than a context cancel went wrong, rollback
+			// something other than a context cancel went wrong, rollback and report any
+			// error on rollback
 			if rErr := tx.Rollback(); rErr != nil {
 				o11y.AddField(ctx, "rollback_error", rErr)
 			}
-		case errors.Is(ctx.Err(), context.Canceled):
-			// f may have suppressed an error but the transaction has still been cancelled
+		case ctx.Err() != nil:
+			// f may have suppressed an error but the transaction ctx is still Done
 			// even if f appeared to have not seen any error we report the context cancellation
 			// so the client will at least be able to be aware that the transaction was rolled back
 			err = ctx.Err()
-			return
 		default:
 			// all good, commit
 			err = tx.Commit()
