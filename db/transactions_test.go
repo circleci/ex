@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"gotest.tools/v3/assert"
@@ -34,27 +35,40 @@ func TestTxManager_WithTransaction_ContextCancelledWithError(t *testing.T) {
 	tests := []struct {
 		returnError error
 		cancel      bool
+		timeout     bool
 		commits     int
 		rollbacks   int
 		expectError error
 	}{
-		{returnError: nil, cancel: false, expectError: nil, commits: 1},
-		{returnError: nil, cancel: true, expectError: context.Canceled, rollbacks: 1},
-		{returnError: ourError, cancel: false, expectError: ourError, rollbacks: 1},
+		{returnError: nil, cancel: false, timeout: false, expectError: nil, commits: 1},
+		{returnError: nil, cancel: true, timeout: false, expectError: context.Canceled, rollbacks: 1},
+		{returnError: nil, cancel: false, timeout: true, expectError: context.DeadlineExceeded, rollbacks: 1},
+		{returnError: ourError, cancel: false, timeout: false, expectError: ourError, rollbacks: 1},
 		// the sqlx transaction wrapper sees the context cancel so does not call commit
 		// but if the commit is called in our tx manager it will return context.Canceled and not ourError
-		{returnError: ourError, cancel: true, expectError: ourError, rollbacks: 1},
+		{returnError: ourError, cancel: true, timeout: false, expectError: ourError, rollbacks: 1},
+		{returnError: ourError, cancel: false, timeout: true, expectError: ourError, rollbacks: 1},
 	}
 	for _, tt := range tests {
-		t.Run(fmt.Sprintf("err-%v-cancel-%t", tt.returnError, tt.cancel), func(t *testing.T) {
+		name := fmt.Sprintf("err-%v-cancel-%t-timeout-%t", tt.returnError, tt.cancel, tt.timeout)
+		t.Run(name, func(t *testing.T) {
 			ttx := &fakeTx{}
 			tx := NewTxManager(sqlx.NewDb(sql.OpenDB(fakeConnector{tx: ttx}), "fake"))
-			ctx, cancel := context.WithCancel(context.Background())
+
+			var cancel func()
+			ctx := context.Background()
+			if tt.timeout {
+				ctx, cancel = context.WithTimeout(ctx, time.Millisecond*50)
+			} else {
+				ctx, cancel = context.WithCancel(ctx)
+			}
 			defer cancel()
 
 			err := tx.WithTransaction(ctx, func(ctx context.Context, _ Querier) error {
 				if tt.cancel {
 					cancel()
+				} else if tt.timeout {
+					<-ctx.Done()
 				}
 				if tt.returnError != nil {
 					return tt.returnError
