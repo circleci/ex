@@ -8,7 +8,7 @@ require (
 	github.com/alecthomas/kong v0.2.17
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/gin-gonic/gin v1.7.4
-	github.com/go-redis/redis/v8 v8.11.3
+	github.com/go-redis/redis/v8 v8.11.4
 	github.com/google/go-cmp v0.5.6
 	github.com/hellofresh/health-go/v4 v4.5.0
 	github.com/honeycombio/beeline-go v1.2.0
