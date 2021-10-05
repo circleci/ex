@@ -132,12 +132,6 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	}
 	u.RawQuery = r.Query.Encode() // returns "" if Query is nil
 
-	ctx, span := o11y.StartSpan(ctx, spanName)
-	defer o11y.End(span, &err)
-	span.AddRawField("span.kind", "httpclient")
-	span.AddRawField("api.client", c.name)
-	span.AddRawField("http.base_url", c.baseURL)
-
 	newRequestFn := func() (*http.Request, error) {
 		req, err := http.NewRequest(r.Method, u.String(), nil)
 		if err != nil {
@@ -175,23 +169,18 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 		return req, nil
 	}
 
-	return c.retryRequest(ctx, r, newRequestFn)
+	return c.retryRequest(ctx, spanName, r, newRequestFn)
 }
 
 // retryRequest will make the request and only call the decoder when a 2XX has been received.
 // Any response body in non 2XX cases is discarded.
 // nolint: funlen
-func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func() (*http.Request, error)) error {
-	finalStatus := 0
-	defer func() {
-		// Add the status code from after all retries to the parent span
-		o11y.FromContext(ctx).GetSpan(ctx).AddRawField("http.status_code", finalStatus)
-	}()
-
+func (c *Client) retryRequest(ctx context.Context,
+	spanName string, r Request, newRequestFn func() (*http.Request, error)) error {
 	attemptCounter := 0
 	attempt := func() (err error) {
 		attemptCounter++
-		_, span := o11y.StartSpan(ctx, "httpclient: call")
+		_, span := o11y.StartSpan(ctx, spanName)
 		defer o11y.End(span, &err)
 
 		req, err := newRequestFn()
@@ -227,6 +216,7 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 		span.AddRawField("http.attempt", attemptCounter)
 		span.AddRawField("http.retry", attemptCounter > 1)
 		span.AddRawField("http.url", req.URL.String())
+		span.AddRawField("http.base_url", c.baseURL)
 		span.AddRawField("http.user_agent", req.UserAgent())
 		span.AddRawField("http.request_content_length", req.ContentLength)
 
@@ -247,7 +237,6 @@ func (c *Client) retryRequest(ctx context.Context, r Request, newRequestFn func(
 			_ = res.Body.Close()
 		}()
 
-		finalStatus = res.StatusCode
 		if cl := res.Header.Get("Content-Length"); cl != "" {
 			span.AddRawField("http.response_content_length", cl)
 		}
