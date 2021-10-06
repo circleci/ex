@@ -49,8 +49,8 @@ func mapExecErrors(err error, res sql.Result) error {
 // the bool will be false.
 // nolint: golint - error, bool is fine for error mapping funcs
 func mapError(err error) (bool, error) {
-	if errors.Is(err, driver.ErrBadConn) {
-		return true, ErrBadConn
+	if ok, e := mapBadCon(err); ok {
+		return true, e
 	}
 	e := &pq.Error{}
 	if errors.As(err, &e) {
@@ -66,4 +66,15 @@ func mapError(err error) (bool, error) {
 		}
 	}
 	return false, err
+}
+
+func mapBadCon(err error) (bool, error) {
+	if errors.Is(err, driver.ErrBadConn) {
+		return true, ErrBadConn
+	}
+	return false, err
+}
+
+func badConn(err error) bool {
+	return errors.Is(err, ErrBadConn)
 }
