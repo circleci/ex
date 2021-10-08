@@ -21,6 +21,13 @@ func NewTxManager(db *sqlx.DB) *TxManager {
 	}
 }
 
+func NewTxManagerWithTestQuerier(db *sqlx.DB, tq func(Querier) Querier) *TxManager {
+	return &TxManager{
+		db:          db,
+		testQuerier: tq,
+	}
+}
+
 type queryFn func(context.Context, Querier) error
 
 // WithTx wraps f in an explicit o11y'd transaction, handling rollback
