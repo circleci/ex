@@ -30,7 +30,7 @@ func TestNoEffectError(t *testing.T) {
 	assert.Check(t, o11y.IsWarning(err))
 }
 
-func TestTxManager_WithTransaction_ContextCancelledWithError(t *testing.T) {
+func TestTxManager_WithTx_ContextCancelledWithError(t *testing.T) {
 	ourError := errors.New("our error")
 	tests := []struct {
 		returnError error
@@ -64,7 +64,7 @@ func TestTxManager_WithTransaction_ContextCancelledWithError(t *testing.T) {
 			}
 			defer cancel()
 
-			err := tx.WithTransaction(ctx, func(ctx context.Context, _ Querier) error {
+			err := tx.WithTx(ctx, func(ctx context.Context, _ Querier) error {
 				if tt.cancel {
 					cancel()
 				} else if tt.timeout {

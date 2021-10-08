@@ -10,24 +10,26 @@ import (
 )
 
 type TxManager struct {
-	DB *sqlx.DB
+	db *sqlx.DB
 	// This is only for testing purposes
-	TestQuerier func(Querier) Querier
+	testQuerier func(Querier) Querier
 }
 
 func NewTxManager(db *sqlx.DB) *TxManager {
-	return &TxManager{DB: db}
+	return &TxManager{
+		db: db,
+	}
 }
 
 type queryFn func(context.Context, Querier) error
 
-// WithTransaction wraps f in an explicit o11y'd transaction, handling rollback
+// WithTx wraps f in an explicit o11y'd transaction, handling rollback
 // if f returns an error. It will retry the transaction a few times in the face of
 // ErrBadConn errors.
 // The length here is due to the internalised func, which we want to encapsulate
 // to avoid reuse, since it is highly coupled to the retry behaviour.
 //nolint:funlen
-func (s *TxManager) WithTransaction(ctx context.Context, f queryFn) (err error) {
+func (t *TxManager) WithTx(ctx context.Context, f queryFn) (err error) {
 	// Set up the main transaction function that we will retry on ErrBadCon
 	transaction := func(attempt int) (err error) {
 		ctx, span := o11y.StartSpan(ctx, "tx-manager: tx")
@@ -35,7 +37,7 @@ func (s *TxManager) WithTransaction(ctx context.Context, f queryFn) (err error) 
 
 		span.AddField("attempt", attempt)
 
-		tx, err := s.DB.BeginTxx(ctx, nil)
+		tx, err := t.db.BeginTxx(ctx, nil)
 		if err != nil {
 			_, err = mapBadCon(err)
 			return fmt.Errorf("begin transaction: %w", err)
@@ -92,11 +94,11 @@ func (s *TxManager) WithTransaction(ctx context.Context, f queryFn) (err error) 
 
 		// Use the error wrapped transaction so that the common errors can be reported as warnings in any
 		// spans used in f
-		var q Querier = unifiedTx{tx: tx}
-		if s.TestQuerier != nil {
-			q = s.TestQuerier(tx)
+		var q Querier = unifiedQuerier{q: tx}
+		if t.testQuerier != nil {
+			q = t.testQuerier(tx)
 		}
-		err = f(ctx, q) // This err will be mapped in the unifiedTx wrapper
+		err = f(ctx, q) // This err will be mapped in the unifiedQuerier wrapper
 
 		// Note that the above defer can reassign err
 		return err
@@ -112,4 +114,14 @@ func (s *TxManager) WithTransaction(ctx context.Context, f queryFn) (err error) 
 		}
 	}
 	return err
+}
+
+func (t *TxManager) NoTx() Querier {
+	return unifiedQuerier{q: t.db}
+}
+
+// WithTransaction simply delegates to WithTx.
+// Deprecated
+func (t *TxManager) WithTransaction(ctx context.Context, f queryFn) (err error) {
+	return t.WithTx(ctx, f)
 }
