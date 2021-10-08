@@ -31,10 +31,15 @@ func New(o Options) *redis.Client {
 		Password: o.Password.Value(),
 	}
 	if o.TLS {
+		var rootCAs *x509.CertPool
+		if o.CAFunc != nil {
+			rootCAs = o.CAFunc()
+		}
+
 		opts.TLSConfig = &tls.Config{
 			MinVersion: tls.VersionTLS12,
 			ServerName: o.Host,
-			RootCAs:    o.CAFunc(),
+			RootCAs:    rootCAs,
 		}
 	}
 
