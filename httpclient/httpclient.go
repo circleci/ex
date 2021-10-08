@@ -1,5 +1,6 @@
 // Package httpclient provides an http client instrumented with the ex/o11y package, and includes
-// configurable timeouts, retries, authentication and connection pooling.
+// configurable timeouts, retries, authentication and connection pooling, and support
+// for backing off when a 429 response code is seen.
 package httpclient
 
 import (
@@ -12,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -22,7 +24,10 @@ import (
 
 const JSON = "application/json; charset=utf-8"
 
-var ErrNoContent = o11y.NewWarning("no content")
+var (
+	ErrNoContent     = o11y.NewWarning("no content")
+	ErrServerBackoff = errors.New("server requested explicit backoff")
+)
 
 // Config provides the client configuration
 type Config struct {
@@ -43,7 +48,7 @@ type Config struct {
 	MaxConnectionsPerHost int
 }
 
-// Client is the o11y instrumented http client
+// Client is the o11y instrumented http client.
 type Client struct {
 	name                  string
 	baseURL               string
@@ -53,6 +58,11 @@ type Client struct {
 	authToken             string
 	authHeader            string
 	acceptType            string
+
+	mu      sync.RWMutex
+	last429 time.Time
+
+	now func() time.Time // purely a test hook
 }
 
 // New creates a client configured with the config param
@@ -64,7 +74,7 @@ func New(cfg Config) *Client {
 	t.MaxConnsPerHost = cfg.MaxConnectionsPerHost
 	t.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
 
-	c := &Client{
+	return &Client{
 		name:                  cfg.Name,
 		baseURL:               cfg.BaseURL,
 		backOffMaxInterval:    10 * time.Second,
@@ -75,9 +85,8 @@ func New(cfg Config) *Client {
 		httpClient: &http.Client{
 			Transport: t,
 		},
+		now: time.Now,
 	}
-
-	return c
 }
 
 // CloseIdleConnections is only used for testing.
@@ -175,15 +184,19 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 // retryRequest will make the request and only call the decoder when a 2XX has been received.
 // Any response body in non 2XX cases is discarded.
 // nolint: funlen
-func (c *Client) retryRequest(ctx context.Context,
-	spanName string, r Request, newRequestFn func() (*http.Request, error)) error {
+func (c *Client) retryRequest(ctx context.Context, name string, r Request, newReq func() (*http.Request, error)) error {
 	attemptCounter := 0
 	attempt := func() (err error) {
-		attemptCounter++
-		_, span := o11y.StartSpan(ctx, spanName)
+		_, span := o11y.StartSpan(ctx, name)
 		defer o11y.End(span, &err)
 
-		req, err := newRequestFn()
+		attemptCounter++
+
+		if c.shouldBackoff() {
+			return backoff.Permanent(ErrServerBackoff)
+		}
+
+		req, err := newReq()
 		if err != nil {
 			return backoff.Permanent(err)
 		}
@@ -250,6 +263,9 @@ func (c *Client) retryRequest(ctx context.Context,
 
 		err = extractHTTPError(req, res, attemptCounter, r.Route)
 		if err != nil {
+			if HasStatusCode(err, http.StatusTooManyRequests) {
+				c.setLast429()
+			}
 			return err
 		}
 		if r.Decoder == nil {
@@ -268,6 +284,21 @@ func (c *Client) retryRequest(ctx context.Context,
 	bo.MaxInterval = c.backOffMaxInterval
 	bo.MaxElapsedTime = c.backOffMaxElapsedTime
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
+}
+
+func (c *Client) shouldBackoff() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// If not yet 10 seconds since the last 429
+	return c.now().Before(c.last429.Add(time.Second * 10))
+}
+
+func (c *Client) setLast429() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.last429 = c.now()
 }
 
 // NewJSONDecoder returns a decoder func enclosing the resp param
