@@ -19,8 +19,6 @@ type HealthChecker interface {
 // It can collect a set of health check functions and return them as a list
 // (to pass into single health check handler for instance).
 type System struct {
-	group           *errgroup.Group
-	ctx             context.Context
 	services        []func(context.Context) error
 	healthChecks    []HealthChecker
 	metricProducers []MetricProducer
@@ -33,12 +31,8 @@ type System struct {
 // It is expected that the context cancelled when the service receives a signal,
 // but will also be cancelled when any of the services returns an error.
 // The context may be cancelled by the caller, to stop the services.
-func New(ctx context.Context) *System {
-	group, ctx := errgroup.WithContext(ctx)
-	return &System{
-		group: group,
-		ctx:   ctx,
-	}
+func New() *System {
+	return &System{}
 }
 
 // The default handler will return an error when a termination signal is received
@@ -51,29 +45,30 @@ var terminationTestHook = termination.Handle
 // The error returned will be the first error returned from any of the services.
 // The terminationDelay passed in is the amount of time to wait between receiving a
 // signal and cancelling the system context
-func (r *System) Run(terminationDelay time.Duration) (err error) {
-	_, uptimeSpan := o11y.StartSpan(r.ctx, "system: run")
+func (r *System) Run(ctx context.Context, terminationDelay time.Duration) (err error) {
+	_, uptimeSpan := o11y.StartSpan(ctx, "system: run")
 	defer o11y.End(uptimeSpan, &err)
 	uptimeSpan.RecordMetric(o11y.Timing("system.run", "result"))
 
-	r.group.Go(func() error {
-		return terminationTestHook(r.ctx, terminationDelay)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		return terminationTestHook(ctx, terminationDelay)
 	})
 
 	for _, f := range r.services {
 		// Capture the func, so we don't overwrite it when the goroutines start in parallel.
 		f := f
-		r.group.Go(func() error {
-			return f(r.ctx)
+		g.Go(func() error {
+			return f(ctx)
 		})
 	}
 
 	// if we have any metrics add the metrics worker
 	if len(r.metricProducers) > 0 {
-		r.group.Go(metricsReporter(r.ctx, r.metricProducers))
+		g.Go(metricsReporter(ctx, r.metricProducers))
 	}
 
-	return r.group.Wait()
+	return g.Wait()
 }
 
 // AddService adds the service function to the list of coordinated services.
