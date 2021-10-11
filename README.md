@@ -31,6 +31,7 @@ reliable, observable, zero-downtime services using Go.
   CLI parsing, this helps in writing golden tests for the CLI definition.
 - `testing/redisfixture` Get an isolated Redis DB for your tests, so they don't interfere.
 - `testing/releases` Helper to determine which binaries to download for end to end tests.
+- `testing/runner` Run a binary in an acceptance test (scan output for ports, wait for start). 
 - `testing/testcontext` Setup a background context that includes `o11y`.
 - `worker` Run a service worker loop with observability and back-off for no work found.
 
