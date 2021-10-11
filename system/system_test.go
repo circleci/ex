@@ -30,7 +30,7 @@ func TestSystem_Run(t *testing.T) {
 		return termination.ErrTerminated
 	}
 
-	sys := New(ctx)
+	sys := New()
 
 	sys.AddMetrics(newMockMetricProducer(terminationWait))
 
@@ -53,7 +53,7 @@ func TestSystem_Run(t *testing.T) {
 		return nil
 	})
 
-	err := sys.Run(0)
+	err := sys.Run(ctx, 0)
 	assert.Check(t, errors.Is(err, termination.ErrTerminated))
 
 	sys.Cleanup(ctx)
