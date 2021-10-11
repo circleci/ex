@@ -172,6 +172,16 @@ func Log(ctx context.Context, name string, fields ...Pair) {
 	FromContext(ctx).Log(ctx, name, fields...)
 }
 
+// LogError sends a zero duration trace event with an error.
+func LogError(ctx context.Context, name string, err error, fields ...Pair) {
+	_, span := StartSpan(ctx, name)
+	for _, f := range fields {
+		span.AddField(f.Key, f.Value)
+	}
+	AddResultToSpan(span, err)
+	span.End()
+}
+
 // StartSpan starts a span from a context that must contain a provider for this to have any effect.
 func StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return FromContext(ctx).StartSpan(ctx, name)
