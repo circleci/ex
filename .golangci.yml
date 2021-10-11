@@ -69,6 +69,12 @@ issues:
     # Unparam is allowed in tests
     - linters: [unparam]
       path: _test\.go
+    # Rootcerts is generated code
+    - linters: [gochecknoinits]
+      path: /rootcerts
+    # Rootcerts is generated code
+    - linters: [gosec]
+      path: /rootcerts
 
 linters:
   disable-all: true

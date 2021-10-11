@@ -33,6 +33,9 @@ jobs:
       - checkout
       - setup
       - run:
+          name: Check rootcerts is up to date
+          command: ./do check-rootcerts
+      - run:
           name: Verify modules are tidy
           command: ./do check-gomod
       - run:
