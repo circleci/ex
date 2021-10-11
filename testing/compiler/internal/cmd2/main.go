@@ -6,5 +6,5 @@ import (
 )
 
 func main() {
-	fmt.Printf("command 1: %v\n", os.Args[1:])
+	fmt.Printf("command 2: %v\n", os.Args[1:])
 }

@@ -1,7 +1,3 @@
-/*
-Package binary provides a convenient mechanism for building and running a service binary
-as part of an acceptance test suite.
-*/
 package compiler
 
 import (
@@ -17,15 +13,15 @@ type Compiler struct {
 	dir string
 }
 
-func New() (*Compiler, error) {
+func New() *Compiler {
 	tempDir, err := ioutil.TempDir("", "acceptance-tests")
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
 
 	return &Compiler{
 		dir: tempDir,
-	}, nil
+	}
 }
 
 func (c *Compiler) Cleanup() {
@@ -42,12 +38,10 @@ func (c *Compiler) Compile(ctx context.Context, name, target string, source stri
 	path := binaryPath(name, c.dir)
 	goBin := goPath()
 	// #nosec - this is fine
-	cmd := exec.CommandContext(ctx, goBin, "test",
-		"-coverpkg=./...",
-		"-c",
-		"-tags", "testrunmain",
+	cmd := exec.CommandContext(ctx, goBin, "build",
+		"-o", path,
 		source,
-		"-o", path)
+	)
 	cmd.Dir = cwd
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Stdout = os.Stdout
