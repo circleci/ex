@@ -21,6 +21,10 @@ func NewParallel(parallelism int) *Parallel {
 	}
 }
 
+func (t *Parallel) Dir() string {
+	return t.compiler.Dir()
+}
+
 func (t *Parallel) Cleanup() {
 	defer t.compiler.Cleanup()
 	close(t.work)

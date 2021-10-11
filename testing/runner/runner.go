@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,12 +10,18 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type Runner struct {
 	baseEnv    []string
 	dynamicEnv func() []string
+
+	mu       sync.Mutex
+	cleanups []func() error
 }
 
 func New(baseEnv ...string) *Runner {
@@ -77,6 +84,8 @@ func (r *Runner) Run(serverName, binary string, extraEnv ...string) (*Result, er
 		}
 	}
 
+	r.addStop(result.Stop)
+
 	return result, nil
 }
 
@@ -111,6 +120,27 @@ func (r *Runner) Start(binary string, extraEnv ...string) (*Result, error) {
 		return nil, fmt.Errorf("failed to start: %w", err)
 	}
 	return result, nil
+}
+
+func (r *Runner) Stop() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	g, _ := errgroup.WithContext(context.Background())
+	for _, cleanup := range r.cleanups {
+		g.Go(cleanup)
+	}
+
+	r.cleanups = nil
+
+	return g.Wait()
+}
+
+func (r *Runner) addStop(stop func() error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.cleanups = append(r.cleanups, stop)
 }
 
 type Result struct {

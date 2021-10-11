@@ -37,15 +37,15 @@ func TestRunner(t *testing.T) {
 			}
 		},
 	)
+	t.Cleanup(func() {
+		assert.Check(t, r.Stop())
+	})
 
 	var res *Result
 	t.Run("Start service", func(t *testing.T) {
 		var err error
 		res, err = r.Run("the-server-name", binary, "e=e")
 		assert.Assert(t, err)
-	})
-	t.Cleanup(func() {
-		assert.Check(t, res.Stop())
 	})
 
 	t.Run("Check the right environment was set", func(t *testing.T) {
