@@ -20,6 +20,19 @@ check-gomod() {
     git diff --exit-code -- go.mod go.sum
 }
 
+help_check_rootcerts="Check rootcerts is up to date"
+check-rootcerts() {
+    generate
+    git diff --ignore-matching-lines='Generated on ' --exit-code -- ./rootcerts
+}
+
+# This variable is used, but shellcheck can't tell.
+# shellcheck disable=SC2034
+help_generate="generate any generated code"
+generate() {
+    go generate -x ./...
+}
+
 help_lint="Run golanci-lint to lint go files."
 lint() {
     ./bin/golangci-lint run "${@:-./...}"
@@ -104,10 +117,20 @@ install-github-binary() {
     mv "$binary" ./bin/
 }
 
+install-go-bin() {
+    for pkg in "${@}"; do
+        GOBIN="${PWD}/bin" go install "${pkg}" &
+    done
+    wait
+}
+
 help_install_devtools="Install tools that other tasks expect into ./bin"
 install-devtools() {
     install-github-binary golangci golangci-lint '-' '.zip' 1.40.1
     install-github-binary gotestyourself gotestsum '_' '.tar.gz' 1.6.4
+
+    install-go-bin \
+            "github.com/gwatts/rootcerts/gencerts@v0.0.0-20210602134037-977e162fa4a7"
 }
 
 help_create_stub_test_files="Create an empty pkg_test in all directories with no tests.
