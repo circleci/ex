@@ -24,6 +24,10 @@ func New() *Compiler {
 	}
 }
 
+func (c *Compiler) Dir() string {
+	return c.dir
+}
+
 func (c *Compiler) Cleanup() {
 	_ = os.RemoveAll(c.dir)
 }
@@ -39,6 +43,7 @@ func (c *Compiler) Compile(ctx context.Context, name, target string, source stri
 	goBin := goPath()
 	// #nosec - this is fine
 	cmd := exec.CommandContext(ctx, goBin, "build",
+		"-ldflags=-w -s",
 		"-o", path,
 		source,
 	)
