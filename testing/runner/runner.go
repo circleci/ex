@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
+	"github.com/circleci/ex/internal/syncbuffer"
 )
 
 type Runner struct {
@@ -110,7 +112,7 @@ func (r *Runner) Start(binary string, extraEnv ...string) (*Result, error) {
 
 	result := &Result{
 		cmd:  cmd,
-		logs: &syncBuffer{},
+		logs: &syncbuffer.SyncBuffer{},
 	}
 	cmd.Stdout = io.MultiWriter(result.logs, os.Stdout)
 	cmd.Stderr = io.MultiWriter(result.logs, os.Stderr)
@@ -145,7 +147,7 @@ func (r *Runner) addStop(stop func() error) {
 
 type Result struct {
 	cmd  *exec.Cmd
-	logs *syncBuffer
+	logs *syncbuffer.SyncBuffer
 
 	apiPort   int
 	adminPort int

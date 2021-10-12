@@ -1,23 +1,23 @@
-package runner
+package syncbuffer
 
 import (
 	"bytes"
 	"sync"
 )
 
-type syncBuffer struct {
+type SyncBuffer struct {
 	mu  sync.RWMutex
 	buf bytes.Buffer
 }
 
-func (b *syncBuffer) Write(p []byte) (n int, err error) {
+func (b *SyncBuffer) Write(p []byte) (n int, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	return b.buf.Write(p)
 }
 
-func (b *syncBuffer) String() string {
+func (b *SyncBuffer) String() string {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
