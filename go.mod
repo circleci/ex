@@ -15,9 +15,13 @@ require (
 	github.com/honeycombio/dynsampler-go v0.2.1
 	github.com/honeycombio/libhoney-go v1.15.5
 	github.com/jmoiron/sqlx v1.3.4
+	github.com/jolestar/go-commons-pool/v2 v2.1.1
 	github.com/klauspost/compress v1.13.6
 	github.com/lib/pq v1.10.3
+	github.com/makasim/amqpextra v0.16.4
+	github.com/michaelklishin/rabbit-hole/v2 v2.11.0
 	github.com/rollbar/rollbar-go v1.4.2
+	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
 	golang.org/x/mod v0.5.1
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	gotest.tools/v3 v3.0.3

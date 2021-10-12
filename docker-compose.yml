@@ -19,6 +19,15 @@ services:
     ports:
       - '127.0.0.1:6379:6379'
 
+  rabbitmq:
+    image: rabbitmq:3.8-management-alpine
+    shm_size: '512mb'
+    volumes:
+      - /dev/shm:/var/lib/rabbitmq
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+
   statsd:
     image: catkins/statsd-logger
     ports:

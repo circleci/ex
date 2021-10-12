@@ -18,6 +18,7 @@ reliable, observable, zero-downtime services using Go.
 - `o11y/honeycomb` The honeycomb-backed implementation of `o11y`.
 - `o11y/wrappers/o11ygin` `o11y` middleware for the Gin router.
 - `o11y/wrappers/o11ynethttp` `o11y` middleware for the standard Go HTTP server.
+- `rabbit` Experimental RabbitMQ publishing client.
 - `redis` Wiring and observability for Redis.
 - `system` Manage the startup, running, metrics and shutdown of a Go service.
 - `termination` A handler to aid signal based service termination. (Used internally by
@@ -30,6 +31,7 @@ reliable, observable, zero-downtime services using Go.
 - `testing/httprecorder` Record HTTP requests inside an HTTP server, and search them.
 - `testing/kongtest` If you are using [kong](https://github.com/alecthomas/kong) for your
   CLI parsing, this helps in writing golden tests for the CLI definition.
+- `testing/rabbitfixture` Get an isolated RabbitMQ VHost for your tests, so they don't interfere.
 - `testing/redisfixture` Get an isolated Redis DB for your tests, so they don't interfere.
 - `testing/releases` Helper to determine which binaries to download for end to end tests.
 - `testing/runner` Run a binary in an acceptance test (scan output for ports, wait for start). 
