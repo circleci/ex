@@ -10,7 +10,9 @@ import (
 
 	"github.com/circleci/ex/config/o11y"
 	"github.com/circleci/ex/config/secret"
+	"github.com/circleci/ex/db"
 	"github.com/circleci/ex/rootcerts"
+	"github.com/circleci/ex/system"
 )
 
 type CLI struct {
@@ -23,6 +25,13 @@ type CLI struct {
 	O11yFormat           string        `name:"o11y-format" env:"O11Y_FORMAT" enum:"json,color,text" default:"json" help:"Format used for stderr logging"`
 	O11yRollbarToken     secret.String `name:"o11y-rollbar-token" env:"O11Y_ROLLBAR_TOKEN"`
 	O11yRollbarEnv       string        `name:"o11y-rollbar-env" env:"O11Y_ROLLBAR_ENV" default:"production"`
+
+	DBHost     string        `env:"DB_HOST" default:"example.db.infra.circleci.com"`
+	DBPort     int           `env:"DB_PORT" default:"5432"`
+	DBUser     string        `env:"DB_USER" default:"example"`
+	DBPassword secret.String `env:"DB_PASSWORD"`
+	DBName     string        `env:"DB_NAME" default:"example"`
+	DBSSL      bool          `env:"DB_SSL" name:"db-ssl" default:"true"`
 }
 
 func init() {
@@ -49,4 +58,15 @@ func LoadO11y(version, mode string, cli CLI) (context.Context, func(context.Cont
 		Mode:              mode,
 	}
 	return o11y.Setup(context.Background(), cfg)
+}
+
+func LoadTxManager(ctx context.Context, cli CLI, sys *system.System) (*db.TxManager, error) {
+	return db.Load(ctx, "example", "example", db.Config{
+		Host: cli.DBHost,
+		Port: cli.DBPort,
+		User: cli.DBUser,
+		Pass: cli.DBPassword,
+		Name: cli.DBName,
+		SSL:  cli.DBSSL,
+	}, sys)
 }

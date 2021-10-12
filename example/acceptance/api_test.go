@@ -6,21 +6,25 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/testing/dbfixture"
+	"github.com/circleci/ex/testing/runner"
+	"github.com/circleci/ex/testing/testcontext"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/testing/runner"
-	"github.com/circleci/ex/testing/testcontext"
+	"github.com/circleci/ex/example/migrations"
 )
 
 func TestE2E(t *testing.T) {
 	ctx := testcontext.Background()
 
+	dbfix := migrations.SetupDB(ctx, t)
+
 	var fix *serviceFixture
 	assert.Assert(t, t.Run("Start services", func(t *testing.T) {
-		fix = runServices(ctx, t)
+		fix = runServices(ctx, t, dbfix)
 	}))
 	t.Cleanup(func() {
 		t.Run("Stop services", func(t *testing.T) {
@@ -37,7 +41,7 @@ func TestE2E(t *testing.T) {
 
 }
 
-func runServices(ctx context.Context, t *testing.T) *serviceFixture {
+func runServices(ctx context.Context, t *testing.T, dbfix *dbfixture.Fixture) *serviceFixture {
 	t.Helper()
 	ctx, span := o11y.StartSpan(ctx, "acceptance: run_services")
 	defer o11y.End(span, nil)
@@ -47,10 +51,18 @@ func runServices(ctx context.Context, t *testing.T) *serviceFixture {
 
 	r := runner.New(
 		"ADMIN_ADDR=localhost:0",
+
 		"O11Y_STATSD=localhost:8125",
 		"O11Y_HONEYCOMB=false",
 		"O11Y_FORMAT=color",
 		"O11Y_ROLLBAR_ENV=testing",
+
+		"DB_HOST=localhost",
+		"DB_PORT=5432",
+		"DB_USER=user",
+		"DB_PASSWORD=password",
+		"DB_SSL=false",
+		"DB_NAME="+dbfix.DBName,
 	)
 
 	var apiResult *runner.Result

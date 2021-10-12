@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
-
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/httpserver/healthcheck"
 	"github.com/circleci/ex/o11y"
@@ -18,6 +17,7 @@ import (
 	"github.com/circleci/ex/example/api/api"
 	"github.com/circleci/ex/example/cmd"
 	"github.com/circleci/ex/example/cmd/setup"
+	"github.com/circleci/ex/example/service"
 )
 
 type cli struct {
@@ -75,8 +75,15 @@ func run(version, date string) (err error) {
 }
 
 func loadAPI(ctx context.Context, cli cli, sys *system.System) error {
-	a := api.New(ctx, api.Options{})
+	txm, err := setup.LoadTxManager(ctx, cli.CLI, sys)
+	if err != nil {
+		return err
+	}
 
-	_, err := httpserver.Load(ctx, "api", cli.APIAddr, a.Handler(), sys)
+	a := api.New(ctx, api.Options{
+		Store: service.NewStore(txm),
+	})
+
+	_, err = httpserver.Load(ctx, "api", cli.APIAddr, a.Handler(), sys)
 	return err
 }
