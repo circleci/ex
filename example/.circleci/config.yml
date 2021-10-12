@@ -1,0 +1,283 @@
+version: 2.1
+
+
+workflows:
+  main-workflow:
+    jobs:
+      - lint
+      - test
+      - build
+      - helm-package-dry-run:
+          context: org-global
+          filters:
+            branches:
+              ignore: main
+      - docker-image:
+          context: org-global
+          requires:
+            - lint
+            - test
+            - build
+      - deploy:
+          context: org-global
+          requires:
+            - docker-image
+            - helm-package-dry-run
+          filters:
+            branches:
+              only: main
+
+executors:
+  default:
+    docker:
+      - image: &goimage cimg/go:1.17
+  ccc:
+    docker:
+      - image: circleci/command-convenience:0.1
+        auth:
+          username: $DOCKER_HUB_USER
+          password: $DOCKER_HUB_PASSWORD
+    environment:
+      NAME: example
+      DOCKERFILE_PATH: Dockerfile
+      CUSTOM_CHART: deploy/
+
+jobs:
+  lint:
+    docker:
+      - image: *goimage
+    resource_class: large
+    steps:
+      - setup
+      - run:
+          name: generate
+          command: ./do generate
+      - run:
+          name: go tidy
+          command: go mod tidy -v
+      - run:
+          name: verify no changes
+          command: git diff --ignore-matching-lines='Generated on ' --exit-code
+      - run: ./do lint-report
+      - store_results
+
+  build:
+    docker:
+      - image: *goimage
+    resource_class: large
+    steps:
+      - setup
+      - run: ./do generate
+      - run: ./do build
+      - persist_to_workspace:
+          root: .
+          paths:
+            - target
+
+  docker-image:
+    executor: ccc
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - create_and_scan_docker_image
+      - persist_to_workspace:
+          root: .
+          paths:
+            - docker_image.tag
+
+  test:
+    docker:
+      - image: *goimage
+    resource_class: large
+    steps:
+      - setup
+      - run: ./do create-stub-test-files
+      - run:
+          name: run tests
+          command: ./do test ./...
+      - store_results
+
+  deploy:
+    executor: ccc
+    environment:
+      AWS_DEFAULT_REGION: us-east-1
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run: deploy
+      - notify_slack:
+          version: $(<target/version.txt)
+      - notify_honeycomb
+
+  helm-package-dry-run:
+    executor: ccc
+    steps:
+      - checkout
+      - run:
+          name: Override container version & dry run
+          command: |
+            apk add yq
+            AWS_ACCESS_KEY_ID="${EKS_AWS_ACCESS_KEY_ID}" \
+            AWS_SECRET_ACCESS_KEY="${EKS_AWS_SECRET_ACCESS_KEY}" \
+            helm get all example-v1 > .helm.current
+            export CONTAINER_VERSION=$(tail -n +11 .helm.current | yq r - 'deployment.image' | cut -d ":" -f2-)
+            echo "Current version is: ${CONTAINER_VERSION}"
+            /deploy/dry-run
+            ls -la .helm.diff
+      - run:
+          name: Install GitHub CLI
+          command: |
+            curl -fsSL 'https://github.com/cli/cli/releases/download/v1.11.0/gh_1.11.0_linux_amd64.tar.gz' | tar -C /usr/local --strip-components=1 -xz
+      - run:
+          name: Comment on pull request
+          command: |
+            if [ ! -s ".helm.diff" ]
+            then
+              echo "No diff found"
+              exit 0
+            fi
+            if [ ! -n "$CI_PULL_REQUEST" ]
+            then
+              echo "No PR found"
+              exit 0
+            fi
+            echo "## Helm diff: <sup>[CI link]( $CIRCLE_BUILD_URL )</sup>" > comment.txt
+            echo '<details><summary>Details (click me)</summary>' >> comment.txt
+            echo '' >> comment.txt
+            echo '```diff' >> comment.txt
+            cat '.helm.diff' >> comment.txt
+            echo '```' >> comment.txt
+            echo '</details>' >> comment.txt
+            echo "Commenting on ${CI_PULL_REQUEST}"
+            gh pr comment "${CI_PULL_REQUEST}" --body-file comment.txt
+
+commands:
+  setup:
+    steps:
+      - checkout
+      - run: go mod download
+      - run: ./do install-devtools
+
+  store_results:
+    steps:
+      - run:
+          name: Strip ANSI codes from xunit output
+          when: always
+          command: |
+            # The test output produces ANSI codes, which the XML writer converts into annoying
+            # \0xfffd characters - we'll strip these out to make the XML a bit more readable
+            sed -i 's/�\[[0-9;]*[a-zA-Z]//g' test-reports/*.xml || true
+      - store_artifacts:
+          path: test-reports
+      - store_test_results:
+          path: test-reports
+
+  remote_docker:
+    steps:
+      - setup_remote_docker
+      - run: docker version
+
+  create_and_scan_docker_image:
+    steps:
+      - remote_docker
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: create and scan docker image
+          command: |
+            set -x
+            if [[ "$CIRCLE_BRANCH" = "main" || "$CIRCLE_BRANCH" = "canary" ]]; then
+              # TODO change to all once dockerhub repo is ready
+              export DOCKER_REGISTRY=ecr
+            else
+              # this is how we tell CCC not to actually publish
+              export DOCKER_REGISTRY=none
+            fi
+
+            publish
+
+  notify_slack:
+    parameters:
+      version:
+        type: string
+    steps:
+      - run:
+          name: Slack Notification
+          command: |
+            # Provide error if no webhook is set and error. Otherwise continue
+            if [ -z "${SLACK_WEBHOOK}" ]; then
+              echo '$SLACK_WEBHOOK not set'
+              exit 1
+            fi
+
+            version=$(<docker_image.tag)
+            message=$(git show HEAD --no-patch --format=%s | jq -R '.' | sed -e 's/^"//' -e 's/"$//')
+
+            cat \<< EOF | tee /tmp/slack-webhook-body
+            {
+            	"blocks": [
+            		{
+            			"type": "header",
+            			"text": {
+            				"type": "plain_text",
+            				"text": "Helm deployment triggered",
+            				"emoji": true
+            			}
+            		},
+            		{
+            			"type": "section",
+            			"fields": [
+            				{
+            					"type": "mrkdwn",
+            					"text": "*Project:*\n$CIRCLE_PROJECT_REPONAME"
+            				},
+            				{
+            					"type": "mrkdwn",
+            					"text": "*Author:*\n$CIRCLE_USERNAME"
+            				}
+            			]
+            		},
+            		{
+            			"type": "section",
+            			"fields": [
+            				{
+            					"type": "mrkdwn",
+            					"text": "*Version:*\n<<parameters.version>>"
+            				},
+            				{
+            					"type": "mrkdwn",
+            					"text": "*CircleCI Build:*\n<$CIRCLE_BUILD_URL|$CIRCLE_BUILD_NUM>"
+            				}
+            			]
+            		},
+            		{
+            			"type": "section",
+            			"text": {
+            				"type": "mrkdwn",
+            				"text": "*Commit Message:*\n$message"
+            			}
+            		}
+            	]
+            }
+            EOF
+
+            curl --fail -H 'Content-type: application/json' \
+                --data @/tmp/slack-webhook-body "${SLACK_WEBHOOK}"
+
+  notify_honeycomb:
+    steps:
+      - run:
+          name: Notify Honeycomb
+          command: |
+            cat \<< EOF | tee /tmp/honeycomb-marker
+            {
+              "message": "Deploying example≠ $(<docker_image.tag)",
+              "type":"deploy"
+            }
+            EOF
+            curl https://api.honeycomb.io/1/markers/execution \
+              -H "X-Honeycomb-Team: $HONEYCOMB_WRITEKEY" \
+              -d @/tmp/honeycomb-marker

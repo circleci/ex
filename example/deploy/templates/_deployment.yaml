@@ -1,0 +1,114 @@
+{{- define "deploy" -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .name }}
+  labels:
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "-" }}
+spec:
+  {{- if not .Values.canary }}
+  replicas: {{ .replicas }}
+  {{- else }}
+  replicas: 1
+  {{- end }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 50%
+      maxUnavailable: 50%
+  selector:
+    matchLabels:
+      app: "{{ .Chart.Name }}-{{ .name }}"
+      release: "{{ .Release.Name }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .Chart.Name }}-{{ .name }}"
+        name: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "-" }}
+        release: "{{ .Release.Name }}"
+        app.kubernetes.io/component: service
+    spec:
+      volumes:
+        - name: secrets
+          secret:
+            secretName: your-service-secrets-v1
+      containers:
+      - name: "{{ .name }}"
+        image: "{{ .Values.deployment.image }}"
+        imagePullPolicy: IfNotPresent
+        command: ["{{ .cmd }}"]
+        volumeMounts:
+          - name: secrets
+            readOnly: true
+            mountPath: /secrets
+
+        env:
+          # Common environment variables
+          - name: K8S_NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+
+          - name: O11Y_HONEYCOMB_KEY
+            valueFrom:
+              secretKeyRef:
+                name: your-service-secrets-v1
+                key: honeycomb.writekey
+          - name: O11Y_ROLLBAR_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: your-service-secrets-v1
+                key: rollbar.token
+
+        {{- if hasKey . "env" }}
+{{ toYaml .env | indent 10 }}
+        {{- end }}
+
+        ports:
+          # Common ports
+          - containerPort: 8001
+            name: admin
+            protocol: TCP
+          {{- if hasKey . "ports" }}
+          # Deployment-specific ports
+{{ toYaml .ports | indent 10 }}
+          {{- end }}
+
+        resources:
+          limits:
+            {{- if hasKey . "cpuQuota" }}
+              # Deployment-specific cpu
+            cpu: {{ .cpuQuota }}
+            {{- else }}
+            cpu: "0.5"
+            {{- end }}
+
+            memory: 512M
+          requests:
+            {{- if hasKey . "cpuQuota" }}
+            # Deployment-specific cpu
+            cpu: {{ .cpuQuota }}
+            {{- else }}
+            cpu: "0.5"
+            {{- end }}
+            memory: 512M
+
+        livenessProbe:
+          httpGet:
+            path: /live
+            scheme: HTTP
+            port: admin
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 6
+
+        readinessProbe:
+          httpGet:
+            path: /ready
+            scheme: HTTP
+            port: admin
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+          successThreshold: 1
+          failureThreshold: 2
+{{- end -}}
