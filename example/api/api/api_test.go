@@ -8,6 +8,9 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
+	"github.com/circleci/ex/example/migrations"
+	"github.com/circleci/ex/example/service"
 )
 
 type fixture struct {
@@ -17,7 +20,10 @@ type fixture struct {
 func startAPI(ctx context.Context, t testing.TB) *fixture {
 	t.Helper()
 
-	api := New(ctx, Options{})
+	dbfix := migrations.SetupDB(ctx, t)
+	api := New(ctx, Options{
+		Store: service.NewStore(dbfix.TX),
+	})
 	srv := httptest.NewServer(api.Handler())
 	t.Cleanup(srv.Close)
 

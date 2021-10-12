@@ -7,6 +7,8 @@ workflows:
       - lint
       - test
       - build
+      - db-schema:
+          context: org-global
       - helm-package-dry-run:
           context: org-global
           filters:
@@ -110,6 +112,25 @@ jobs:
       - notify_slack:
           version: $(<target/version.txt)
       - notify_honeycomb
+
+  db-schema:
+    machine:
+      image: ubuntu-1604:201903-01
+    steps:
+      - checkout
+      - run:
+          name: docker login
+          command: >
+            echo $DOCKER_HUB_PASSWORD |
+            docker login --username $DOCKER_HUB_USER --password-stdin
+      - run: ./do schema
+      - run:
+          name: Check that the DB schema dump matches migrations
+          command: |
+            # If the `diff` exit code is not zero, the migrations/schema.sql file is
+            # out-of date.
+            # Run ./do schema locally to update it
+            git diff --exit-code
 
   helm-package-dry-run:
     executor: ccc

@@ -1,6 +1,30 @@
 version: "3.7"
 
 services:
+  postgres:
+    image: circleci/postgres:13.3-ram
+    ports:
+      - '127.0.0.1:5432:5432'
+    shm_size: '512mb'
+    command: postgres -c shared_buffers=512MB -c max_connections=400
+    environment:
+      PGUSER: user
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: example
+
+  db-schema:
+    image: circleci/flyway:0.1
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_USER: user
+      DATABASE_PASSWORD: password
+      DATABASE_NAME: example
+    volumes:
+      - "${PWD}/migrations/sql:/flyway/sql"
+    depends_on:
+      - postgres
+
   statsd:
     image: catkins/statsd-logger
     ports:

@@ -16,4 +16,11 @@ Flags:
                               ($O11Y_ROLLBAR_TOKEN)
       --o11y-rollbar-env="production"
                               ($O11Y_ROLLBAR_ENV)
+      --db-host="example.db.infra.circleci.com"
+                              ($DB_HOST)
+      --db-port=5432          ($DB_PORT)
+      --db-user="example"     ($DB_USER)
+      --db-password=STRING    ($DB_PASSWORD)
+      --db-name="example"     ($DB_NAME)
+      --db-ssl                ($DB_SSL)
       --api-addr=":8000"      The address for the API to listen on ($API_ADDR)

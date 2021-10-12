@@ -4,10 +4,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/circleci/ex/testing/testcontext"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
-
-	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestHelloWorld(t *testing.T) {
