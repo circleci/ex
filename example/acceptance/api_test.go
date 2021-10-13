@@ -1,8 +1,10 @@
 package acceptance
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/circleci/ex/testing/dbfixture"
 	"github.com/circleci/ex/testing/runner"
 	"github.com/circleci/ex/testing/testcontext"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -32,11 +35,32 @@ func TestE2E(t *testing.T) {
 		})
 	})
 
-	t.Run("Some actual tests", func(t *testing.T) {
-		m := make(map[string]interface{})
-		status := fix.Get(t, "/api/hello", &m)
-		assert.Check(t, cmp.Equal(status, http.StatusOK))
-		assert.Check(t, cmp.DeepEqual(m, map[string]interface{}{"hello": "world!"}))
+	t.Run("Very basic tests", func(t *testing.T) {
+		type response struct {
+			ID uuid.UUID `json:"id"`
+		}
+
+		var res response
+
+		assert.Assert(t, t.Run("Add book to store", func(t *testing.T) {
+			status := fix.Post(t, "/api/books", map[string]interface{}{
+				"name":  "Wizard of Oz",
+				"price": "$6.99",
+			}, &res)
+			assert.Check(t, cmp.Equal(status, http.StatusOK))
+			assert.Check(t, res.ID != uuid.Nil)
+		}))
+
+		t.Run("Check book was added", func(t *testing.T) {
+			m := make(map[string]interface{})
+			status := fix.Get(t, fmt.Sprintf("/api/books/%s", res.ID), &m)
+			assert.Check(t, cmp.Equal(status, http.StatusOK))
+			assert.Check(t, cmp.DeepEqual(map[string]interface{}{
+				"id":    res.ID.String(),
+				"name":  "Wizard of Oz",
+				"price": "$6.99",
+			}, m))
+		})
 	})
 
 }
@@ -111,6 +135,31 @@ func (f *serviceFixture) Get(t testing.TB, path string, out interface{}) (status
 
 	var err error
 	resp, err := http.Get(f.apiBaseURL + path)
+	assert.Assert(t, err)
+
+	defer func() {
+		assert.Check(t, resp.Body.Close())
+	}()
+
+	if resp.StatusCode < 300 && out != nil {
+		err = json.NewDecoder(resp.Body).Decode(out)
+		assert.Assert(t, err)
+	}
+
+	return resp.StatusCode
+}
+
+func (f *serviceFixture) Post(t testing.TB, path string, in, out interface{}) (statusCode int) {
+	t.Helper()
+
+	var err error
+	var body []byte
+	if in != nil {
+		body, err = json.Marshal(in)
+		assert.Assert(t, err)
+	}
+
+	resp, err := http.Post(f.apiBaseURL+path, "application/json; charset=utf-8", bytes.NewReader(body))
 	assert.Assert(t, err)
 
 	defer func() {

@@ -7,16 +7,16 @@ import (
 	"github.com/circleci/ex/httpserver/ginrouter"
 	"github.com/gin-gonic/gin"
 
-	"github.com/circleci/ex/example/service"
+	"github.com/circleci/ex/example/books"
 )
 
 type API struct {
 	router *gin.Engine
-	store  *service.Store
+	store  *books.Store
 }
 
 type Options struct {
-	Store *service.Store
+	Store *books.Store
 }
 
 func New(ctx context.Context, opts Options) *API {
@@ -26,7 +26,8 @@ func New(ctx context.Context, opts Options) *API {
 		store:  opts.Store,
 	}
 
-	r.GET("/api/hello", a.getHelloWorld)
+	r.GET("/api/books/:id", a.getBook)
+	r.POST("/api/books", a.postBook)
 
 	return a
 }
