@@ -9,10 +9,14 @@ workflows:
               go_version:
                 - '1.17'
       - test:
+          name: test-<< matrix.go_version >><< matrix.submodule >>
           matrix:
             parameters:
               go_version:
                 - '1.17'
+              submodule:
+                - ""
+                - example
       - release:
           requires:
             - lint
@@ -47,6 +51,8 @@ jobs:
     parameters:
       go_version:
         type: string
+      submodule:
+        type: string
     docker:
       - image: cimg/go:<<parameters.go_version>>
       - image: circleci/postgres:13.3-ram
@@ -57,8 +63,10 @@ jobs:
       - image: circleci/redis:5.0.6-alpine
         command: [ "--databases", "2048" ]
       - image: rabbitmq:3.8-management-alpine
+    working_directory: ~/project/<<parameters.submodule>>
     steps:
-      - checkout
+      - checkout:
+          path: ~/project
       - setup
       - run:
           name: Run tests
