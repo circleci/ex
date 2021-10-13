@@ -2,6 +2,10 @@
 This repository contains a collection of packages designed to aid building
 reliable, observable, zero-downtime services using Go.
 
+## Documentation
+
+Browse the docs at [pkg.go.dev](https://pkg.go.dev/github.com/circleci/ex).
+
 ## What is in here?
 - `config/o11y` Wiring code for the `o11y` package.
 - `config/secret` Don't store your secrets in a string that can be accidentally logged.

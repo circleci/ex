@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/alecthomas/kong v0.2.17
-	github.com/circleci/ex v1.0.1055-9357c4e
+	github.com/circleci/ex v1.0.1127-c13a958
 	github.com/gin-gonic/gin v1.7.4
 	github.com/google/uuid v1.3.0
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
