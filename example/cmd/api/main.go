@@ -15,9 +15,9 @@ import (
 
 	/* todo rename 'ex/example' to 'your-service' */
 	"github.com/circleci/ex/example/api/api"
+	"github.com/circleci/ex/example/books"
 	"github.com/circleci/ex/example/cmd"
 	"github.com/circleci/ex/example/cmd/setup"
-	"github.com/circleci/ex/example/service"
 )
 
 type cli struct {
@@ -81,7 +81,7 @@ func loadAPI(ctx context.Context, cli cli, sys *system.System) error {
 	}
 
 	a := api.New(ctx, api.Options{
-		Store: service.NewStore(txm),
+		Store: books.NewStore(txm),
 	})
 
 	_, err = httpserver.Load(ctx, "api", cli.APIAddr, a.Handler(), sys)

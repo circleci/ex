@@ -21,11 +21,13 @@ SET row_security = off;
 SET default_table_access_method = heap;
 
 --
--- Name: example; Type: TABLE; Schema: public; Owner: -
+-- Name: books; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.example (
-    id text NOT NULL
+CREATE TABLE public.books (
+    id text NOT NULL,
+    name text NOT NULL,
+    price money NOT NULL
 );
 
 
@@ -48,11 +50,11 @@ CREATE TABLE public.schema_version (
 
 
 --
--- Name: example example_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: books books_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.example
-    ADD CONSTRAINT example_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.books
+    ADD CONSTRAINT books_pkey PRIMARY KEY (id);
 
 
 --
