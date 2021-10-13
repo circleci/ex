@@ -7,8 +7,25 @@ import (
 	"github.com/circleci/ex/o11y"
 )
 
-// DevInit needs to be called to construct the coordinator (it is best to avoid init())
-// If this is not called we will panic early. This is expected to only be called in development testing
+// DevInit is some crazy hackery to handle the fact that the beeline lib uses a
+// singleton shared client that we cant simply guard with sync once, since we are not
+// coordinating the calls to close. Instead we route the setup through here where we
+// can create the provider once and coordinate the closes.
+// Other Approaches:
+// 1. We could protect beeline init (from the races) and then not close beeline in dev mode
+// or sync once the close call but that would still mean doing something like this interceptor.
+//
+// 2. A stand alone development stack launcher of some sort. This would probably be the most correct
+// in terms of running like production, but it adds some complexity to developer testing.
+//
+// 3. Instead of this mess we would have to implement beeline ourselves in a way that has a single client.
+// we could do that and attempt to upstream the PR, but this is a fair amount of effort.
+//
+// This small wrapper is only in the code init flow, and once seen and understood can be forgotten,
+// so it was considered OK to keep for now.
+//
+// If the coordinator is nil (for example if DevInit is not called as per production) then we immediately
+// defer to the real setup
 func DevInit() {
 	coordinator = &closeCoord{}
 }

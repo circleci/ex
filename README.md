@@ -24,7 +24,7 @@ reliable, observable, zero-downtime services using Go.
 - `termination` A handler to aid signal based service termination. (Used internally by
   the `system` package).
 - `testing/compiler` At CircleCI we aim to acceptance test whole compiled binaries. This
-  package lets us do that, while capturing test coverage for the binary.
+  package lets us do that.
 - `testing/dbfixture` Get a resettable unique database for each test.
 - `testing/download` Download releases of binaries for using in end to end service testing.
 - `testing/fakemetrics` A fake recording `o11y` metrics implementation.

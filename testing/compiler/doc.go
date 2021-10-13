@@ -1,5 +1,6 @@
 /*
-Package compiler provides a convenient mechanism for building and running a service binary
-as part of an acceptance test suite.
+Package compiler helps efficiently compile and cleanup your services in acceptance tests.
+
+At CircleCI we aim to acceptance test whole compiled binaries.
 */
 package compiler
