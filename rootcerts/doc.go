@@ -13,8 +13,9 @@ into Go source files. CI will check if this list is up-to-date, and fail the lin
 it is not.
 
 For most use-cases, calling rootcerts.UpdateDefaultTransport will be all you need to do
-from consuming code.
+from consuming code (e.g. using Go's HTTP client).
 
-Some systems (like the Go AWS SDK required passing the results of) rootcerts.DERReader.
+Some systems (like the Go AWS SDK) require passing the results of rootcerts.DERReader to setup
+the trust store there.
 */
 package rootcerts
