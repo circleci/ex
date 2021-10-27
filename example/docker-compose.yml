@@ -28,4 +28,4 @@ services:
   statsd:
     image: catkins/statsd-logger
     ports:
-      - '127.0.0.1:8125:8125'
+      - '127.0.0.1:8125:8125/udp'
