@@ -16,6 +16,7 @@ type Options struct {
 	Port     int
 	User     string
 	Password secret.String
+	DB       int
 
 	// Optional
 	TLS    bool
@@ -29,6 +30,7 @@ func New(o Options) *redis.Client {
 		Addr:     net.JoinHostPort(o.Host, strconv.FormatInt(int64(o.Port), 10)),
 		Username: o.User,
 		Password: o.Password.Value(),
+		DB:       o.DB,
 	}
 	if o.TLS {
 		var rootCAs *x509.CertPool
