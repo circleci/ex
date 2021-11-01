@@ -21,4 +21,5 @@ func TestSetup(t *testing.T) {
 	ctx := testcontext.Background()
 	fix := Setup(ctx, t)
 	assert.Check(t, fix.Ping(ctx).Err())
+	assert.Check(t, fix.DB > 0)
 }
