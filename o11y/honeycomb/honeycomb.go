@@ -74,6 +74,8 @@ func (c *Config) sender() transmission.Sender {
 		s.Senders = append(s.Senders, &TextSender{w: writer})
 	case "colour", "color":
 		s.Senders = append(s.Senders, &TextSender{w: writer, colour: true})
+	case "none":
+		break
 	case "json":
 		fallthrough
 	default:
