@@ -19,6 +19,7 @@ import (
 
 type Fixture struct {
 	*redis.Client
+	DB int
 }
 
 func Setup(ctx context.Context, t testing.TB) *Fixture {
@@ -51,6 +52,7 @@ func Setup(ctx context.Context, t testing.TB) *Fixture {
 
 	return &Fixture{
 		Client: redisClient,
+		DB:     db,
 	}
 }
 
