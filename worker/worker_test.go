@@ -32,6 +32,7 @@ func TestRun_SleepsAfterNoWorkCycle(t *testing.T) {
 
 	backOff := new(fakeBackOff)
 	Run(ctx, Config{
+		Name:          "sleep-after-no-work",
 		NoWorkBackOff: backOff,
 		WorkFunc:      f,
 		waiter:        waiter,
@@ -62,6 +63,7 @@ func TestRun_SleepsAnyErrorWhenConfigured(t *testing.T) {
 
 	backOff := new(fakeBackOff)
 	Run(ctx, Config{
+		Name:               "sleep-any-error-when-configured",
 		BackoffOnAllErrors: true,
 
 		NoWorkBackOff: backOff,
@@ -94,6 +96,7 @@ func TestRun_DoesNotSleepAfterWorkCycle(t *testing.T) {
 
 	backOff := new(fakeBackOff)
 	Run(ctx, Config{
+		Name:          "does-not-sleep-after-work-cycle",
 		NoWorkBackOff: backOff,
 		WorkFunc:      f,
 		waiter:        waiter,
@@ -122,6 +125,7 @@ func TestRun_DoesNotSleepAfterOtherErrors(t *testing.T) {
 
 	backOff := new(fakeBackOff)
 	Run(ctx, Config{
+		Name:          "does-not-sleep-after-other-errors",
 		NoWorkBackOff: backOff,
 		WorkFunc:      f,
 		waiter:        waiter,
@@ -139,6 +143,7 @@ func TestRun_ExitsWhenContextIsCancelled(t *testing.T) {
 	ran := make(chan struct{})
 	go func() {
 		Run(ctx, Config{
+			Name: "exits-when-context-is-cancelled",
 			WorkFunc: func(ctx context.Context) error {
 				calls++
 				// since we return no error, Run will call this in a tight loop
@@ -172,7 +177,10 @@ func Test_doWork_WorkFuncPanics(t *testing.T) {
 
 	ctx := testcontext.Background()
 	provider := o11y.FromContext(ctx)
-	cfg := Config{WorkFunc: f}
+	cfg := Config{
+		Name:     "work-func-panics",
+		WorkFunc: f,
+	}
 	assert.Check(t, doWork(provider, cfg) < 0)
 }
 
