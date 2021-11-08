@@ -2,17 +2,14 @@ package redisfixture
 
 import (
 	"context"
-	"errors"
 	"hash/fnv"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
+	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/go-redis/redis/v8"
-	"golang.org/x/mod/modfile"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
 )
@@ -22,105 +19,85 @@ type Fixture struct {
 	DB int
 }
 
+const redisAddr = "localhost:6379"
+
+var (
+	once          sync.Once
+	databaseCount = uint32(0)
+)
+
 func Setup(ctx context.Context, t testing.TB) *Fixture {
 	ctx, span := o11y.StartSpan(ctx, "redisfixture: setup")
 	defer span.End()
 
+	once.Do(func() {
+		readDatabasesCount(ctx, t)
+	})
+
+	switch {
+	case databaseCount == 0:
+		t.Skip("Redis not available")
+	case databaseCount < 1000000:
+		t.Fatal("not enough Redis databases a unique DB per test, add '--databases 1000000' to Redis setup command")
+	}
+
 	// Tests for different go packages are run in parallel by the go test runtime, so
-	// we try and use a unique DB for each package.
-	pkgName := relativePackageName(2)
-	db := hash(pkgName)
-	span.AddField("package_name", pkgName)
+	// we try and use a unique DB for each test.
+	db := hash(t.Name(), databaseCount)
 	span.AddField("db", db)
 
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+	fixClient := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
 		DB:   db,
 	})
 	t.Cleanup(func() {
-		assert.Check(t, redisClient.Close())
+		assert.Check(t, fixClient.Close())
 	})
 
-	err := redisClient.Ping(ctx).Err()
-	if err != nil {
-		span.AddField("skipped", true)
-		t.Skip("Redis not available")
-	}
+	checkRedisConnection(ctx, t, fixClient)
 
-	err = redisClient.FlushDB(ctx).Err()
+	err := fixClient.FlushDB(ctx).Err()
 	assert.Assert(t, err)
 
 	return &Fixture{
-		Client: redisClient,
+		Client: fixClient,
 		DB:     db,
 	}
 }
 
-func findModfile() (string, error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		modFile := filepath.Join(cwd, "go.mod")
-		if fileExists(modFile) {
-			return modFile, nil
-		}
-
-		cwd = filepath.Dir(cwd)
-		if cwd == "" || os.IsPathSeparator(cwd[len(cwd)-1]) {
-			return "", errors.New("go.mod could not be found")
-		}
+func checkRedisConnection(ctx context.Context, t testing.TB, client *redis.Client) {
+	err := client.Ping(ctx).Err()
+	switch {
+	case err != nil && err.Error() == "ERR DB index is out of range":
+		assert.Assert(t, err)
+	case err != nil:
+		t.Skip("Redis not available")
 	}
 }
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
+func readDatabasesCount(ctx context.Context, t testing.TB) {
+	t.Helper()
+
+	setupClient := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+
+	checkRedisConnection(ctx, t, setupClient)
+
+	res := setupClient.ConfigGet(ctx, "databases")
+	assert.Assert(t, res.Err())
+
+	v := res.Val()
+	assert.Assert(t, cmp.Len(v, 2))
+
+	dbs, err := strconv.ParseInt(v[1].(string), 10, 64)
+	assert.Assert(t, err)
+
+	databaseCount = uint32(dbs)
 }
 
-func relativePackageName(skip int) string {
-	modFile, err := findModfile()
-	if err != nil {
-		panic(err)
-	}
-
-	modBytes, err := os.ReadFile(modFile)
-	if err != nil {
-		panic(err)
-	}
-
-	modulePath := modfile.ModulePath(modBytes)
-	return strings.ReplaceAll(packageName(skip), modulePath, "")
-}
-
-func packageName(skip int) string {
-	var pc [1]uintptr
-	n := runtime.Callers(skip+2, pc[:]) // skip + runtime.Callers + callerName
-	if n == 0 {
-		panic("testing: zero callers found")
-	}
-	funcName := pcToName(pc[0])
-	i := strings.LastIndex(funcName, ".")
-	if i == -1 {
-		return funcName
-	}
-	return funcName[:i]
-}
-
-func pcToName(pc uintptr) string {
-	pcs := []uintptr{pc}
-	frames := runtime.CallersFrames(pcs)
-	frame, _ := frames.Next()
-	return frame.Function
-}
-
-func hash(s string) int {
+func hash(s string, databaseCount uint32) int {
 	h := fnv.New32()
 	_, _ = h.Write([]byte(s))
-	return int(h.Sum32()) % 2048
+	return int(h.Sum32() % databaseCount)
 }

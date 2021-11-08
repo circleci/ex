@@ -61,7 +61,7 @@ jobs:
           POSTGRES_PASSWORD: password
           POSTGRES_DB: dbname
       - image: circleci/redis:5.0.6-alpine
-        command: [ "--databases", "2048" ]
+        command: [ "--databases", "1000000" ]
       - image: rabbitmq:3.8-management-alpine
     working_directory: ~/project/<<parameters.submodule>>
     steps:
