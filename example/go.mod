@@ -3,8 +3,8 @@ module github.com/circleci/ex/example
 go 1.17
 
 require (
-	github.com/alecthomas/kong v0.2.17
-	github.com/circleci/ex v1.0.1171-6060fce
+	github.com/alecthomas/kong v0.2.18
+	github.com/circleci/ex v1.0.1246-55c7eea
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/google/uuid v1.3.0
@@ -51,4 +51,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/circleci/ex v1.0.1171-6060fce => ./..
+replace github.com/circleci/ex v1.0.1246-55c7eea => ./..

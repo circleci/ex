@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/DataDog/datadog-go v4.8.2+incompatible
 	github.com/Microsoft/go-winio v0.5.0 // indirect
-	github.com/alecthomas/kong v0.2.17
+	github.com/alecthomas/kong v0.2.18
 	github.com/cenkalti/backoff/v4 v4.1.1
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-redis/redis/v8 v8.11.4
