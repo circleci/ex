@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/alecthomas/kong v0.2.18
-	github.com/circleci/ex v1.0.1256-eaa910f
+	github.com/circleci/ex v1.0.1269-91308f8
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/google/uuid v1.3.0
@@ -13,7 +13,7 @@ require (
 )
 
 require (
-	github.com/DataDog/datadog-go v4.8.2+incompatible // indirect
+	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.1.1 // indirect
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
@@ -50,5 +50,3 @@ require (
 	gopkg.in/alexcesaro/statsd.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/circleci/ex v1.0.1256-eaa910f => ./..
