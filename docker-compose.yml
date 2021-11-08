@@ -15,7 +15,7 @@ services:
 
   redis:
     image: circleci/redis:5.0.6-alpine
-    command: ["--databases", "2048"]
+    command: ["--databases", "1000000"]
     ports:
       - '127.0.0.1:6379:6379'
 

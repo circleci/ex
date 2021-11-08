@@ -22,7 +22,6 @@ require (
 	github.com/michaelklishin/rabbit-hole/v2 v2.11.0
 	github.com/rollbar/rollbar-go v1.4.2
 	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
-	golang.org/x/mod v0.5.1
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	gotest.tools/v3 v3.0.3
 )
