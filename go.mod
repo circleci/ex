@@ -13,7 +13,7 @@ require (
 	github.com/hellofresh/health-go/v4 v4.5.0
 	github.com/honeycombio/beeline-go v1.3.0
 	github.com/honeycombio/dynsampler-go v0.2.1
-	github.com/honeycombio/libhoney-go v1.15.5
+	github.com/honeycombio/libhoney-go v1.15.6
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/jolestar/go-commons-pool/v2 v2.1.1
 	github.com/klauspost/compress v1.13.6
