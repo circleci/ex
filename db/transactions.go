@@ -101,9 +101,9 @@ func (t *TxManager) WithTx(ctx context.Context, f queryFn) (err error) {
 
 		// Use the error wrapped transaction so that the common errors can be reported as warnings in any
 		// spans used in f
-		var q Querier = unifiedQuerier{q: tx}
+		var q Querier = unifiedQuerier{q: eTx{tx}}
 		if t.testQuerier != nil {
-			q = t.testQuerier(tx)
+			q = t.testQuerier(eTx{tx})
 		}
 		err = f(ctx, q) // This err will be mapped in the unifiedQuerier wrapper
 
@@ -124,7 +124,7 @@ func (t *TxManager) WithTx(ctx context.Context, f queryFn) (err error) {
 }
 
 func (t *TxManager) NoTx() Querier {
-	return unifiedQuerier{q: t.db}
+	return unifiedQuerier{q: eDB{t.db}}
 }
 
 // WithTransaction simply delegates to WithTx.

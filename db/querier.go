@@ -23,7 +23,7 @@ type Querier interface {
 
 	// NamedGetContext expect a query with named parameters, fields from the arg struct will be mapped
 	// to the named parameters. A single row result will be mapped to dest which must be a pointer to a struct.
-	//NamedGetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+	NamedGetContext(ctx context.Context, dest interface{}, query string, arg interface{}) error
 
 	// NamedExecContext expect a query with named parameters, fields from the arg struct will be mapped
 	// to the named parameters. Use this if you do not care about the data the query generates, and
