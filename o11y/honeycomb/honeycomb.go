@@ -244,7 +244,7 @@ func fmtTag(name string, val interface{}) string {
 }
 
 func (h *honeycomb) AddGlobalField(key string, val interface{}) {
-	mustValidateKey(key)
+	key = normalizeKey(key)
 	client.AddField(key, val)
 }
 
@@ -270,12 +270,12 @@ func (h *honeycomb) GetSpan(ctx context.Context) o11y.Span {
 }
 
 func (h *honeycomb) AddField(ctx context.Context, key string, val interface{}) {
-	mustValidateKey(key)
+	key = normalizeKey(key)
 	beeline.AddField(ctx, key, val)
 }
 
 func (h *honeycomb) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
-	mustValidateKey(key)
+	key = normalizeKey(key)
 	beeline.AddFieldToTrace(ctx, key, val)
 }
 
@@ -309,7 +309,7 @@ type span struct {
 }
 
 func (s *span) AddField(key string, val interface{}) {
-	mustValidateKey(key)
+	key = normalizeKey(key)
 	if err, ok := val.(error); ok {
 		val = err.Error()
 	}
@@ -317,7 +317,7 @@ func (s *span) AddField(key string, val interface{}) {
 }
 
 func (s *span) AddRawField(key string, val interface{}) {
-	mustValidateKey(key)
+	key = normalizeKey(key)
 	if err, ok := val.(error); ok {
 		val = err.Error()
 	}
@@ -338,8 +338,6 @@ func (s *span) SerializeHeaders() string {
 	return s.span.SerializeHeaders()
 }
 
-func mustValidateKey(key string) {
-	if strings.Contains(key, "-") {
-		panic(fmt.Errorf("key %q cannot contain '-'", key))
-	}
+func normalizeKey(key string) string {
+	return strings.ReplaceAll(key, "-", "_")
 }

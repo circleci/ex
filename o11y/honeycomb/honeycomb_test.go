@@ -56,46 +56,44 @@ func TestHoneycomb(t *testing.T) {
 	assert.Assert(t, gotEvent, "expected to receive an event")
 }
 
-func TestHoneycomb_ValidatesKeys(t *testing.T) {
-	h := New(Config{
-		Dataset:    "test-dataset",
-		Host:       "invalid-url",
-		SendTraces: true,
-	})
+func TestHoneycomb_NormalizeKeys(t *testing.T) {
+	// check the response for some expected data
+	gotEvent := false
+	check := func(event string) {
+		gotEvent = true
 
-	recovery := func(key string) {
-		p := recover()
-		err, success := p.(error)
-		assert.Check(t, success)
-		assert.Check(t, cmp.ErrorContains(err, key))
+		assert.Check(t, cmp.Contains(event, `"name":"test-span"`))
+
+		assert.Check(t, cmp.Contains(event, `"version_number":42`))
+		assert.Check(t, cmp.Contains(event, `"app.trace_key":"trace-value"`))
+		assert.Check(t, cmp.Contains(event, `"app.another_key":"another-value"`))
+
+		assert.Check(t, cmp.Contains(event, `"app.span_key":"span-value"`))
+		assert.Check(t, cmp.Contains(event, `"raw_key":"raw-value"`))
 	}
 
-	ctx := o11y.WithProvider(context.Background(), h)
-	defer h.Close(ctx)
+	url := honeycombServer(t, check)
+	ctx := context.Background()
 
-	func() {
-		defer recovery("invalid-global-field")
-		h.AddGlobalField("invalid-global-field", "value")
-	}()
+	h := New(Config{
+		Dataset:    "test-dataset",
+		Host:       url,
+		SendTraces: true,
+	})
+	h.AddGlobalField("version-number", 42)
 
+	ctx = o11y.WithProvider(ctx, h)
 	ctx, span := o11y.StartSpan(ctx, "test-span")
-	func() {
-		defer recovery("invalid-trace-key")
-		o11y.AddFieldToTrace(ctx, "invalid-trace-key", "value")
-	}()
-	func() {
-		defer recovery("invalid-another-key")
-		o11y.AddField(ctx, "invalid-another-key", "value")
-	}()
-	func() {
-		defer recovery("invalid-span-key")
-		span.AddField("invalid-span-key", "value")
-	}()
-	func() {
-		defer recovery("invalid-raw-key")
-		span.AddRawField("invalid-raw-key", "value")
-	}()
+
+	o11y.AddFieldToTrace(ctx, "trace-key", "trace-value")
+	o11y.AddField(ctx, "another-key", "another-value")
+	span.AddField("span-key", "span-value")
+	span.AddRawField("raw-key", "raw-value")
+
 	span.End()
+	h.Close(ctx)
+
+	assert.Assert(t, gotEvent, "expected to receive an event")
 }
 
 func TestHoneycombMetricsDoesntPolluteWhenNotConfigured(t *testing.T) {
