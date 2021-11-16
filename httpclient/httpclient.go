@@ -1,6 +1,6 @@
-// Package httpclient provides an http client instrumented with the ex/o11y package, and includes
-// configurable timeouts, retries, authentication and connection pooling, and support
-// for backing off when a 429 response code is seen.
+// Package httpclient provides an HTTP client instrumented with the ex/o11y package, it
+// includes resiliency behaviour such as configurable timeouts, retries, authentication
+// and connection pooling, with support for backing off when a 429 response code is seen.
 package httpclient
 
 import (
@@ -42,7 +42,8 @@ type Config struct {
 	AuthToken string
 	// AcceptType if set will be used to set the Accept header.
 	AcceptType string
-	// Timeout is the maximum time any call can take including any retries
+	// Timeout is the maximum time any call can take including any retries.
+	// Note that a zero Timeout is not defaulted, but means the client will retry indefinitely.
 	Timeout time.Duration
 	// MaxConnectionsPerHost sets the connection pool size
 	MaxConnectionsPerHost int
@@ -53,7 +54,6 @@ type Client struct {
 	name                  string
 	baseURL               string
 	httpClient            *http.Client
-	backOffMaxInterval    time.Duration
 	backOffMaxElapsedTime time.Duration
 	authToken             string
 	authHeader            string
@@ -77,7 +77,6 @@ func New(cfg Config) *Client {
 	return &Client{
 		name:                  cfg.Name,
 		baseURL:               cfg.BaseURL,
-		backOffMaxInterval:    10 * time.Second,
 		backOffMaxElapsedTime: cfg.Timeout,
 		authHeader:            cfg.AuthHeader,
 		authToken:             cfg.AuthToken,
@@ -178,7 +177,9 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 		return req, nil
 	}
 
-	return c.retryRequest(ctx, spanName, r, newRequestFn)
+	err = c.retryRequest(ctx, spanName, r, newRequestFn)
+	// remove the special retry status to resume normal error/warning behaviour
+	return doneRetrying(err)
 }
 
 // retryRequest will make the request and only call the decoder when a 2XX has been received.
@@ -216,22 +217,13 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
 		}
 
-		span.RecordMetric(o11y.Timing("httpclient",
-			"http.client_name", "http.route", "http.method", "http.status_code", "http.retry"))
-		span.AddRawField("meta.type", "http_client")
-		span.AddRawField("span.kind", "Client")
 		span.AddRawField("http.client_name", c.name)
 		span.AddRawField("http.route", r.Route)
-		span.AddRawField("http.scheme", req.URL.Scheme)
-		span.AddRawField("http.host", req.URL.Host)
-		span.AddRawField("http.target", req.URL.Path)
-		span.AddRawField("http.method", req.Method)
-		span.AddRawField("http.attempt", attemptCounter)
-		span.AddRawField("http.retry", attemptCounter > 1)
-		span.AddRawField("http.url", req.URL.String())
 		span.AddRawField("http.base_url", c.baseURL)
-		span.AddRawField("http.user_agent", req.UserAgent())
-		span.AddRawField("http.request_content_length", req.ContentLength)
+		addReqToSpan(span, req, attemptCounter)
+
+		span.RecordMetric(o11y.Timing("httpclient",
+			"http.client_name", "http.route", "http.method", "http.status_code", "http.retry"))
 
 		res, err := c.httpClient.Do(req)
 		if err != nil {
@@ -245,21 +237,12 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		}
 		defer func() {
 			// drain anything left in the body and close it, to ensure we can take advantage of keep alive
-			// this is best efforts so any errors here are not important
+			// this is best-efforts so any errors here are not important
 			_, _ = io.Copy(ioutil.Discard, res.Body)
 			_ = res.Body.Close()
 		}()
 
-		if cl := res.Header.Get("Content-Length"); cl != "" {
-			span.AddRawField("http.response_content_length", cl)
-		}
-		if ct := res.Header.Get("Content-Type"); ct != "" {
-			span.AddRawField("http.response_content_type", ct)
-		}
-		if ce := res.Header.Get("Content-Encoding"); ce != "" {
-			span.AddRawField("http.response_content_encoding", ce)
-		}
-		span.AddRawField("http.status_code", res.StatusCode)
+		addRespToSpan(span, res)
 
 		err = extractHTTPError(req, res, attemptCounter, r.Route)
 		if err != nil {
@@ -281,9 +264,36 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	}
 
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxInterval = c.backOffMaxInterval
+	bo.InitialInterval = time.Millisecond * 50
 	bo.MaxElapsedTime = c.backOffMaxElapsedTime
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
+}
+
+func addReqToSpan(span o11y.Span, req *http.Request, attempt int) {
+	span.AddRawField("meta.type", "http_client")
+	span.AddRawField("span.kind", "Client")
+	span.AddRawField("http.scheme", req.URL.Scheme)
+	span.AddRawField("http.host", req.URL.Host)
+	span.AddRawField("http.target", req.URL.Path)
+	span.AddRawField("http.method", req.Method)
+	span.AddRawField("http.attempt", attempt)
+	span.AddRawField("http.retry", attempt > 1)
+	span.AddRawField("http.url", req.URL.String())
+	span.AddRawField("http.user_agent", req.UserAgent())
+	span.AddRawField("http.request_content_length", req.ContentLength)
+}
+
+func addRespToSpan(span o11y.Span, res *http.Response) {
+	if cl := res.Header.Get("Content-Length"); cl != "" {
+		span.AddRawField("http.response_content_length", cl)
+	}
+	if ct := res.Header.Get("Content-Type"); ct != "" {
+		span.AddRawField("http.response_content_type", ct)
+	}
+	if ce := res.Header.Get("Content-Encoding"); ce != "" {
+		span.AddRawField("http.response_content_encoding", ce)
+	}
+	span.AddRawField("http.status_code", res.StatusCode)
 }
 
 func (c *Client) shouldBackoff() bool {
@@ -315,10 +325,11 @@ func NewJSONDecoder(resp interface{}) decoder {
 
 // HTTPError represents an error in an HTTP call when the response status code is not 2XX
 type HTTPError struct {
-	method   string
-	route    string
-	code     int
-	attempts int
+	method       string
+	route        string
+	code         int
+	attempts     int
+	doneRetrying bool
 }
 
 var _ error = (*HTTPError)(nil)
@@ -341,21 +352,11 @@ func (e *HTTPError) Code() int {
 // return true so it does not appear in the traces as an error.
 func (e *HTTPError) Is(target error) bool {
 	if o11y.IsWarningNoUnwrap(target) {
+		if !e.doneRetrying {
+			return true
+		}
 		// we often expect to see 401, 403 and 404 (let's pretend 402 does not exist for now)
 		return e.code > 400 && e.code <= 404
-	}
-	return false
-}
-
-// HasErrorCode is DEPRECATED - use HasStatusCode instead.
-func HasErrorCode(err error, codes ...int) bool {
-	e := &HTTPError{}
-	if errors.As(err, &e) {
-		for _, code := range codes {
-			if e.code == code {
-				return true
-			}
-		}
 	}
 	return false
 }
@@ -408,4 +409,13 @@ func extractHTTPError(req *http.Request, res *http.Response, attempts int, route
 		return backoff.Permanent(ErrNoContent)
 	}
 	return nil
+}
+
+func doneRetrying(err error) error {
+	e := &HTTPError{}
+	if errors.As(err, &e) {
+		e.doneRetrying = true
+		return e
+	}
+	return err
 }
