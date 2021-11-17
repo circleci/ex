@@ -176,6 +176,23 @@ func TestClient_Call_Timeouts(t *testing.T) {
 	}
 }
 
+func TestClient_Call_Retry500(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	client := New(Config{
+		BaseURL: server.URL,
+		Timeout: time.Second,
+	})
+	req := NewRequest("POST", "/", time.Millisecond)
+	ctx := testcontext.Background()
+	err := client.Call(ctx, req)
+	// confirm it is still an http error carrying the expected code
+	assert.Check(t, HasStatusCode(err, http.StatusInternalServerError))
+	// confirm that it is now not a warning
+	assert.Check(t, !o11y.IsWarning(err))
+}
+
 func TestClient_Call_ContextCancel(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(time.Minute)
@@ -256,7 +273,12 @@ func TestHTTPError_Is(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("code-:%d", tt.code), func(t *testing.T) {
-			err := &HTTPError{code: tt.code}
+			// all errors start off as warnings - since they default to retrying
+			var err error
+			err = &HTTPError{code: tt.code}
+			assert.Check(t, cmp.Equal(o11y.IsWarning(err), true))
+
+			err = doneRetrying(err)
 			assert.Check(t, cmp.Equal(o11y.IsWarning(err), tt.is))
 
 			// confirm wrapped it is still checked as a do not trace
@@ -274,56 +296,6 @@ func TestHTTPError_Is(t *testing.T) {
 			err2 := &HTTPError{}
 			// and confirm they are not equivalent
 			assert.Check(t, !errors.Is(err, err2))
-		})
-	}
-}
-
-func TestHasErrorCode_DEPRECATED(t *testing.T) {
-	tests := []struct {
-		name  string
-		err   error
-		codes []int
-		want  bool
-	}{
-		{
-			name: "With matching code",
-			err: &HTTPError{
-				code: 400,
-			},
-			codes: []int{400, 500},
-			want:  true,
-		},
-		{
-			name: "With different code",
-			err: &HTTPError{
-				code: 200,
-			},
-			codes: []int{400, 500},
-			want:  false,
-		},
-		{
-			name:  "Empty error",
-			err:   &HTTPError{},
-			codes: []int{400},
-			want:  false,
-		},
-		{
-			name:  "Nil error",
-			err:   nil,
-			codes: []int{400},
-			want:  false,
-		},
-		{
-			name:  "Other kind of error",
-			err:   errors.New("some other error"),
-			codes: []int{400},
-			want:  false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Check(t, cmp.Equal(HasErrorCode(tt.err, tt.codes...), tt.want))
 		})
 	}
 }
