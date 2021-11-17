@@ -28,9 +28,10 @@ type Config struct {
 	StatsNamespace    string
 
 	// Optional
-	Mode            string
-	Debug           bool
-	RollbarDisabled bool
+	Mode                    string
+	Debug                   bool
+	RollbarDisabled         bool
+	StatsdTelemetryDisabled bool
 }
 
 // Setup is the primary entrypoint to initialise the o11y system both in development and production.
@@ -55,19 +56,28 @@ func setup(ctx context.Context, o Config) (context.Context, func(context.Context
 	if o.Statsd == "" {
 		honeyConfig.Metrics = &statsd.NoOpClient{}
 	} else {
-		stats, err := statsd.New(o.Statsd)
-		if err != nil {
-			return nil, nil, err
-		}
-		stats.Namespace = o.StatsNamespace
-		stats.Tags = []string{
+		tags := []string{
 			"service:" + o.Service,
 			"version:" + o.Version,
 			"hostname:" + hostname,
 		}
 		if o.Mode != "" {
-			stats.Tags = append(stats.Tags, "mode:"+o.Mode)
+			tags = append(tags, "mode:"+o.Mode)
 		}
+
+		statsdOpts := []statsd.Option{
+			statsd.WithNamespace(o.StatsNamespace),
+			statsd.WithTags(tags),
+		}
+		if o.StatsdTelemetryDisabled {
+			statsdOpts = append(statsdOpts, statsd.WithoutTelemetry())
+		}
+
+		stats, err := statsd.New(o.Statsd, statsdOpts...)
+		if err != nil {
+			return nil, nil, err
+		}
+
 		honeyConfig.Metrics = stats
 	}
 

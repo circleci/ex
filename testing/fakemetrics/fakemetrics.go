@@ -65,3 +65,7 @@ func (f *Provider) Count(name string, value int64, tags []string, rate float64) 
 	f.calls = append(f.calls, MetricCall{Metric: "count", Name: name, ValueInt: value, Tags: tags, Rate: rate})
 	return nil
 }
+
+func (f *Provider) Close() error {
+	return nil
+}

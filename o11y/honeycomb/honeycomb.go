@@ -21,7 +21,7 @@ import (
 )
 
 type honeycomb struct {
-	metricsProvider o11y.MetricsProvider
+	metricsProvider o11y.ClosableMetricsProvider
 }
 
 type Config struct {
@@ -34,7 +34,7 @@ type Config struct {
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
 	Writer        io.Writer
-	Metrics       o11y.MetricsProvider
+	Metrics       o11y.ClosableMetricsProvider
 
 	Debug bool
 }
@@ -290,6 +290,9 @@ func (h *honeycomb) Log(ctx context.Context, name string, fields ...o11y.Pair) {
 
 func (h *honeycomb) Close(_ context.Context) {
 	beeline.Close()
+	if h.metricsProvider != nil {
+		_ = h.metricsProvider.Close()
+	}
 }
 
 func (h *honeycomb) MetricsProvider() o11y.MetricsProvider {
