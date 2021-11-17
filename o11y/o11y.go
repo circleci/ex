@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"runtime/debug"
@@ -148,6 +149,11 @@ type MetricsProvider interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
 	// Count sends an individual value in time.
 	Count(name string, value int64, tags []string, rate float64) error
+}
+
+type ClosableMetricsProvider interface {
+	MetricsProvider
+	io.Closer
 }
 
 type providerKey struct{}
