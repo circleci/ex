@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -19,8 +20,13 @@ func TestDB(t *testing.T) {
 		User:     "user",
 		Password: "password",
 	}
-	fix := dbfixture.SetupDB(ctx, t,
-		"CREATE TABLE peeps (id text PRIMARY KEY, name text, height smallint, dob timestamp);", conn)
+
+	const schema = `
+    CREATE TABLE peeps (id text PRIMARY KEY, name text, height smallint, dob timestamp);
+    CREATE TABLE birbs (id text PRIMARY KEY, peep_id text, name text);
+	ALTER TABLE ONLY birbs
+	ADD CONSTRAINT birbs_fk FOREIGN KEY (peep_id) REFERENCES peeps(id);`
+	fix := dbfixture.SetupDB(ctx, t, schema, conn)
 
 	t.Run("statements", func(t *testing.T) {
 		type person struct {
@@ -69,6 +75,31 @@ func TestDB(t *testing.T) {
 			err := fix.TX.NoTx().NamedGetContext(ctx, &p, "SELECT * from peeps WHERE id=:id", pars)
 			assert.Assert(t, err)
 			assert.DeepEqual(t, p, person1)
+		})
+
+		t.Run("pk violation", func(t *testing.T) {
+			const sql = "INSERT INTO peeps (id,name,height,dob) VALUES (:id,:name,:height,:dob);"
+			_, err := fix.TX.NoTx().NamedExecContext(ctx, sql, person1)
+			assert.Check(t, errors.Is(err, db.ErrNop))
+			assert.ErrorContains(t, err, "peeps_pkey")
+		})
+
+		type birb struct {
+			ID     string
+			Name   string
+			PeepID string
+		}
+		// add a person
+		birb1 := birb{
+			ID:     "id1",
+			Name:   "bob",
+			PeepID: "not-exist",
+		}
+		t.Run("fk violation", func(t *testing.T) {
+			const sql = "INSERT INTO birbs (id,name, peep_id) VALUES (:id,:name,:peepid);"
+			_, err := fix.TX.NoTx().NamedExecContext(ctx, sql, birb1)
+			assert.Check(t, errors.Is(err, db.ErrConstrained))
+			assert.ErrorContains(t, err, "birbs_fk")
 		})
 	})
 }
