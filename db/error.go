@@ -55,14 +55,15 @@ func mapError(err error) (bool, error) {
 	if errors.As(err, &e) {
 		switch e.Code {
 		case pgForeignKeyConstraintErrorCode:
-			return true, fmt.Errorf("%w: %s - %s", ErrConstrained, e.Message, e.Detail)
+			return true, &Error{sentinel: ErrConstrained, pqErr: e}
 		case pgExceptionRaised:
-			return true, fmt.Errorf("%w: %s - %s", ErrException, e.Message, e.Detail)
+			return true, &Error{sentinel: ErrException, pqErr: e}
 		case pgStatementCanceled:
-			return true, fmt.Errorf("%w: %s - %s", ErrCanceled, e.Message, e.Detail)
+			return true, &Error{sentinel: ErrCanceled, pqErr: e}
 		case pgUniqueViolationErrorCode:
-			return true, fmt.Errorf("%w: %s - %s", ErrNop, e.Message, e.Detail)
+			return true, &Error{sentinel: ErrNop, pqErr: e}
 		}
+		return true, &Error{pqErr: e}
 	}
 	return false, err
 }
@@ -76,4 +77,53 @@ func mapBadCon(err error) (bool, error) {
 
 func badConn(err error) bool {
 	return errors.Is(err, ErrBadConn)
+}
+
+// Error wraps a pq.Error to make it available to the caller.
+// The sentinel is included for easier testing of the existing error vars.
+// for example errors.Is(err, ErrConstrained)
+type Error struct {
+	pqErr    *pq.Error
+	sentinel error
+}
+
+// PqError will return any wrapped pqError is e has one
+func (e Error) PqError() *pq.Error {
+	return e.pqErr
+}
+
+// Is checks that this error is being checked for the special o11y error that is not
+// added to the trace as an error. If the error is due to relatively expected failure response codes
+// return true so it does not appear in the traces as an error.
+func (e *Error) Is(target error) bool {
+	if e == nil {
+		return false
+	}
+	if o11y.IsWarningNoUnwrap(target) {
+		return o11y.IsWarning(e.sentinel)
+	}
+	return errors.Is(target, e.sentinel)
+}
+
+// Error returns the standard sentinel error format and then the underlying pq.Error
+// if one exists
+func (e *Error) Error() string {
+	if e.sentinel != nil {
+		if e.pqErr != nil {
+			return fmt.Sprintf("%s: %s - %s", e.sentinel.Error(), e.pqErr.Message, e.pqErr.Detail)
+		}
+		return e.sentinel.Error()
+	}
+	if e.pqErr != nil {
+		return e.pqErr.Error()
+	}
+	return "unknown database error"
+}
+
+func PqError(err error) *pq.Error {
+	e := &Error{}
+	if errors.As(err, &e) {
+		return e.pqErr
+	}
+	return nil
 }
