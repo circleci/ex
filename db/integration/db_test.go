@@ -100,6 +100,19 @@ func TestDB(t *testing.T) {
 			_, err := fix.TX.NoTx().NamedExecContext(ctx, sql, birb1)
 			assert.Check(t, errors.Is(err, db.ErrConstrained))
 			assert.ErrorContains(t, err, "birbs_fk")
+
+			// an example of how to extract the constraint that failed
+			if errors.Is(err, db.ErrConstrained) && db.PqError(err).Constraint == "birbs_fk" {
+				// do your constraint behaviour
+			} else {
+				t.Error("got the wrong constraint", db.PqError(err).Constraint)
+			}
+			// or if you want to go direct
+			if db.PqError(err) != nil && db.PqError(err).Constraint == "birbs_fk" {
+				// you may need to map the code here - which would be bad.
+				// but you could check the db mapping
+				assert.Check(t, errors.Is(err, db.ErrConstrained))
+			}
 		})
 	})
 }
