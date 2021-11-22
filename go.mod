@@ -17,7 +17,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/jolestar/go-commons-pool/v2 v2.1.1
 	github.com/klauspost/compress v1.13.6
-	github.com/lib/pq v1.10.3
+	github.com/lib/pq v1.10.4
 	github.com/makasim/amqpextra v0.16.4
 	github.com/michaelklishin/rabbit-hole/v2 v2.11.0
 	github.com/rollbar/rollbar-go v1.4.2
