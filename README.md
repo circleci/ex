@@ -32,6 +32,7 @@ Browse the docs at [pkg.go.dev](https://pkg.go.dev/github.com/circleci/ex).
 - `testing/dbfixture` Get a resettable unique database for each test.
 - `testing/download` Download releases of binaries for using in end to end service testing.
 - `testing/fakemetrics` A fake recording `o11y` metrics implementation.
+- `testing/fakestatsd` A recording statsd server that will listen on a local UDP port.
 - `testing/httprecorder` Record HTTP requests inside an HTTP server, and search them.
 - `testing/kongtest` If you are using [kong](https://github.com/alecthomas/kong) for your
   CLI parsing, this helps in writing golden tests for the CLI definition.
