@@ -43,7 +43,7 @@ func (s *FakeStatsd) Addr() string {
 type Metric struct {
 	Name  string
 	Value string
-	Tags  string
+	Tags  []string
 }
 
 func (s *FakeStatsd) Metrics() []Metric {
@@ -101,11 +101,10 @@ func parse(raw string) Metric {
 	name := metricNameAndRest[0]
 	valueAndTags := strings.SplitN(metricNameAndRest[1], "#", 2)
 	value := valueAndTags[0]
-	tags := ""
+	var tags []string
 
 	if len(valueAndTags) > 1 {
-		tags = valueAndTags[1]
-		tags = strings.Replace(tags, ",", " ", -1)
+		tags = strings.Split(valueAndTags[1], ",")
 	}
 
 	return Metric{Name: name, Value: value, Tags: tags}
