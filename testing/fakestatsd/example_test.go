@@ -38,7 +38,7 @@ func TestExample(t *testing.T) {
 			return poll.Success()
 		})
 		assert.Check(t, cmp.DeepEqual([]fakestatsd.Metric{
-			{Name: "com.mycompany.my_count", Value: "1|c|", Tags: "version:1.2.3 mytag:value"},
+			{Name: "com.mycompany.my_count", Value: "1|c|", Tags: []string{"version:1.2.3", "mytag:value"}},
 		}, s.Metrics()))
 	})
 }
