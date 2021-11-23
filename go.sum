@@ -197,8 +197,8 @@ github.com/grpc-ecosystem/grpc-gateway v1.16.0/go.mod h1:BDjrQk3hbvj6Nolgz8mAMFb
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
 github.com/hellofresh/health-go/v4 v4.5.0 h1:0oxP/ITC+VfKh3kQROEZ7OHbjoxKQHLsuTtM/NR5he8=
 github.com/hellofresh/health-go/v4 v4.5.0/go.mod h1:176z4n98qW0mksO2DmDWjz0DXUcqkGXt8NZX3B3X1ok=
-github.com/honeycombio/beeline-go v1.3.1 h1:teTDo9/m6q00LiVmBgSdpi2hWDxU6HATOfTBaGoIIms=
-github.com/honeycombio/beeline-go v1.3.1/go.mod h1:qtCLKvv41kTRP6wFE0FppHUEIJo3jcZwDqak01SLr7M=
+github.com/honeycombio/beeline-go v1.3.2 h1:u6HDfQ8eyoTRTLUA8nShKVydDslv3mM+dw7aC5z1VZo=
+github.com/honeycombio/beeline-go v1.3.2/go.mod h1:qtCLKvv41kTRP6wFE0FppHUEIJo3jcZwDqak01SLr7M=
 github.com/honeycombio/dynsampler-go v0.2.1 h1:IbhjbdB0IbLSZn7xVYuk6jjk/ZDk/EO+DJ5OXFZliv8=
 github.com/honeycombio/dynsampler-go v0.2.1/go.mod h1:BOeTUPT6fCRH5X/+QqF6Kza3IyLp9uSq/rWgEtI4aZI=
 github.com/honeycombio/libhoney-go v1.15.6 h1:zbwfdo74Gsedmu6OT/oAHv4pfKNoseTXRMA/4e5XWew=
