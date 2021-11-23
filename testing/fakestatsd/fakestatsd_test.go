@@ -11,7 +11,7 @@ import (
 	"github.com/circleci/ex/testing/fakestatsd"
 )
 
-func TestExample(t *testing.T) {
+func TestFakeStatsd(t *testing.T) {
 	// The server closes automatically at the end of the test
 	s := fakestatsd.New(t)
 

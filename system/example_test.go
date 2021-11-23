@@ -3,10 +3,10 @@ package system_test
 import (
 	"context"
 	"errors"
-	"log" //nolint:depguard // non-o11y log is allowed for a top-level fatal
+	"flag"
+	"fmt"
+	"os"
 	"time"
-
-	"github.com/alecthomas/kong"
 
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/httpserver/ginrouter"
@@ -17,22 +17,28 @@ import (
 )
 
 type cli struct {
-	ShutdownDelay time.Duration `env:"SHUTDOWN_DELAY" default:"5s" help:"Delay shutdown by this amount" hidden:""`
-	AdminAddr     string        `env:"ADMIN_ADDR" default:":8001" help:"The address for the admin API to listen on"`
-	APIAddr       string        `env:"API_ADDR" default:":8000" help:"The address for the API to listen on"`
+	ShutdownDelay time.Duration
+	AdminAddr     string
+	APIAddr       string
 }
 
 func ExampleSystem() {
 	err := run()
 	if err != nil && !errors.Is(err, termination.ErrTerminated) {
-		log.Fatal("Unexpected Error: ", err)
+		fmt.Println("Unexpected Error: ", err)
+		os.Exit(1)
 	}
-	log.Println("exited 0")
+	fmt.Println("exited 0")
+
+	// output: exited 0
 }
 
 func run() (err error) {
 	cli := cli{}
-	kong.Parse(&cli)
+	flag.DurationVar(&cli.ShutdownDelay, "shutdown-delay", 5*time.Second, "Delay shutdown by this amount")
+	flag.StringVar(&cli.AdminAddr, "admin-addr", ":8001", "The address for the admin API to listen on")
+	flag.StringVar(&cli.APIAddr, "api-addr", ":8000", "The address for the API to listen on")
+	flag.Parse()
 
 	// Use a properly wired o11y in a real application
 	ctx := testcontext.Background()
