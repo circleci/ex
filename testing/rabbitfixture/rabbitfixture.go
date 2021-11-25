@@ -11,11 +11,11 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/makasim/amqpextra"
-	rabbithole "github.com/michaelklishin/rabbit-hole/v2"
 	"github.com/streadway/amqp"
 	"gotest.tools/v3/assert"
 
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/testing/rabbitfixture/internal/rabbit"
 )
 
 func Dialer(ctx context.Context, t testing.TB, u string) *amqpextra.Dialer {
@@ -40,36 +40,31 @@ func New(ctx context.Context, t testing.TB) (rawurl string) {
 	rawurl = fmt.Sprintf("amqp://guest:guest@localhost/%s", vhost)
 	span.AddField("url", rawurl)
 
-	rmqc, err := rabbithole.NewClient("http://localhost:15672", "guest", "guest")
-	assert.Assert(t, err)
+	client := rabbit.NewClient("http://localhost:15672", "guest", "guest")
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 5 * time.Second
 	if os.Getenv("CI") == "true" {
 		bo.MaxElapsedTime = 32 * time.Second
 	}
-	err = backoff.Retry(func() error {
-		_, err := rmqc.ListNodes()
-		return err
-	}, backoff.WithContext(bo, ctx))
+	_, err := client.ListVHosts(ctx)
 	assert.Assert(t, err)
 
 	// Delete is idempotent, and will not error for non-existent vhost
-	_, err = rmqc.DeleteVhost(vhost)
+	err = client.DeleteVHost(ctx, vhost)
 	assert.Assert(t, err)
 
-	_, err = rmqc.PutVhost(vhost, rabbithole.VhostSettings{})
+	err = client.PutVHost(ctx, vhost, rabbit.VHostSettings{})
 	assert.Assert(t, err)
 
-	_, err = rmqc.UpdatePermissionsIn(vhost, "guest", rabbithole.Permissions{
+	err = client.UpdatePermissionsIn(ctx, vhost, "guest", rabbit.Permissions{
 		Configure: ".*",
 		Write:     ".*",
 		Read:      ".*",
 	})
-	assert.Assert(t, err)
 
 	t.Cleanup(func() {
-		_, err = rmqc.DeleteVhost(vhost)
+		err = client.DeleteVHost(ctx, vhost)
 		assert.Check(t, err)
 	})
 
