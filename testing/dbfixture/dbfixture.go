@@ -152,7 +152,8 @@ func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName,
 
 	err = fix.DB.SelectContext(ctx, &fix.tables, `
 SELECT
-    table_name
+    table_name,
+    table_schema
 FROM
     information_schema.tables
 WHERE
@@ -252,7 +253,12 @@ type Fixture struct {
 	TX      *db.TxManager
 	Cleanup func(ctx context.Context) error
 
-	tables []string
+	tables []table
+}
+
+type table struct {
+	Schema string `db:"table_schema"`
+	Name   string `db:"table_name"`
 }
 
 func (f *Fixture) Reset(ctx context.Context) (err error) {
@@ -265,7 +271,10 @@ func (f *Fixture) Reset(ctx context.Context) (err error) {
 
 		for _, table := range f.tables {
 			// nolint: gosec
-			_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM "%s"`, table))
+			_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s.%s`,
+				pq.QuoteIdentifier(table.Schema),
+				pq.QuoteIdentifier(table.Name),
+			))
 			if squelchNopError(err) != nil {
 				return fmt.Errorf("could not delete from table: %w", err)
 			}
