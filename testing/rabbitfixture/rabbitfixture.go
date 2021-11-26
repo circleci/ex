@@ -14,6 +14,7 @@ import (
 	"github.com/streadway/amqp"
 	"gotest.tools/v3/assert"
 
+	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/testing/rabbitfixture/internal/rabbit"
 )
@@ -33,14 +34,36 @@ func Dialer(ctx context.Context, t testing.TB, u string) *amqpextra.Dialer {
 
 func New(ctx context.Context, t testing.TB) (rawurl string) {
 	t.Helper()
+	return NewWithConnection(ctx, t, Connection{})
+}
+
+type Connection struct {
+	Host     string
+	User     string
+	Password secret.String
+}
+
+func NewWithConnection(ctx context.Context, t testing.TB, con Connection) (rawurl string) {
+	t.Helper()
 	ctx, span := o11y.StartSpan(ctx, "rabbitfixure: vhost")
 	defer span.End()
+
+	if con.Host == "" {
+		con.Host = "localhost"
+	}
+	if con.User == "" {
+		con.User = "guest"
+	}
+	if con.Password.Value() == "" {
+		con.Password = "guest"
+	}
+
 	vhost := fmt.Sprintf("%s-%s", t.Name(), randomSuffix())
 	span.AddField("vhost", vhost)
-	rawurl = fmt.Sprintf("amqp://guest:guest@localhost/%s", vhost)
+	rawurl = fmt.Sprintf("amqp://%s:%s@%s/%s", con.User, con.Password.Value(), con.Host, vhost)
 	span.AddField("url", rawurl)
 
-	client := rabbit.NewClient("http://localhost:15672", "guest", "guest")
+	client := rabbit.NewClient(fmt.Sprintf("http://%s:15672", con.Host), con.User, con.Password)
 
 	bo := backoff.NewExponentialBackOff()
 	bo.MaxElapsedTime = 5 * time.Second
