@@ -1,0 +1,60 @@
+package ginrecorder_test
+
+import (
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+
+	"github.com/circleci/ex/httpserver/ginrouter"
+	"github.com/circleci/ex/testing/httprecorder"
+	"github.com/circleci/ex/testing/httprecorder/ginrecorder"
+	"github.com/circleci/ex/testing/testcontext"
+)
+
+func TestMiddleware(t *testing.T) {
+	ctx := testcontext.Background()
+	rec := httprecorder.New()
+
+	r := ginrouter.Default(ctx, "test")
+	r.Use(ginrecorder.Middleware(ctx, rec))
+	r.GET("/hello", func(c *gin.Context) {
+		c.String(http.StatusOK, "a string body")
+	})
+
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	t.Run("Make a request", func(t *testing.T) {
+		res, err := http.Get(srv.URL + "/hello")
+		assert.Assert(t, err)
+		t.Cleanup(func() {
+			assert.Check(t, res.Body.Close())
+		})
+		b, err := io.ReadAll(res.Body)
+		assert.Check(t, err)
+		assert.Check(t, cmp.Equal("a string body", string(b)))
+	})
+
+	t.Run("Check request was present", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(
+			[]httprecorder.Request{
+				{
+					Method: "GET",
+					URL:    url.URL{Path: "/hello"},
+					Header: http.Header{
+						"Accept-Encoding": {"gzip"},
+						"User-Agent":      {"Go-http-client/1.1"},
+					},
+					Body: []uint8{},
+				},
+			},
+			rec.AllRequests(),
+		))
+	})
+}
