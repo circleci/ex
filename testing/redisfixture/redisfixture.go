@@ -11,7 +11,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/testing/types"
+	"github.com/circleci/ex/testing/internal/types"
 )
 
 type Fixture struct {

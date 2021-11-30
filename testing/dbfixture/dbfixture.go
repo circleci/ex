@@ -18,7 +18,7 @@ import (
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/db"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/testing/types"
+	"github.com/circleci/ex/testing/internal/types"
 )
 
 var globalFixture = &SharedFixture{}

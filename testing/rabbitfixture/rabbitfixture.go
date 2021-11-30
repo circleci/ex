@@ -15,8 +15,8 @@ import (
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/testing/internal/types"
 	"github.com/circleci/ex/testing/rabbitfixture/internal/rabbit"
-	"github.com/circleci/ex/testing/types"
 )
 
 func Dialer(ctx context.Context, t types.TestingTB, u string) *amqpextra.Dialer {
