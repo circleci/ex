@@ -5,13 +5,13 @@ import (
 	"hash/fnv"
 	"strconv"
 	"sync"
-	"testing"
 
 	"github.com/go-redis/redis/v8"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/testing/types"
 )
 
 type Fixture struct {
@@ -26,7 +26,7 @@ var (
 	databaseCount = uint32(0)
 )
 
-func Setup(ctx context.Context, t testing.TB) *Fixture {
+func Setup(ctx context.Context, t types.TestingTB) *Fixture {
 	ctx, span := o11y.StartSpan(ctx, "redisfixture: setup")
 	defer span.End()
 
@@ -65,7 +65,7 @@ func Setup(ctx context.Context, t testing.TB) *Fixture {
 	}
 }
 
-func checkRedisConnection(ctx context.Context, t testing.TB, client *redis.Client) {
+func checkRedisConnection(ctx context.Context, t types.TestingTB, client *redis.Client) {
 	err := client.Ping(ctx).Err()
 	switch {
 	case err != nil && err.Error() == "ERR DB index is out of range":
@@ -75,7 +75,7 @@ func checkRedisConnection(ctx context.Context, t testing.TB, client *redis.Clien
 	}
 }
 
-func readDatabasesCount(ctx context.Context, t testing.TB) {
+func readDatabasesCount(ctx context.Context, t types.TestingTB) {
 	t.Helper()
 
 	setupClient := redis.NewClient(&redis.Options{

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"testing"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -17,9 +16,10 @@ import (
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/testing/rabbitfixture/internal/rabbit"
+	"github.com/circleci/ex/testing/types"
 )
 
-func Dialer(ctx context.Context, t testing.TB, u string) *amqpextra.Dialer {
+func Dialer(ctx context.Context, t types.TestingTB, u string) *amqpextra.Dialer {
 	dialer, err := amqpextra.NewDialer(
 		amqpextra.WithContext(ctx),
 		amqpextra.WithURL(u),
@@ -32,7 +32,7 @@ func Dialer(ctx context.Context, t testing.TB, u string) *amqpextra.Dialer {
 	return dialer
 }
 
-func New(ctx context.Context, t testing.TB) (rawurl string) {
+func New(ctx context.Context, t types.TestingTB) (rawurl string) {
 	t.Helper()
 	return NewWithConnection(ctx, t, Connection{})
 }
@@ -43,7 +43,7 @@ type Connection struct {
 	Password secret.String
 }
 
-func NewWithConnection(ctx context.Context, t testing.TB, con Connection) (rawurl string) {
+func NewWithConnection(ctx context.Context, t types.TestingTB, con Connection) (rawurl string) {
 	t.Helper()
 	ctx, span := o11y.StartSpan(ctx, "rabbitfixure: vhost")
 	defer span.End()

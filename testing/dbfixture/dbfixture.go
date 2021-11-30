@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -19,6 +18,7 @@ import (
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/db"
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/testing/types"
 )
 
 var globalFixture = &SharedFixture{}
@@ -36,12 +36,12 @@ func (s *SharedFixture) Manager() *Manager {
 
 // SetupSystem prepares the running system for use
 // callers should not rely on the fact this currently uses a package global
-func SetupSystem(t testing.TB, con Connection) *SharedFixture {
+func SetupSystem(t types.TestingTB, con Connection) *SharedFixture {
 	return setupSystem(t, con)
 }
 
 // setupSystem prepares the running system for use
-func setupSystem(t testing.TB, con Connection) *SharedFixture {
+func setupSystem(t types.TestingTB, con Connection) *SharedFixture {
 	globalFixture.once.Do(func() {
 		var err error
 		globalFixture.m, err = newManager(con)
@@ -65,7 +65,7 @@ type Connection struct {
 	Password secret.String
 }
 
-func SetupDB(ctx context.Context, t testing.TB, schema string, con Connection) (db *Fixture) {
+func SetupDB(ctx context.Context, t types.TestingTB, schema string, con Connection) (db *Fixture) {
 	t.Helper()
 	shared := SetupSystem(t, con)
 	db, err := shared.Manager().NewDB(ctx, con, t.Name(), schema)

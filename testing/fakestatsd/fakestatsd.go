@@ -5,9 +5,10 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"testing"
 
 	"gotest.tools/v3/assert"
+
+	"github.com/circleci/ex/testing/types"
 )
 
 type FakeStatsd struct {
@@ -18,7 +19,7 @@ type FakeStatsd struct {
 	metrics []Metric
 }
 
-func New(t testing.TB) *FakeStatsd {
+func New(t types.TestingTB) *FakeStatsd {
 	t.Helper()
 
 	addr, err := net.ResolveUDPAddr("udp", "localhost:0")
