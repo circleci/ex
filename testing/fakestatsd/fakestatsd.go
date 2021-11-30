@@ -8,7 +8,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/circleci/ex/testing/types"
+	"github.com/circleci/ex/testing/internal/types"
 )
 
 type FakeStatsd struct {
