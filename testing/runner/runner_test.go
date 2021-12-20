@@ -65,4 +65,34 @@ func TestRunner(t *testing.T) {
 		assert.Check(t, err)
 		assert.Check(t, cmp.DeepEqual([]string{"a=a", "b=b", "c=c", "d=d", "e=e"}, env))
 	})
+
+	t.Run("Get port", func(t *testing.T) {
+		tests := []struct {
+			name       string
+			line       string
+			expectPort string
+		}{
+			{
+				"ipv4",
+				"server: new-server app.address=127.0.0.1:80 asdasdasdsa",
+				"80",
+			},
+			{
+				"ipv6",
+				"server: new-server app.address=[::]:80 asdasdasdsa",
+				"80",
+			},
+			{
+				"invalid",
+				"app.address=:80 asdasdasdsa",
+				"",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				assert.Check(t, cmp.Equal(getPort([]string{tt.line}, "", ""), tt.expectPort))
+			})
+		}
+	})
 }

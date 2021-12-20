@@ -209,7 +209,7 @@ func getPorts(r *Result, serviceName string) bool {
 	return true
 }
 
-var portRegexp = regexp.MustCompile(`app.address=127.0.0.1:(\d+)`)
+var portRegexp = regexp.MustCompile(`app.address=(127\.0\.0\.1|\[::]):(\d+)`)
 
 func getPort(lines []string, serverName, ignore string) string {
 	for _, l := range lines {
@@ -217,8 +217,8 @@ func getPort(lines []string, serverName, ignore string) string {
 			continue
 		}
 		matches := portRegexp.FindStringSubmatch(l)
-		if len(matches) > 1 && matches[1] != ignore {
-			return matches[1]
+		if len(matches) > 2 && matches[2] != ignore {
+			return matches[2]
 		}
 	}
 	return ""
