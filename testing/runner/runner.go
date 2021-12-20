@@ -40,7 +40,7 @@ func NewWithDynamicEnv(baseEnv []string, dynamicEnv func() []string) *Runner {
 }
 
 // Run starts the output service and waits a few seconds to confirm it has started
-// successfully. The caller is responsible for calling Stop.
+// successfully. The caller is responsible for calling Runner.Stop.
 func (r *Runner) Run(serverName, binary string, extraEnv ...string) (*Result, error) {
 	result, err := r.Start(binary, extraEnv...)
 	if err != nil {
@@ -93,7 +93,7 @@ func (r *Runner) Run(serverName, binary string, extraEnv ...string) (*Result, er
 
 // Start the `output` service, returning a buffer which contains the logs (stderr)
 // of the process.
-// The caller is responsible for calling Stop.
+// The caller is responsible for calling Result.Stop and Runner.Stop.
 func (r *Runner) Start(binary string, extraEnv ...string) (*Result, error) {
 	//#nosec:G204 // this is intentionally running a command for tests
 	cmd := exec.Command(binary)
