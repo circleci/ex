@@ -41,49 +41,20 @@ func NewWithDynamicEnv(baseEnv []string, dynamicEnv func() []string) *Runner {
 
 // Run starts the output service and waits a few seconds to confirm it has started
 // successfully. The caller is responsible for calling Runner.Stop.
+// If serverName is not empty then the server port will be detected using the standard
+// server output as expected when running an ex httpserver.
+// If it is left blank then only the admin server is detected.
+// For custom timeouts whilst waiting for readiness use Start and result.Ready
 func (r *Runner) Run(serverName, binary string, extraEnv ...string) (*Result, error) {
 	result, err := r.Start(binary, extraEnv...)
 	if err != nil {
 		return nil, err
 	}
 
-	gotPorts := false
-	launched := false
-
-	defer func() {
-		if !gotPorts || !launched {
-			_ = result.Stop()
-		}
-	}()
-
-	timeout := time.After(20 * time.Second)
-	for {
-		select {
-		case <-timeout:
-			return nil, fmt.Errorf("timeout hit after %s", 20*time.Second)
-		case <-time.After(20 * time.Millisecond):
-		}
-		if getPorts(result, serverName) {
-			gotPorts = true
-			break
-		}
-	}
-
-	timeout = time.After(10 * time.Second)
-	for {
-		select {
-		case <-timeout:
-			return nil, fmt.Errorf("timeout hit after %s", 10*time.Second)
-		case <-time.After(20 * time.Millisecond):
-		}
-
-		err := getReady(result.adminPort)
-		if err != nil {
-			fmt.Printf("readiness failure: %v\n", err)
-		} else {
-			launched = true
-			break
-		}
+	err = result.Ready(serverName, time.Second*20)
+	if err != nil {
+		_ = result.Stop()
+		return result, err
 	}
 
 	r.addStop(result.Stop)
@@ -153,6 +124,43 @@ type Result struct {
 	adminPort int
 }
 
+// Ready will return nil if ports have been detected and the server is reporting readiness.
+// If serverName is not empty then the server port will be detected using the standard
+// server output as expected when running an ex httpserver.
+// If it is empty then only the admin server is detected.
+func (r *Result) Ready(serverName string, duration time.Duration) error {
+	timeout := time.After(duration)
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("timeout hit for server %q after %v", serverName, duration)
+		case <-time.After(20 * time.Millisecond):
+		}
+		if getPorts(r, serverName) {
+			break
+		}
+	}
+
+	// once the service is up and reporting ports we expect the readiness check to happen quite soon.
+	duration = duration / 2
+	timeout = time.After(duration)
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("readiness timeout hit after %v", duration)
+		case <-time.After(100 * time.Millisecond):
+		}
+
+		err := getReady(r.adminPort)
+		if err != nil {
+			fmt.Printf("readiness failure: %v\n", err)
+		} else {
+			break
+		}
+	}
+	return nil
+}
+
 func (r *Result) Logs() string {
 	return r.logs.String()
 }
@@ -203,8 +211,15 @@ func getPorts(r *Result, serviceName string) bool {
 	if admin == "" {
 		return false
 	}
-	api := getPort(lines, serviceName, "")
 	r.adminPort, _ = strconv.Atoi(admin)
+
+	if serviceName == "" {
+		return true
+	}
+	api := getPort(lines, serviceName, "")
+	if api == "" {
+		return false
+	}
 	r.apiPort, _ = strconv.Atoi(api)
 	return true
 }
