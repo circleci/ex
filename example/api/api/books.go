@@ -7,10 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/circleci/ex/example/books"
-	"github.com/go-playground/validator/v10"
 )
-
-var validate = validator.New()
 
 func (a *API) getBook(c *gin.Context) {
 	type response struct {
@@ -40,8 +37,8 @@ func (a *API) getBook(c *gin.Context) {
 
 func (a *API) postBook(c *gin.Context) {
 	type request struct {
-		Name  string `json:"name" validate:"required"`
-		Price string `db:"price" validate:"required"`
+		Name  string `json:"name" binding:"required"`
+		Price string `db:"price" binding:"required"`
 	}
 	type response struct {
 		ID uuid.UUID `json:"id"`
@@ -51,12 +48,6 @@ func (a *API) postBook(c *gin.Context) {
 
 	var req request
 	err := c.BindJSON(&req)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
-		return
-	}
-
-	err = validate.Struct(req)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{})
 		return
