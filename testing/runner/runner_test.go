@@ -76,6 +76,10 @@ func TestRunner(t *testing.T) {
 			_, err = r.Run("", binary, "ADMIN_ONLY=true")
 			assert.Assert(t, err)
 		})
+		t.Run("stop_service", func(t *testing.T) {
+			err := r.Stop()
+			assert.Assert(t, err)
+		})
 	})
 
 	t.Run("no_api", func(t *testing.T) {

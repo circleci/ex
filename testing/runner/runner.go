@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -178,6 +179,11 @@ func (r *Result) Stop() error {
 	// works around issue in go json test output: https://github.com/golang/go/issues/38063
 	defer fmt.Println("sub-process stopped")
 
+	// Windows does not support SIGINT
+	if runtime.GOOS == "windows" {
+		return kill(r.cmd)
+	}
+
 	err := r.cmd.Process.Signal(os.Interrupt)
 	if err != nil {
 		return fmt.Errorf("failed to SIGINT: %w", err)
@@ -190,6 +196,14 @@ func (r *Result) Stop() error {
 	case err := <-r.Wait():
 		return err
 	}
+}
+
+func kill(cmd *exec.Cmd) error {
+	err := cmd.Process.Kill()
+	if err != nil {
+		return fmt.Errorf("failed to kill process: %w", err)
+	}
+	return nil
 }
 
 // Wait for the process to exit in a goroutine. The exit error is returned on the
