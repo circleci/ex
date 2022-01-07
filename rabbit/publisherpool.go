@@ -119,6 +119,9 @@ func (p *PublisherPool) Gauges(_ context.Context) map[string]float64 {
 		"active":    float64(p.pool.GetNumActive()),
 		"idle":      float64(p.pool.GetNumIdle()),
 		"destroyed": float64(p.pool.GetDestroyedCount()),
+		"max_total": float64(p.pool.Config.MaxTotal),
+		"max_idle":  float64(p.pool.Config.MaxIdle),
+		"min_idle":  float64(p.pool.Config.MinIdle),
 	}
 }
 
