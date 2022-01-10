@@ -11,9 +11,9 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/google/go-cmp v0.5.6
 	github.com/hellofresh/health-go/v4 v4.5.0
-	github.com/honeycombio/beeline-go v1.4.0
+	github.com/honeycombio/beeline-go v1.4.1
 	github.com/honeycombio/dynsampler-go v0.2.1
-	github.com/honeycombio/libhoney-go v1.15.6
+	github.com/honeycombio/libhoney-go v1.15.8
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/jolestar/go-commons-pool/v2 v2.1.1
 	github.com/klauspost/compress v1.13.6
@@ -44,7 +44,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.opentelemetry.io/otel v1.0.0 // indirect
 	go.opentelemetry.io/otel/trace v1.0.0 // indirect
