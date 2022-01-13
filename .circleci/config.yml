@@ -63,6 +63,11 @@ jobs:
       - image: circleci/redis:5.0.6-alpine
         command: [ "--databases", "1000000" ]
       - image: rabbitmq:3.8-management-alpine
+      - image: mongo:4.2
+        environment:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: password
+          MONGO_INITDB_DATABASE: dbname
     working_directory: ~/project/<<parameters.submodule>>
     steps:
       - checkout:
