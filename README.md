@@ -17,7 +17,7 @@ Browse the docs at [pkg.go.dev](https://pkg.go.dev/github.com/circleci/ex).
 - `httpserver` Starting and stopping the standard Go http server cleanly.
 - `httpserver/ginrouter` A common base for configuring a Gin router instance.
 - `httpserver/healthcheck` A healthcheck HTTP server that can accept all the checks from a `system`.
-- `mognoex` **Experimental** Common patterns using when talking to MongoDB.
+- `mongoex` **Experimental** Common patterns using when talking to MongoDB.
 - `o11y` Observability that is currently backed by Honeycomb. It also supports outputting
   trace data as JSON and plain or colored text output.
 - `o11y/honeycomb` The honeycomb-backed implementation of `o11y`.

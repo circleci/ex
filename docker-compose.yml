@@ -13,6 +13,15 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: dbname
 
+  mongo:
+    image: mongo:4.2
+    ports:
+      - '127.0.0.1:27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: dbname
+
   redis:
     image: circleci/redis:5.0.6-alpine
     command: ["--databases", "1000000"]
