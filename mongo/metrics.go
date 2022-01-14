@@ -7,7 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/event"
 )
 
-type mongoPoolMetrics struct {
+type poolMetrics struct {
 	name string
 
 	mu                 sync.RWMutex
@@ -24,17 +24,17 @@ type mongoPoolMetrics struct {
 	waitQueueTimeoutMS uint64
 }
 
-func newMongoPoolMetrics(name string) *mongoPoolMetrics {
-	return &mongoPoolMetrics{
+func newPoolMetrics(name string) *poolMetrics {
+	return &poolMetrics{
 		name: name,
 	}
 }
 
-func (c *mongoPoolMetrics) MetricName() string {
+func (c *poolMetrics) MetricName() string {
 	return c.name
 }
 
-func (c *mongoPoolMetrics) Gauges(_ context.Context) map[string]float64 {
+func (c *poolMetrics) Gauges(_ context.Context) map[string]float64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
@@ -52,7 +52,7 @@ func (c *mongoPoolMetrics) Gauges(_ context.Context) map[string]float64 {
 	}
 }
 
-func (c *mongoPoolMetrics) PoolMonitor(parent *event.PoolMonitor) *event.PoolMonitor {
+func (c *poolMetrics) PoolMonitor(parent *event.PoolMonitor) *event.PoolMonitor {
 	return &event.PoolMonitor{
 		Event: func(e *event.PoolEvent) {
 			if parent != nil {
@@ -63,7 +63,7 @@ func (c *mongoPoolMetrics) PoolMonitor(parent *event.PoolMonitor) *event.PoolMon
 	}
 }
 
-func (c *mongoPoolMetrics) updateStats(e *event.PoolEvent) {
+func (c *poolMetrics) updateStats(e *event.PoolEvent) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

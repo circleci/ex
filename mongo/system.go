@@ -19,7 +19,7 @@ type Config struct {
 }
 
 func Load(ctx context.Context, cfg Config, sys *system.System) (*mongo.Database, error) {
-	poolMetrics := newMongoPoolMetrics("mongo")
+	poolMetrics := newPoolMetrics("mongo")
 	opts := options.Client().
 		ApplyURI(cfg.URI).
 		SetAppName(cfg.AppName).
@@ -38,7 +38,7 @@ func Load(ctx context.Context, cfg Config, sys *system.System) (*mongo.Database,
 	}
 	sys.AddCleanup(client.Disconnect)
 
-	sys.AddHealthCheck(&mongoHealth{
+	sys.AddHealthCheck(&health{
 		client: client,
 	})
 	sys.AddMetrics(poolMetrics)

@@ -9,11 +9,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-type mongoHealth struct {
+type health struct {
 	client *mongo.Client
 }
 
-func (m *mongoHealth) HealthChecks() (name string, ready, live func(ctx context.Context) error) {
+func (m *health) HealthChecks() (name string, ready, live func(ctx context.Context) error) {
 	ready = func(ctx context.Context) error {
 		ctxPing, cancelPing := context.WithTimeout(ctx, 5*time.Second)
 		defer cancelPing()
