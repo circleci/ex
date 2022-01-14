@@ -3,6 +3,8 @@ package mongoex
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
 	"net/url"
 
 	"go.mongodb.org/mongo-driver/event"
@@ -27,7 +29,13 @@ func New(ctx context.Context, appName string, cfg Config) (client *mongo.Client,
 	defer o11y.End(span, &err)
 
 	mongoURL, err := url.Parse(cfg.URI)
-	if err != nil {
+
+	// url.Parse will print the URI if it can't parse. The URI contains the password, so this gets the underlying error
+	// without printing the secret string.
+	var urlError *url.Error
+	if errors.As(err, &urlError) {
+		return nil, fmt.Errorf("mongoex: failed to parse URI: %w", urlError.Err)
+	} else if err != nil {
 		return nil, err
 	}
 
