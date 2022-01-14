@@ -1,4 +1,4 @@
-package mongo
+package mongoex
 
 import (
 	"context"
@@ -18,6 +18,8 @@ type Config struct {
 	UseTLS  bool
 }
 
+// Load connects to mongo. The context passed in is expected to carry an o11y provider
+// and is only used for reporting (not for cancellation),
 func Load(ctx context.Context, cfg Config, sys *system.System) (*mongo.Database, error) {
 	poolMetrics := newPoolMetrics("mongo")
 	opts := options.Client().
