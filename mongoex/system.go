@@ -2,39 +2,19 @@ package mongoex
 
 import (
 	"context"
-	"crypto/tls"
 
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
-	"github.com/circleci/ex/rootcerts"
 	"github.com/circleci/ex/system"
 )
 
-type Config struct {
-	AppName string
-	URI     string
-	DBName  string
-	UseTLS  bool
-}
-
 // Load connects to mongo. The context passed in is expected to carry an o11y provider
 // and is only used for reporting (not for cancellation),
-func Load(ctx context.Context, cfg Config, sys *system.System) (*mongo.Database, error) {
+func Load(ctx context.Context, dbName, appName string, cfg Config, sys *system.System) (*mongo.Database, error) {
 	poolMetrics := newPoolMetrics("mongo")
-	opts := options.Client().
-		ApplyURI(cfg.URI).
-		SetAppName(cfg.AppName).
-		SetPoolMonitor(poolMetrics.PoolMonitor(nil))
+	cfg.PoolMonitor = poolMetrics.PoolMonitor(nil)
 
-	if cfg.UseTLS {
-		opts = opts.SetTLSConfig(&tls.Config{
-			MinVersion: tls.VersionTLS12,
-			RootCAs:    rootcerts.ServerCertPool(),
-		})
-	}
-
-	client, err := mongo.Connect(ctx, opts)
+	client, err := New(ctx, appName, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -45,5 +25,5 @@ func Load(ctx context.Context, cfg Config, sys *system.System) (*mongo.Database,
 	})
 	sys.AddMetrics(poolMetrics)
 
-	return client.Database(cfg.DBName), nil
+	return client.Database(dbName), nil
 }
