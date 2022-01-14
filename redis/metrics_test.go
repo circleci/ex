@@ -11,7 +11,7 @@ import (
 
 func TestMetrics(t *testing.T) {
 	ctx := testcontext.Background()
-	fix := redisfixture.Setup(ctx, t)
+	fix := redisfixture.Setup(ctx, t, redisfixture.Connection{Addr: "localhost:6379"})
 
 	m := NewMetrics("redis", fix.Client)
 	gauges := m.Gauges(ctx)

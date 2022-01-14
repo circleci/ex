@@ -19,19 +19,21 @@ type Fixture struct {
 	DB int
 }
 
-const redisAddr = "localhost:6379"
+type Connection struct {
+	Addr string
+}
 
 var (
 	once          sync.Once
 	databaseCount = uint32(0)
 )
 
-func Setup(ctx context.Context, t types.TestingTB) *Fixture {
+func Setup(ctx context.Context, t types.TestingTB, con Connection) *Fixture {
 	ctx, span := o11y.StartSpan(ctx, "redisfixture: setup")
 	defer span.End()
 
 	once.Do(func() {
-		readDatabasesCount(ctx, t)
+		readDatabasesCount(ctx, t, con)
 	})
 
 	switch {
@@ -47,7 +49,7 @@ func Setup(ctx context.Context, t types.TestingTB) *Fixture {
 	span.AddField("db", db)
 
 	fixClient := redis.NewClient(&redis.Options{
-		Addr: redisAddr,
+		Addr: con.Addr,
 		DB:   db,
 	})
 	t.Cleanup(func() {
@@ -75,11 +77,11 @@ func checkRedisConnection(ctx context.Context, t types.TestingTB, client *redis.
 	}
 }
 
-func readDatabasesCount(ctx context.Context, t types.TestingTB) {
+func readDatabasesCount(ctx context.Context, t types.TestingTB, con Connection) {
 	t.Helper()
 
 	setupClient := redis.NewClient(&redis.Options{
-		Addr: redisAddr,
+		Addr: con.Addr,
 	})
 
 	checkRedisConnection(ctx, t, setupClient)
