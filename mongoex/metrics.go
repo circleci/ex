@@ -15,7 +15,7 @@ type poolMetrics struct {
 	poolCreated        int64
 	connCreated        int64
 	getFailed          int64
-	getSucceded        int64
+	getSucceeded       int64
 	connReturned       int64
 	poolCleared        int64
 	poolClosed         int64
@@ -42,7 +42,7 @@ func (c *poolMetrics) Gauges(_ context.Context) map[string]float64 {
 		"connection_closed":     float64(c.connClosed),
 		"pool_created":          float64(c.poolCreated),
 		"get_failed":            float64(c.getFailed),
-		"get_succeeded":         float64(c.getSucceded),
+		"get_succeeded":         float64(c.getSucceeded),
 		"connection_returned":   float64(c.connReturned),
 		"pool_cleared":          float64(c.poolCleared),
 		"pool_closed":           float64(c.poolClosed),
@@ -77,7 +77,7 @@ func (c *poolMetrics) updateStats(e *event.PoolEvent) {
 	case event.GetFailed:
 		c.getFailed++
 	case event.GetSucceeded:
-		c.getSucceded++
+		c.getSucceeded++
 	case event.ConnectionReturned:
 		c.connReturned++
 	case event.PoolCleared:
