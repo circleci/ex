@@ -37,6 +37,7 @@ Browse the docs at [pkg.go.dev](https://pkg.go.dev/github.com/circleci/ex).
 - `testing/httprecorder` Record HTTP requests inside an HTTP server, and search them.
 - `testing/kongtest` If you are using [kong](https://github.com/alecthomas/kong) for your
   CLI parsing, this helps in writing golden tests for the CLI definition.
+- `testing/mongofixture` Get an isolated Mongo database for your tests, so they don't interfere.
 - `testing/rabbitfixture` Get an isolated RabbitMQ VHost for your tests, so they don't interfere.
 - `testing/redisfixture` Get an isolated Redis DB for your tests, so they don't interfere.
 - `testing/releases` Helper to determine which binaries to download for end to end tests.
