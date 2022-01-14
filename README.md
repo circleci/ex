@@ -17,12 +17,13 @@ Browse the docs at [pkg.go.dev](https://pkg.go.dev/github.com/circleci/ex).
 - `httpserver` Starting and stopping the standard Go http server cleanly.
 - `httpserver/ginrouter` A common base for configuring a Gin router instance.
 - `httpserver/healthcheck` A healthcheck HTTP server that can accept all the checks from a `system`.
+- `mongoex` **Experimental** Common patterns using when talking to MongoDB.
 - `o11y` Observability that is currently backed by Honeycomb. It also supports outputting
   trace data as JSON and plain or colored text output.
 - `o11y/honeycomb` The honeycomb-backed implementation of `o11y`.
 - `o11y/wrappers/o11ygin` `o11y` middleware for the Gin router.
 - `o11y/wrappers/o11ynethttp` `o11y` middleware for the standard Go HTTP server.
-- `rabbit` Experimental RabbitMQ publishing client.
+- `rabbit` **Experimental** RabbitMQ publishing client.
 - `redis` Wiring and observability for Redis.
 - `system` Manage the startup, running, metrics and shutdown of a Go service.
 - `termination` A handler to aid signal based service termination. (Used internally by
