@@ -33,6 +33,7 @@ jobs:
         type: string
     docker:
       - image: cimg/go:<<parameters.go_version>>
+    resource_class: large
     steps:
       - checkout
       - setup
@@ -68,6 +69,7 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: root
           MONGO_INITDB_ROOT_PASSWORD: password
           MONGO_INITDB_DATABASE: dbname
+    resource_class: large
     working_directory: ~/project/<<parameters.submodule>>
     steps:
       - checkout:
