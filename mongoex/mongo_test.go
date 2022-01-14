@@ -24,3 +24,14 @@ func TestMongoConnection(t *testing.T) {
 
 	assert.Check(t, cmp.Equal(client.Database("dbname").Name(), "dbname"))
 }
+
+func TestNew_InvalidURLDoesNotLeak(t *testing.T) {
+	ctx := testcontext.Background()
+	cfg := Config{
+		URI:    "mongodb://root:]@localhost:27107",
+		UseTLS: false,
+	}
+
+	_, err := New(ctx, "connection-test", cfg)
+	assert.Error(t, err, "mongoex: failed to parse URI: net/url: invalid userinfo")
+}
