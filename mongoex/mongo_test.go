@@ -18,6 +18,9 @@ func TestMongoConnection(t *testing.T) {
 
 	client, err := New(ctx, "connection-test", cfg)
 	assert.NilError(t, err)
+	t.Cleanup(func() {
+		assert.NilError(t, client.Disconnect(ctx))
+	})
 
 	assert.Check(t, cmp.Equal(client.Database("dbname").Name(), "dbname"))
 }

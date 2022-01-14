@@ -49,7 +49,5 @@ func New(ctx context.Context, appName string, cfg Config) (client *mongo.Client,
 		})
 	}
 
-	client, err = mongo.Connect(ctx, opts)
-
-	return client, err
+	return mongo.Connect(ctx, opts)
 }
