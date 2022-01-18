@@ -139,13 +139,7 @@ jobs:
       - run:
           name: Override container version & dry run
           command: |
-            apk add yq
-            AWS_ACCESS_KEY_ID="${EKS_AWS_ACCESS_KEY_ID}" \
-            AWS_SECRET_ACCESS_KEY="${EKS_AWS_SECRET_ACCESS_KEY}" \
-            helm get all example-v1 > .helm.current
-            export CONTAINER_VERSION=$(tail -n +11 .helm.current | yq r - 'deployment.image' | cut -d ":" -f2-)
-            echo "Current version is: ${CONTAINER_VERSION}"
-            /deploy/dry-run
+            IGNORE_VERSION=1 /deploy/dry-run
             ls -la .helm.diff
       - run:
           name: Install GitHub CLI
