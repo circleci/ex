@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"go.mongodb.org/mongo-driver/event"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
@@ -19,7 +18,7 @@ type Config struct {
 	URI    string
 	UseTLS bool
 
-	PoolMonitor *event.PoolMonitor
+	Options *options.ClientOptions
 }
 
 // New connects to mongo. The context passed in is expected to carry an o11y provider
@@ -42,13 +41,14 @@ func New(ctx context.Context, appName string, cfg Config) (client *mongo.Client,
 	span.AddField("host", mongoURL.Host)
 	span.AddField("username", mongoURL.User)
 
-	opts := options.Client().
+	opts := cfg.Options
+	if opts == nil {
+		opts = options.Client()
+	}
+
+	opts.
 		ApplyURI(cfg.URI).
 		SetAppName(appName)
-
-	if cfg.PoolMonitor != nil {
-		opts.SetPoolMonitor(cfg.PoolMonitor)
-	}
 
 	if cfg.UseTLS {
 		opts = opts.SetTLSConfig(&tls.Config{
