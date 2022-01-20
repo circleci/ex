@@ -71,14 +71,14 @@ func TestSystem_Run(t *testing.T) {
 			Metric: "gauge",
 			Name:   "gauge..key_a",
 			Value:  1,
-			Tags:   []string{"foo:bar"},
+			Tags:   []string{},
 			Rate:   1,
 		},
 		{
 			Metric: "gauge",
 			Name:   "gauge..key_b",
 			Value:  2,
-			Tags:   []string{"baz:qux"},
+			Tags:   []string{},
 			Rate:   1,
 		},
 		{
@@ -117,7 +117,7 @@ type mockMetricProducer struct {
 }
 
 func newMockMetricProducer(wg *sync.WaitGroup) *mockMetricProducer {
-	wg.Add(3)
+	wg.Add(2)
 	return &mockMetricProducer{wg: wg}
 }
 
@@ -131,14 +131,6 @@ func (m *mockMetricProducer) Gauges(_ context.Context) map[string]float64 {
 	return map[string]float64{
 		"key_a": 1,
 		"key_b": 2,
-	}
-}
-
-func (m *mockMetricProducer) Tags(_ context.Context) map[string][]string {
-	m.wg.Done()
-	return map[string][]string{
-		"key_a": {"foo:bar"},
-		"key_b": {"baz:qux"},
 	}
 }
 

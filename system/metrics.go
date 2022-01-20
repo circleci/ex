@@ -20,10 +20,6 @@ type MetricProducer interface {
 	Gauges(context.Context) map[string]float64
 }
 
-type tagProducer interface {
-	Tags(context.Context) map[string][]string
-}
-
 func traceMetrics(ctx context.Context, producers []MetricProducer) {
 	metrics := o11y.FromContext(ctx).MetricsProvider()
 	for _, producer := range producers {
@@ -33,13 +29,9 @@ func traceMetrics(ctx context.Context, producers []MetricProducer) {
 
 func traceMetric(ctx context.Context, provider o11y.MetricsProvider, producer MetricProducer) {
 	producerName := strings.Replace(producer.MetricName(), "-", "_", -1)
-	var tags map[string][]string
-	if p, ok := producer.(tagProducer); ok {
-		tags = p.Tags(ctx)
-	}
 	for f, v := range producer.Gauges(ctx) {
 		scopedField := fmt.Sprintf("gauge.%s.%s", producerName, f)
-		_ = provider.Gauge(scopedField, v, tags[f], 1)
+		_ = provider.Gauge(scopedField, v, []string{}, 1)
 	}
 }
 
