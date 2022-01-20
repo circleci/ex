@@ -45,14 +45,15 @@ func traceMetric(ctx context.Context, provider o11y.MetricsProvider, producer Me
 
 // metrics reporter returns a function that is expected to be used in a call to errgroup.Go
 // that func starts a worker that periodically calls and publishes the gauges from the producers.
-func metricsReporter(ctx context.Context, makers []MetricProducer) func() error {
+func metricsReporter(ctx context.Context, mps []MetricProducer, gps []GaugeProducer) func() error {
 	return func() error {
 		cfg := worker.Config{
 			Name:          "metric-loop",
 			MaxWorkTime:   time.Second,
 			NoWorkBackOff: backoff.NewConstantBackOff(time.Second * 10),
 			WorkFunc: func(ctx context.Context) error {
-				traceMetrics(ctx, makers)
+				traceMetrics(ctx, mps)
+				emitGauges(ctx, gps)
 				return worker.ErrShouldBackoff
 			},
 		}

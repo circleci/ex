@@ -33,6 +33,7 @@ func TestSystem_Run(t *testing.T) {
 	sys := New()
 
 	sys.AddMetrics(newMockMetricProducer(terminationWait))
+	sys.AddGauges(newMockGaugeProducer(terminationWait))
 
 	terminationWait.Add(1)
 	sys.AddService(func(ctx context.Context) (err error) {
@@ -81,6 +82,20 @@ func TestSystem_Run(t *testing.T) {
 			Rate:   1,
 		},
 		{
+			Metric: "gauge",
+			Name:   "gauge.gauge_producer.key_a",
+			Value:  1,
+			Tags:   []string{"foo:bar"},
+			Rate:   1,
+		},
+		{
+			Metric: "gauge",
+			Name:   "gauge.gauge_producer.key_b",
+			Value:  2,
+			Tags:   []string{"baz:qux"},
+			Rate:   1,
+		},
+		{
 			Metric: "timer",
 			Name:   "worker_loop",
 			Value:  0.01,
@@ -124,6 +139,28 @@ func (m *mockMetricProducer) Tags(_ context.Context) map[string][]string {
 	return map[string][]string{
 		"key_a": {"foo:bar"},
 		"key_b": {"baz:qux"},
+	}
+}
+
+type mockGaugeProducer struct {
+	wg *sync.WaitGroup
+}
+
+func newMockGaugeProducer(wg *sync.WaitGroup) *mockGaugeProducer {
+	wg.Add(2)
+	return &mockGaugeProducer{wg: wg}
+}
+
+func (m *mockGaugeProducer) GaugeName() string {
+	m.wg.Done()
+	return "gauge_producer"
+}
+
+func (m *mockGaugeProducer) Gauges(_ context.Context) map[string][]TaggedValue {
+	m.wg.Done()
+	return map[string][]TaggedValue{
+		"key_a": {{Val: 1, Tags: []string{"foo:bar"}}},
+		"key_b": {{Val: 2, Tags: []string{"baz:qux"}}},
 	}
 }
 

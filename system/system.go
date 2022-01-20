@@ -21,6 +21,7 @@ type HealthChecker interface {
 type System struct {
 	services        []func(context.Context) error
 	healthChecks    []HealthChecker
+	gaugeProducers  []GaugeProducer
 	metricProducers []MetricProducer
 	cleanups        []func(ctx context.Context) error
 }
@@ -64,8 +65,8 @@ func (r *System) Run(ctx context.Context, terminationDelay time.Duration) (err e
 	}
 
 	// if we have any metrics add the metrics worker
-	if len(r.metricProducers) > 0 {
-		g.Go(metricsReporter(ctx, r.metricProducers))
+	if len(r.metricProducers) > 0 || len(r.gaugeProducers) > 0 {
+		g.Go(metricsReporter(ctx, r.metricProducers, r.gaugeProducers))
 	}
 
 	return g.Wait()
@@ -96,6 +97,10 @@ func (r *System) AddHealthCheck(h HealthChecker) {
 // will be called periodically and the resultant gauges published via the system context.
 func (r *System) AddMetrics(m MetricProducer) {
 	r.metricProducers = append(r.metricProducers, m)
+}
+
+func (r *System) AddGauges(g GaugeProducer) {
+	r.gaugeProducers = append(r.gaugeProducers, g)
 }
 
 // AddCleanup stores function in the system that will be called when Cleanup is called.
