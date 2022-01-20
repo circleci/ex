@@ -22,6 +22,8 @@ type Config struct {
 	HoneycombDataset  string
 	HoneycombKey      secret.String
 	SampleTraces      bool
+	SampleKeyFunc     func(map[string]interface{}) string
+	SampleRates       map[string]int
 	Format            string
 	Version           string
 	Service           string
@@ -118,21 +120,27 @@ func (p rollBarHoneycombProvider) RollBarClient() *rollbar.Client {
 }
 
 func honeyComb(o Config) (honeycomb.Config, error) {
-	conf := honeycomb.Config{
-		Host:         "",
-		Dataset:      o.HoneycombDataset,
-		Key:          string(o.HoneycombKey),
-		Format:       o.Format,
-		SendTraces:   o.HoneycombEnabled,
-		SampleTraces: o.SampleTraces,
-		SampleKeyFunc: func(fields map[string]interface{}) string {
-			return fmt.Sprintf("%s %s %d",
-				fields["app.server_name"],
-				fields["request.path"],
-				fields["response.status_code"],
+	if o.SampleKeyFunc == nil {
+		o.SampleKeyFunc = func(fields map[string]interface{}) string {
+			// defaults for gin server
+			return fmt.Sprintf("%s %s %v",
+				fields["http.server_name"],
+				fields["http.route"],
+				fields["http.status_code"],
 			)
-		},
-		Debug: o.Debug,
+		}
+	}
+
+	conf := honeycomb.Config{
+		Host:          "",
+		Dataset:       o.HoneycombDataset,
+		Key:           string(o.HoneycombKey),
+		Format:        o.Format,
+		SendTraces:    o.HoneycombEnabled,
+		SampleTraces:  o.SampleTraces,
+		SampleKeyFunc: o.SampleKeyFunc,
+		SampleRates:   o.SampleRates,
+		Debug:         o.Debug,
 	}
 	return conf, conf.Validate()
 }
