@@ -119,7 +119,7 @@ func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName,
 	ctx, span := o11y.StartSpan(ctx, "dbfixture: newDB")
 	defer o11y.End(span, &err)
 
-	fix := &Fixture{DBName: dbName}
+	fix := &Fixture{DBName: dbName, Host: con.Host, User: con.User, Password: con.Password}
 	span.AddField("dbname", fix.DBName)
 	span.AddField("host", con.Host)
 	span.AddField("user", con.User)
@@ -248,10 +248,13 @@ func randomSuffix() string {
 }
 
 type Fixture struct {
-	DBName  string
-	DB      *sqlx.DB
-	TX      *db.TxManager
-	Cleanup func(ctx context.Context) error
+	DBName   string
+	Host     string
+	User     string
+	Password secret.String
+	DB       *sqlx.DB
+	TX       *db.TxManager
+	Cleanup  func(ctx context.Context) error
 
 	tables []table
 }
