@@ -114,8 +114,8 @@ func (r *System) HealthChecks() []HealthChecker {
 // Cleanup calls each function previously added with AddCleanup. It is expected to
 // be called after Run has returned to do any final work to allow the system to exit gracefully.
 func (r *System) Cleanup(ctx context.Context) {
-	for _, c := range r.cleanups {
-		err := c(ctx)
+	for i := len(r.cleanups) - 1; i >= 0; i-- {
+		err := r.cleanups[i](ctx)
 		if err != nil {
 			o11y.Log(ctx, "system: cleanup error", o11y.Field("error", err))
 		}

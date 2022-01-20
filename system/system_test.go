@@ -45,11 +45,17 @@ func TestSystem_Run(t *testing.T) {
 
 	sys.AddHealthCheck(newMockHealthChecker())
 
-	cleanupCalled := false
+	var cleanupsCalled []string
 	sys.AddCleanup(func(ctx context.Context) (err error) {
-		ctx, span := o11y.StartSpan(ctx, "cleanup")
+		ctx, span := o11y.StartSpan(ctx, "cleanup 1")
 		defer o11y.End(span, &err)
-		cleanupCalled = true
+		cleanupsCalled = append(cleanupsCalled, "1")
+		return nil
+	})
+	sys.AddCleanup(func(ctx context.Context) (err error) {
+		ctx, span := o11y.StartSpan(ctx, "cleanup 2")
+		defer o11y.End(span, &err)
+		cleanupsCalled = append(cleanupsCalled, "2")
 		return nil
 	})
 
@@ -57,7 +63,7 @@ func TestSystem_Run(t *testing.T) {
 	assert.Check(t, errors.Is(err, termination.ErrTerminated))
 
 	sys.Cleanup(ctx)
-	assert.Check(t, cleanupCalled)
+	assert.Check(t, cmp.DeepEqual([]string{"2", "1"}, cleanupsCalled))
 
 	assert.Check(t, cmp.DeepEqual(metrics.Calls(), []fakemetrics.MetricCall{
 		{
