@@ -121,14 +121,7 @@ func (p rollBarHoneycombProvider) RollBarClient() *rollbar.Client {
 
 func honeyComb(o Config) (honeycomb.Config, error) {
 	if o.SampleKeyFunc == nil {
-		o.SampleKeyFunc = func(fields map[string]interface{}) string {
-			// defaults for gin server
-			return fmt.Sprintf("%s %s %v",
-				fields["http.server_name"],
-				fields["http.route"],
-				fields["http.status_code"],
-			)
-		}
+		o.SampleKeyFunc = DefaultSampleKeyFunc
 	}
 
 	conf := honeycomb.Config{
@@ -143,4 +136,13 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 		Debug:         o.Debug,
 	}
 	return conf, conf.Validate()
+}
+
+func DefaultSampleKeyFunc(fields map[string]interface{}) string {
+	// defaults for gin server
+	return fmt.Sprintf("%s %s %v",
+		fields["http.server_name"],
+		fields["http.route"],
+		fields["http.status_code"],
+	)
 }
