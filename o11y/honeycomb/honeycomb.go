@@ -33,6 +33,7 @@ type Config struct {
 	Sender        transmission.Sender
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
+	SampleRates   map[string]int
 	Writer        io.Writer
 	Metrics       o11y.ClosableMetricsProvider
 
@@ -105,12 +106,15 @@ func New(conf Config) o11y.Provider {
 	}
 
 	if conf.SampleTraces {
+		if conf.SampleRates == nil {
+			conf.SampleRates = map[string]int{}
+		}
 		// See beeline.Config.SamplerHook
 		sampler := &TraceSampler{
 			KeyFunc: conf.SampleKeyFunc,
 			Sampler: &dynsampler.Static{
 				Default: 1,
-				Rates:   map[string]int{},
+				Rates:   conf.SampleRates,
 			},
 		}
 		bc.SamplerHook = sampler.Hook
