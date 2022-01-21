@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/honeycombio/beeline-go/propagation"
@@ -14,8 +16,13 @@ import (
 	"github.com/circleci/ex/o11y/wrappers/baggage"
 )
 
+// Middleware for Gin router
+//nolint:funlen
 func Middleware(provider o11y.Provider, serverName string, queryParams map[string]struct{}) gin.HandlerFunc {
+	m := provider.MetricsProvider()
 	return func(c *gin.Context) {
+		before := time.Now()
+
 		ctx := o11y.WithProvider(c.Request.Context(), provider)
 		ctx = o11y.WithBaggage(ctx, baggage.Get(ctx, c.Request))
 		ctx, span := startSpanOrTraceFromHTTP(ctx, c, provider, serverName)
@@ -62,8 +69,19 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 			span.AddRawField("http.status_code", c.Writer.Status())
 			span.AddRawField("http.response_content_length", c.Writer.Size())
 
-			span.RecordMetric(o11y.Timing("handler",
-				"http.server_name", "http.method", "http.route", "http.status_code", "has_panicked"))
+			if m != nil {
+				_ = m.TimeInMilliseconds("handler",
+					float64(time.Since(before).Nanoseconds())/1000000.0,
+					[]string{
+						"http.server_name:" + serverName,
+						"http.method:" + c.Request.Method,
+						"http.route:" + c.FullPath(),
+						"http.status_code:" + strconv.Itoa(c.Writer.Status()),
+						//TODO: "has_panicked:"+,
+					},
+					1,
+				)
+			}
 		}()
 		// Run the next function in the Middleware chain
 		c.Next()

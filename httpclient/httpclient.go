@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"sync"
 	"time"
 
@@ -190,6 +191,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	attempt := func() (err error) {
 		_, span := o11y.StartSpan(ctx, name)
 		defer o11y.End(span, &err)
+		before := time.Now()
 
 		attemptCounter++
 
@@ -222,9 +224,6 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		span.AddRawField("http.base_url", c.baseURL)
 		addReqToSpan(span, req, attemptCounter)
 
-		span.RecordMetric(o11y.Timing("httpclient",
-			"http.client_name", "http.route", "http.method", "http.status_code", "http.retry"))
-
 		res, err := c.httpClient.Do(req)
 		if err != nil {
 			// url errors repeat the method and url which clutters metrics and logging
@@ -242,6 +241,20 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			_ = res.Body.Close()
 		}()
 
+		m := o11y.FromContext(ctx).MetricsProvider()
+		if m != nil {
+			_ = m.TimeInMilliseconds("httpclient",
+				float64(time.Since(before).Nanoseconds())/1000000.0,
+				[]string{
+					"http.client_name:" + c.name,
+					"http.route:" + r.Route,
+					"http.method:" + r.Method,
+					"http.status_code:" + strconv.Itoa(res.StatusCode),
+					"http.retry:" + strconv.FormatBool(attemptCounter > 1),
+				},
+				1,
+			)
+		}
 		addRespToSpan(span, res)
 
 		err = extractHTTPError(req, res, attemptCounter, r.Route)

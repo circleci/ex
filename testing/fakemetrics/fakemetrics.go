@@ -18,7 +18,7 @@ type MetricCall struct {
 }
 
 var CMPMetrics = gocmp.Options{
-	cmpopts.EquateApprox(0, 4),
+	cmpopts.EquateApprox(0, 10),
 	cmpopts.SortSlices(func(x, y MetricCall) bool {
 		const format = "%s|%s|%s"
 		return fmt.Sprintf(format, x.Metric, x.Name, x.Tags) <

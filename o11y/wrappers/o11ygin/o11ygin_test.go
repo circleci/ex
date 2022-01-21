@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -14,16 +15,98 @@ import (
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/testing/testcontext"
+	"github.com/circleci/ex/o11y/honeycomb"
+	"github.com/circleci/ex/testing/fakemetrics"
 )
 
 func TestMiddleware(t *testing.T) {
-	ctx, cancel := context.WithCancel(testcontext.Background())
+	m := &fakemetrics.Provider{}
+
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: m,
+	}))
+	provider := o11y.FromContext(ctx)
+	t.Cleanup(func() {
+		provider.Close(ctx)
+		assert.Check(t, cmp.DeepEqual(
+			[]fakemetrics.MetricCall{
+				{
+					Metric: "timer",
+					Name:   "handler",
+					Tags: []string{
+						"http.server_name:test-server",
+						"http.method:POST",
+						"http.route:/api/:id",
+						"http.status_code:200",
+					},
+					Rate: 1,
+				},
+				{
+					Metric: "timer",
+					Name:   "httpclient",
+					Tags: []string{
+						"http.client_name:test-client",
+						"http.route:/api/%s",
+						"http.method:POST",
+						"http.status_code:200",
+						"http.retry:false",
+					},
+					Rate: 1,
+				},
+				{
+					Metric: "timer",
+					Name:   "handler",
+					Tags: []string{
+						"http.server_name:test-server",
+						"http.method:POST",
+						"http.route:/api/:id",
+						"http.status_code:404",
+					},
+					Rate: 1,
+				},
+				{
+					Metric: "timer",
+					Name:   "httpclient",
+					Tags: []string{
+						"http.client_name:test-client",
+						"http.route:/api/%s",
+						"http.method:POST",
+						"http.status_code:404",
+						"http.retry:false",
+					},
+					Rate: 1,
+				},
+				{
+					Metric: "timer",
+					Name:   "handler",
+					Tags: []string{
+						"http.server_name:test-server",
+						"http.method:POST",
+						"http.route:/api/:id",
+						"http.status_code:500",
+					},
+					Rate: 1,
+				},
+				{
+					Metric: "count",
+					Name:   "panics",
+					Tags: []string{
+						"name:http-server test-server: POST /api/:id",
+					},
+					Rate: 1,
+				},
+			},
+			m.Calls(), fakemetrics.CMPMetrics, cmpopts.IgnoreFields(fakemetrics.MetricCall{}, "Value", "ValueInt")),
+		)
+	})
+
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	r := gin.New()
 	r.Use(
-		Middleware(o11y.FromContext(ctx), "test-server", nil),
+		Middleware(provider, "test-server", nil),
 		Recovery(),
 	)
 	r.UseRawPath = true

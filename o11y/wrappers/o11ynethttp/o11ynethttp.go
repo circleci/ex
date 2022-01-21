@@ -4,12 +4,13 @@ package o11ynethttp
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/honeycombio/beeline-go/wrappers/common"
 
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/o11y/wrappers/baggage"
 )
 
@@ -18,7 +19,10 @@ import (
 //
 // This code is based on github.com/beeline-go/wrappers/hnynethttp/nethttp.go
 func Middleware(provider o11y.Provider, name string, handler http.Handler) http.Handler {
+	m := provider.MetricsProvider()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		before := time.Now()
+
 		// TODO: stop using honeycomb's built-in request parsing, use our own that follows otel naming specs
 		ctx, span := common.StartSpanOrTraceFromHTTP(r)
 		defer span.Send()
@@ -40,8 +44,19 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		}
 		span.AddField("response.status_code", sw.status)
 
-		honeycomb.WrapSpan(span).RecordMetric(o11y.Timing("handler",
-			"server_name", "request.method", "request.route", "response.status_code", "has_panicked"))
+		if m != nil {
+			_ = m.TimeInMilliseconds("handler",
+				float64(time.Since(before).Nanoseconds())/1000000.0,
+				[]string{
+					"server_name:" + name,
+					"request.method:" + r.Method,
+					"request.route:unknown",
+					"response.status_code:" + strconv.Itoa(sw.status),
+					//TODO: "has_panicked:"+,
+				},
+				1,
+			)
+		}
 	})
 }
 
