@@ -20,10 +20,6 @@ type MetricProducer interface {
 	Gauges(context.Context) map[string]float64
 }
 
-type tagProducer interface {
-	Tags(context.Context) map[string][]string
-}
-
 func traceMetrics(ctx context.Context, producers []MetricProducer) {
 	metrics := o11y.FromContext(ctx).MetricsProvider()
 	for _, producer := range producers {
@@ -33,26 +29,23 @@ func traceMetrics(ctx context.Context, producers []MetricProducer) {
 
 func traceMetric(ctx context.Context, provider o11y.MetricsProvider, producer MetricProducer) {
 	producerName := strings.Replace(producer.MetricName(), "-", "_", -1)
-	var tags map[string][]string
-	if p, ok := producer.(tagProducer); ok {
-		tags = p.Tags(ctx)
-	}
 	for f, v := range producer.Gauges(ctx) {
 		scopedField := fmt.Sprintf("gauge.%s.%s", producerName, f)
-		_ = provider.Gauge(scopedField, v, tags[f], 1)
+		_ = provider.Gauge(scopedField, v, []string{}, 1)
 	}
 }
 
 // metrics reporter returns a function that is expected to be used in a call to errgroup.Go
 // that func starts a worker that periodically calls and publishes the gauges from the producers.
-func metricsReporter(ctx context.Context, makers []MetricProducer) func() error {
+func metricsReporter(ctx context.Context, mps []MetricProducer, gps []GaugeProducer) func() error {
 	return func() error {
 		cfg := worker.Config{
 			Name:          "metric-loop",
 			MaxWorkTime:   time.Second,
 			NoWorkBackOff: backoff.NewConstantBackOff(time.Second * 10),
 			WorkFunc: func(ctx context.Context) error {
-				traceMetrics(ctx, makers)
+				traceMetrics(ctx, mps)
+				emitGauges(ctx, gps)
 				return worker.ErrShouldBackoff
 			},
 		}
