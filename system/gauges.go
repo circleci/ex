@@ -17,7 +17,7 @@ type GaugeProducer interface {
 }
 
 type TaggedValue struct {
-	Val  float32
+	Val  float64
 	Tags []string
 }
 
@@ -33,7 +33,7 @@ func emitGauge(ctx context.Context, provider o11y.MetricsProvider, producer Gaug
 	for f, tvs := range producer.Gauges(ctx) {
 		for _, tv := range tvs {
 			scopedField := fmt.Sprintf("gauge.%s.%s", producerName, f)
-			_ = provider.Gauge(scopedField, float64(tv.Val), tv.Tags, 1)
+			_ = provider.Gauge(scopedField, tv.Val, tv.Tags, 1)
 		}
 	}
 }
