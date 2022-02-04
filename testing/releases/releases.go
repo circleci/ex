@@ -56,22 +56,49 @@ func (d *Releases) decodeVersion(r io.Reader) (string, error) {
 
 // ResolveURL gets the raw download URL for a release, based on the requirements (version, OS, arch)
 func (d *Releases) ResolveURL(ctx context.Context, rq Requirements) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", d.baseURL+"/"+rq.Version+"/checksums.txt", nil)
+	r, err := d.resolveURLs(ctx, rq)
 	if err != nil {
 		return "", err
+	}
+	return r[0], nil
+}
+
+// ResolveURLs gets the raw download URLs for all binaries of a release, based on the requirements (version, OS, arch)
+func (d *Releases) ResolveURLs(ctx context.Context, rq Requirements) (map[string]string, error) {
+	r, err := d.resolveURLs(ctx, rq)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]string)
+	for _, p := range r {
+		_, file := path.Split(p)
+		file = strings.TrimSuffix(file, ".exe")
+		result[file] = p
+	}
+	return result, nil
+}
+
+func (d *Releases) resolveURLs(ctx context.Context, rq Requirements) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", d.baseURL+"/"+rq.Version+"/checksums.txt", nil)
+	if err != nil {
+		return nil, err
 	}
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer res.Body.Close()
 	if res.StatusCode >= 300 {
-		return "", ErrNotFound
+		return nil, ErrNotFound
 	}
-	return d.decodeDownload(res.Body, rq)
+	r, err := d.decodeDownload(res.Body, rq)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
-func (d *Releases) decodeDownload(r io.Reader, rq Requirements) (string, error) {
+func (d *Releases) decodeDownload(r io.Reader, rq Requirements) (result []string, err error) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		txt := scanner.Text()
@@ -82,8 +109,11 @@ func (d *Releases) decodeDownload(r io.Reader, rq Requirements) (string, error) 
 			filename := path.Clean(parts[1][1:])
 			filename = strings.TrimPrefix(filename, "/")
 
-			return fmt.Sprintf("%s/%s/%s", d.baseURL, rq.Version, filename), nil
+			result = append(result, fmt.Sprintf("%s/%s/%s", d.baseURL, rq.Version, filename))
 		}
 	}
-	return "", ErrNotFound
+	if len(result) == 0 {
+		return nil, ErrNotFound
+	}
+	return result, nil
 }
