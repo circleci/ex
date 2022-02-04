@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"path"
 	"strings"
+	"time"
+
+	"github.com/circleci/ex/httpclient"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -22,36 +24,35 @@ type Requirements struct {
 // Releases helps find the latest release and download URL for artifacts using the execution release structure.
 type Releases struct {
 	baseURL string
+	client  *httpclient.Client
 }
 
 func New(baseURL string) *Releases {
-	return &Releases{baseURL: baseURL}
+	return &Releases{baseURL: baseURL, client: httpclient.New(httpclient.Config{
+		Name:    "releases",
+		BaseURL: baseURL,
+	})}
 }
 
 // Version gets the latest released version of an artifact.
 func (d *Releases) Version(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", d.baseURL+"/release.txt", nil)
-	if err != nil {
-		return "", err
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-	if res.StatusCode >= 300 {
-		return "", ErrNotFound
-	}
-	return d.decodeVersion(res.Body)
+	req := httpclient.NewRequest("GET", "/release.txt", time.Minute)
+	version := ""
+	req.Decoder = d.decodeVersion(&version)
+	err := d.client.Call(ctx, req)
+	return version, err
 }
 
-func (d *Releases) decodeVersion(r io.Reader) (string, error) {
-	scanner := bufio.NewScanner(r)
-	if !scanner.Scan() {
-		return "", ErrNotFound
+func (d *Releases) decodeVersion(out *string) func(reader io.Reader) error {
+	return func(r io.Reader) error {
+		scanner := bufio.NewScanner(r)
+		if !scanner.Scan() {
+			return ErrNotFound
+		}
+		txt := scanner.Text()
+		*out = txt
+		return nil
 	}
-
-	return scanner.Text(), nil
 }
 
 // ResolveURL gets the raw download URL for a release, based on the requirements (version, OS, arch)
@@ -79,41 +80,31 @@ func (d *Releases) ResolveURLs(ctx context.Context, rq Requirements) (map[string
 }
 
 func (d *Releases) resolveURLs(ctx context.Context, rq Requirements) ([]string, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", d.baseURL+"/"+rq.Version+"/checksums.txt", nil)
-	if err != nil {
-		return nil, err
-	}
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	if res.StatusCode >= 300 {
-		return nil, ErrNotFound
-	}
-	r, err := d.decodeDownload(res.Body, rq)
-	if err != nil {
-		return nil, err
-	}
-	return r, nil
+	req := httpclient.NewRequest("GET", "/"+rq.Version+"/checksums.txt", time.Minute)
+	r := make([]string, 0)
+	req.Decoder = d.decodeDownload(rq, &r)
+	err := d.client.Call(ctx, req)
+	return r, err
 }
 
-func (d *Releases) decodeDownload(r io.Reader, rq Requirements) (result []string, err error) {
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		txt := scanner.Text()
-		if strings.Contains(txt, rq.OS) && strings.Contains(txt, rq.Arch) {
-			parts := strings.Split(txt, " ")
+func (d *Releases) decodeDownload(rq Requirements, result *[]string) func(reader io.Reader) error {
+	return func(reader io.Reader) error {
+		scanner := bufio.NewScanner(reader)
+		for scanner.Scan() {
+			txt := scanner.Text()
+			if strings.Contains(txt, rq.OS) && strings.Contains(txt, rq.Arch) {
+				parts := strings.Split(txt, " ")
 
-			// with some releases the file part is stored with a leading *./
-			filename := path.Clean(parts[1][1:])
-			filename = strings.TrimPrefix(filename, "/")
+				// with some releases the file part is stored with a leading *./
+				filename := path.Clean(parts[1][1:])
+				filename = strings.TrimPrefix(filename, "/")
 
-			result = append(result, fmt.Sprintf("%s/%s/%s", d.baseURL, rq.Version, filename))
+				*result = append(*result, fmt.Sprintf("%s/%s/%s", d.baseURL, rq.Version, filename))
+			}
 		}
+		if len(*result) == 0 {
+			return ErrNotFound
+		}
+		return nil
 	}
-	if len(result) == 0 {
-		return nil, ErrNotFound
-	}
-	return result, nil
 }
