@@ -72,10 +72,11 @@ func TestClient_Call_Propagates(t *testing.T) {
 
 func TestClient_Call_Decodes(t *testing.T) {
 	ctx := testcontext.Background()
+	// language=json
+	const body = `{"a": "value-a", "b": "value-b"}`
 
 	okHandler := func(w http.ResponseWriter, r *http.Request) {
-		// language=json
-		_, _ = io.WriteString(w, `{"a": "value-a", "b": "value-b"}`)
+		_, _ = io.WriteString(w, body)
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(okHandler))
@@ -84,17 +85,43 @@ func TestClient_Call_Decodes(t *testing.T) {
 		BaseURL: server.URL,
 		Timeout: time.Second,
 	})
-	req := NewRequest("POST", "/", time.Second)
 
-	m := make(map[string]string)
-	req.Decoder = NewJSONDecoder(&m)
+	t.Run("Decode JSON", func(t *testing.T) {
+		req := NewRequest("POST", "/", time.Second)
 
-	err := client.Call(ctx, req)
-	assert.Check(t, err)
-	assert.Check(t, cmp.DeepEqual(m, map[string]string{
-		"a": "value-a",
-		"b": "value-b",
-	}))
+		m := make(map[string]string)
+		req.Decoder = NewJSONDecoder(&m)
+
+		err := client.Call(ctx, req)
+		assert.Check(t, err)
+		assert.Check(t, cmp.DeepEqual(m, map[string]string{
+			"a": "value-a",
+			"b": "value-b",
+		}))
+	})
+
+	t.Run("Decode bytes", func(t *testing.T) {
+		req := NewRequest("POST", "/", time.Second)
+
+		var bs []byte
+		req.Decoder = NewBytesDecoder(&bs)
+
+		err := client.Call(ctx, req)
+		assert.Check(t, err)
+		assert.Check(t, cmp.DeepEqual(bs, []byte(body)))
+	})
+
+	t.Run("Decode string", func(t *testing.T) {
+		req := NewRequest("POST", "/", time.Second)
+
+		var s string
+		req.Decoder = NewStringDecoder(&s)
+
+		err := client.Call(ctx, req)
+		assert.Check(t, err)
+		assert.Check(t, cmp.Equal(s, body))
+	})
+
 }
 
 func TestClient_Call_NoContent(t *testing.T) {

@@ -20,7 +20,7 @@ func TestReleases_Version(t *testing.T) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
-		_, _ = io.WriteString(w, "1.2.3-abc")
+		_, _ = io.WriteString(w, "1.2.3-abc\n")
 	}))
 
 	rel := New(srv.URL)
