@@ -1,11 +1,9 @@
 package releases
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"path"
 	"strings"
 	"time"
@@ -38,21 +36,13 @@ func New(baseURL string) *Releases {
 func (d *Releases) Version(ctx context.Context) (string, error) {
 	req := httpclient.NewRequest("GET", "/release.txt", time.Minute)
 	version := ""
-	req.Decoder = d.decodeVersion(&version)
+	req.Decoder = httpclient.NewStringDecoder(&version)
 	err := d.client.Call(ctx, req)
-	return version, err
-}
-
-func (d *Releases) decodeVersion(out *string) func(reader io.Reader) error {
-	return func(r io.Reader) error {
-		scanner := bufio.NewScanner(r)
-		if !scanner.Scan() {
-			return ErrNotFound
-		}
-		txt := scanner.Text()
-		*out = txt
-		return nil
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return version, ErrNotFound
 	}
+	return version, err
 }
 
 // ResolveURL gets the raw download URL for a release, based on the requirements (version, OS, arch)
@@ -81,30 +71,30 @@ func (d *Releases) ResolveURLs(ctx context.Context, rq Requirements) (map[string
 
 func (d *Releases) resolveURLs(ctx context.Context, rq Requirements) ([]string, error) {
 	req := httpclient.NewRequest("GET", "/"+rq.Version+"/checksums.txt", time.Minute)
-	r := make([]string, 0)
-	req.Decoder = d.decodeDownload(rq, &r)
+	urls := ""
+	req.Decoder = httpclient.NewStringDecoder(&urls)
 	err := d.client.Call(ctx, req)
-	return r, err
+	if err != nil {
+		return nil, err
+	}
+	return d.decodeDownload(rq, urls)
 }
 
-func (d *Releases) decodeDownload(rq Requirements, result *[]string) func(reader io.Reader) error {
-	return func(reader io.Reader) error {
-		scanner := bufio.NewScanner(reader)
-		for scanner.Scan() {
-			txt := scanner.Text()
-			if strings.Contains(txt, rq.OS) && strings.Contains(txt, rq.Arch) {
-				parts := strings.Split(txt, " ")
+func (d *Releases) decodeDownload(rq Requirements, urls string) ([]string, error) {
+	result := make([]string, 0)
+	for _, txt := range strings.Split(urls, "\n") {
+		if strings.Contains(txt, rq.OS) && strings.Contains(txt, rq.Arch) {
+			parts := strings.Split(txt, " ")
 
-				// with some releases the file part is stored with a leading *./
-				filename := path.Clean(parts[1][1:])
-				filename = strings.TrimPrefix(filename, "/")
+			// with some releases the file part is stored with a leading *./
+			filename := path.Clean(parts[1][1:])
+			filename = strings.TrimPrefix(filename, "/")
 
-				*result = append(*result, fmt.Sprintf("%s/%s/%s", d.baseURL, rq.Version, filename))
-			}
+			result = append(result, fmt.Sprintf("%s/%s/%s", d.baseURL, rq.Version, filename))
 		}
-		if len(*result) == 0 {
-			return ErrNotFound
-		}
-		return nil
 	}
+	if len(result) == 0 {
+		return result, ErrNotFound
+	}
+	return result, nil
 }

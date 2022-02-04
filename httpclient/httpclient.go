@@ -94,14 +94,14 @@ func (c *Client) CloseIdleConnections() {
 	c.httpClient.CloseIdleConnections()
 }
 
-type decoder func(r io.Reader) error
+type Decoder func(r io.Reader) error
 
 // Request is an individual http request that the Client will send
 type Request struct {
 	Method        string
 	Route         string
 	Body          interface{} // If set this will be sent as JSON
-	Decoder       decoder     // If set will be used to decode the response body
+	Decoder       Decoder     // If set will be used to decode the response body
 	Cookie        *http.Cookie
 	Headers       map[string]string
 	Timeout       time.Duration // The individual per call timeout
@@ -327,11 +327,36 @@ func (c *Client) setLast429() {
 // NewJSONDecoder returns a decoder func enclosing the resp param
 // the func returned takes an io reader which will be passed to a json decoder to
 // decode into the resp.
-func NewJSONDecoder(resp interface{}) decoder {
+func NewJSONDecoder(resp interface{}) Decoder {
 	return func(r io.Reader) error {
 		if err := json.NewDecoder(r).Decode(resp); err != nil {
 			return fmt.Errorf("failed to unmarshal: %w", err)
 		}
+		return nil
+	}
+}
+
+// NewBytesDecoder decodes the response body into a byte slice
+func NewBytesDecoder(resp *[]byte) Decoder {
+	return func(r io.Reader) error {
+		bs, err := io.ReadAll(r)
+		if err != nil {
+			return err
+		}
+		*resp = bs
+		return nil
+	}
+}
+
+// NewStringDecoder decodes the response body into a string
+func NewStringDecoder(resp *string) Decoder {
+	return func(r io.Reader) error {
+		var bs []byte
+		err := NewBytesDecoder(&bs)(r)
+		if err != nil {
+			return err
+		}
+		*resp = string(bs)
 		return nil
 	}
 }
