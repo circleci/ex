@@ -24,16 +24,18 @@ func TestParallel_Compile(t *testing.T) {
 
 	assert.Assert(t, t.Run("Compile binaries", func(t *testing.T) {
 		c.Add(Work{
-			Result: &binary1,
-			Name:   "binary1",
-			Target: "../..",
-			Source: "./testing/compiler/internal/cmd",
+			Result:      &binary1,
+			Name:        "binary1",
+			Target:      "../..",
+			Source:      "./testing/compiler/internal/cmd",
+			Environment: []string{"FOO=foo1", "BAR=bar1"},
 		})
 		c.Add(Work{
-			Result: &binary2,
-			Name:   "binary2",
-			Target: "../..",
-			Source: "./testing/compiler/internal/cmd2",
+			Result:      &binary2,
+			Name:        "binary2",
+			Target:      "../..",
+			Source:      "./testing/compiler/internal/cmd2",
+			Environment: []string{"FOO=foo2", "BAR=bar2"},
 		})
 
 		err := c.Run(context.Background())
