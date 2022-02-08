@@ -36,7 +36,7 @@ func New(baseURL string) *Releases {
 func (d *Releases) Version(ctx context.Context) (string, error) {
 	req := httpclient.NewRequest("GET", "/release.txt", time.Minute)
 	version := ""
-	req.Decoder = httpclient.NewStringDecoder(&version)
+	req.AddDecoder(200, httpclient.NewStringDecoder(&version))
 	err := d.client.Call(ctx, req)
 	version = strings.TrimSpace(version)
 	if version == "" {
@@ -72,7 +72,7 @@ func (d *Releases) ResolveURLs(ctx context.Context, rq Requirements) (map[string
 func (d *Releases) resolveURLs(ctx context.Context, rq Requirements) ([]string, error) {
 	req := httpclient.NewRequest("GET", "/"+rq.Version+"/checksums.txt", time.Minute)
 	urls := ""
-	req.Decoder = httpclient.NewStringDecoder(&urls)
+	req.AddDecoder(200, httpclient.NewStringDecoder(&urls))
 	err := d.client.Call(ctx, req)
 	if err != nil {
 		return nil, err
