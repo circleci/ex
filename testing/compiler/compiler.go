@@ -32,27 +32,45 @@ func (c *Compiler) Cleanup() {
 	_ = os.RemoveAll(c.dir)
 }
 
+type Work struct {
+	Name        string
+	Target      string
+	Source      string
+	Environment []string
+
+	Result *string
+}
+
 // Compile a binary for testing. target is the path to the main package.
-func (c *Compiler) Compile(ctx context.Context, name, target string, source string) (string, error) {
-	cwd, err := filepath.Abs(target)
+func (c *Compiler) Compile(ctx context.Context, work Work) (string, error) {
+	cwd, err := filepath.Abs(work.Target)
 	if err != nil {
 		return "", err
 	}
 
-	path := binaryPath(name, c.dir)
+	path := binaryPath(work.Name, c.dir)
 	goBin := goPath()
 	// #nosec - this is fine
 	cmd := exec.CommandContext(ctx, goBin, "build",
 		"-ldflags=-w -s",
 		"-o", path,
-		source,
+		work.Source,
 	)
 	cmd.Dir = cwd
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	cmd.Env = append(cmd.Env, work.Environment...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return path, cmd.Run()
+	err = cmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	if work.Result != nil {
+		*work.Result = path
+	}
+	return path, err
 }
 
 func goPath() string {

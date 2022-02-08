@@ -30,13 +30,6 @@ func (t *Parallel) Cleanup() {
 	close(t.work)
 }
 
-type Work struct {
-	Result *string
-	Name   string
-	Target string
-	Source string
-}
-
 func (t *Parallel) Add(work Work) {
 	if work.Result == nil {
 		panic("work.Result not set")
@@ -63,11 +56,10 @@ func (t *Parallel) Run(ctx context.Context) error {
 			for {
 				select {
 				case w := <-t.work:
-					res, err := t.compiler.Compile(ctx, w.Name, w.Target, w.Source)
+					_, err := t.compiler.Compile(ctx, w)
 					if err != nil {
 						return err
 					}
-					*w.Result = res
 				default:
 					return nil
 				}

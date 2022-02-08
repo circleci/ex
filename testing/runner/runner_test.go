@@ -20,7 +20,11 @@ func TestRunner(t *testing.T) {
 	t.Cleanup(c.Cleanup)
 
 	var err error
-	binary, err = c.Compile(ctx, "my-binary", ".", "./internal/testservice")
+	binary, err = c.Compile(ctx, compiler.Work{
+		Name:   "my-binary",
+		Target: ".",
+		Source: "./internal/testservice",
+	})
 	assert.Assert(t, err)
 
 	t.Run("api_and_admin", func(t *testing.T) {
