@@ -96,12 +96,18 @@ func (c *Client) CloseIdleConnections() {
 
 type Decoder func(r io.Reader) error
 
+const successDecodeStatus = -1
+
 // Request is an individual http request that the Client will send
 type Request struct {
-	Method        string
-	Route         string
-	Body          interface{} // If set this will be sent as JSON
-	Decoder       Decoder     // If set will be used to decode the response body
+	Method string
+	Route  string
+	Body   interface{} // If set this will be sent as JSON
+
+	// Deprecated: Use Decoders instead. If set will be used to decode the response body
+	Decoder Decoder
+
+	Decoders      map[int]Decoder // If set will be used to decode the response body by http status code
 	Cookie        *http.Cookie
 	Headers       map[string]string
 	Timeout       time.Duration // The individual per call timeout
@@ -122,6 +128,20 @@ func NewRequest(method, route string, timeout time.Duration, routeParams ...inte
 		Route:   route,
 		Timeout: timeout,
 	}
+}
+
+// AddSuccessDecoder adds a decoder for all 2xx statuses
+func (r *Request) AddSuccessDecoder(decoder Decoder) *Request {
+	return r.AddDecoder(successDecodeStatus, decoder)
+}
+
+// AddDecoder adds a specific response body decoder to some http status code
+func (r *Request) AddDecoder(status int, decoder Decoder) *Request {
+	if r.Decoders == nil {
+		r.Decoders = map[int]Decoder{}
+	}
+	r.Decoders[status] = decoder
+	return r
 }
 
 // Call makes the request call. It will trace out a top level span and a span for any retry attempts.
@@ -262,17 +282,20 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			if HasStatusCode(err, http.StatusTooManyRequests) {
 				c.setLast429()
 			}
+
+			errDecode := r.decodeBody(res, false, attemptCounter)
+			if errDecode != nil {
+				return errDecode
+			}
+
 			return err
 		}
-		if r.Decoder == nil {
-			return nil
-		}
-		err = r.Decoder(res.Body)
+
+		err = r.decodeBody(res, true, attemptCounter)
 		if err != nil {
-			// do not retry decoding errors
-			return backoff.Permanent(fmt.Errorf("call: %s %s decoding failed with: %w after %d attempt(s)",
-				req.Method, r.Route, err, attemptCounter))
+			return err
 		}
+
 		return nil
 	}
 
@@ -280,6 +303,35 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	bo.InitialInterval = time.Millisecond * 50
 	bo.MaxElapsedTime = c.backOffMaxElapsedTime
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
+}
+
+func (r Request) decodeBody(resp *http.Response, success bool, attemptCounter int) error {
+
+	var decoder Decoder
+
+	if success {
+		if d, ok := r.Decoders[successDecodeStatus]; ok {
+			decoder = d
+		} else if r.Decoder != nil { // TODO: Remove when Request.Decoder is removed
+			decoder = r.Decoder
+		}
+	}
+
+	code := resp.StatusCode
+	if d, ok := r.Decoders[code]; ok {
+		decoder = d
+	}
+
+	if decoder != nil {
+		err := decoder(resp.Body)
+		if err != nil {
+			// do not retry decoding errors
+			return backoff.Permanent(fmt.Errorf("call: %s %s decoding failed with: %w after %d attempt(s)",
+				r.Method, r.Route, err, attemptCounter))
+		}
+	}
+
+	return nil
 }
 
 func addReqToSpan(span o11y.Span, req *http.Request, attempt int) {

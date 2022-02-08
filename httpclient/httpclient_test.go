@@ -13,12 +13,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/honeycombio/beeline-go/propagation"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/httpserver"
+	"github.com/circleci/ex/httpserver/ginrouter"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/wrappers/o11ynethttp"
 	"github.com/circleci/ex/testing/httprecorder"
@@ -75,11 +77,18 @@ func TestClient_Call_Decodes(t *testing.T) {
 	// language=json
 	const body = `{"a": "value-a", "b": "value-b"}`
 
-	okHandler := func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, body)
-	}
+	router := ginrouter.Default(ctx, "httpclient")
+	router.POST("/ok", func(c *gin.Context) {
+		c.Data(200, "application/json", []byte(body))
+	})
+	router.POST("/bad", func(c *gin.Context) {
+		c.Data(400, "application/json", []byte(body))
+	})
 
-	server := httptest.NewServer(http.HandlerFunc(okHandler))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		router.ServeHTTP(w, req)
+	}))
+
 	client := New(Config{
 		Name:    "name",
 		BaseURL: server.URL,
@@ -87,10 +96,10 @@ func TestClient_Call_Decodes(t *testing.T) {
 	})
 
 	t.Run("Decode JSON", func(t *testing.T) {
-		req := NewRequest("POST", "/", time.Second)
+		req := NewRequest("POST", "/ok", time.Second)
 
 		m := make(map[string]string)
-		req.Decoder = NewJSONDecoder(&m)
+		req.AddDecoder(200, NewJSONDecoder(&m))
 
 		err := client.Call(ctx, req)
 		assert.Check(t, err)
@@ -101,18 +110,18 @@ func TestClient_Call_Decodes(t *testing.T) {
 	})
 
 	t.Run("Decode bytes", func(t *testing.T) {
-		req := NewRequest("POST", "/", time.Second)
+		req := NewRequest("POST", "/ok", time.Second)
 
 		var bs []byte
-		req.Decoder = NewBytesDecoder(&bs)
+		req.AddSuccessDecoder(NewBytesDecoder(&bs))
 
 		err := client.Call(ctx, req)
 		assert.Check(t, err)
 		assert.Check(t, cmp.DeepEqual(bs, []byte(body)))
 	})
 
-	t.Run("Decode string", func(t *testing.T) {
-		req := NewRequest("POST", "/", time.Second)
+	t.Run("Decode string (with deprecated decoder field)", func(t *testing.T) {
+		req := NewRequest("POST", "/ok", time.Second)
 
 		var s string
 		req.Decoder = NewStringDecoder(&s)
@@ -122,6 +131,17 @@ func TestClient_Call_Decodes(t *testing.T) {
 		assert.Check(t, cmp.Equal(s, body))
 	})
 
+	t.Run("Decode errors", func(t *testing.T) {
+		req := NewRequest("POST", "/bad", time.Second)
+
+		var s string
+		req.AddDecoder(400, NewStringDecoder(&s))
+
+		err := client.Call(ctx, req)
+		assert.Check(t, HasStatusCode(err, 400))
+		assert.Check(t, cmp.Equal(s, body))
+
+	})
 }
 
 func TestClient_Call_NoContent(t *testing.T) {
