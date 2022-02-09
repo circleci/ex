@@ -34,10 +34,12 @@ func New(baseURL string) *Releases {
 
 // Version gets the latest released version of an artifact.
 func (d *Releases) Version(ctx context.Context) (string, error) {
-	req := httpclient.NewRequest("GET", "/release.txt", time.Minute)
 	version := ""
-	req.AddDecoder(200, httpclient.NewStringDecoder(&version))
-	err := d.client.Call(ctx, req)
+
+	err := httpclient.NewRequest("GET", "/release.txt", time.Minute).
+		AddSuccessDecoder(httpclient.NewStringDecoder(&version)).
+		Call(ctx, d.client)
+
 	version = strings.TrimSpace(version)
 	if version == "" {
 		return version, ErrNotFound
@@ -70,10 +72,12 @@ func (d *Releases) ResolveURLs(ctx context.Context, rq Requirements) (map[string
 }
 
 func (d *Releases) resolveURLs(ctx context.Context, rq Requirements) ([]string, error) {
-	req := httpclient.NewRequest("GET", "/"+rq.Version+"/checksums.txt", time.Minute)
 	urls := ""
-	req.AddDecoder(200, httpclient.NewStringDecoder(&urls))
-	err := d.client.Call(ctx, req)
+
+	err := httpclient.NewRequest("GET", "/"+rq.Version+"/checksums.txt", time.Minute).
+		AddSuccessDecoder(httpclient.NewStringDecoder(&urls)).
+		Call(ctx, d.client)
+
 	if err != nil {
 		return nil, err
 	}

@@ -134,18 +134,28 @@ func NewRequest(method, route string, timeout time.Duration, routeParams ...inte
 	}
 }
 
-// AddSuccessDecoder adds a decoder for all 2xx statuses
-func (r *Request) AddSuccessDecoder(decoder Decoder) *Request {
-	return r.AddDecoder(successDecodeStatus, decoder)
-}
-
-// AddDecoder adds a specific response body decoder to some http status code
-func (r *Request) AddDecoder(status int, decoder Decoder) *Request {
+// AddDecoder returns a new request with a specific response body decoder to some http status code
+// Note this will not modify the original request.
+// Example usage:
+// 		err := NewRequest("POST", "/bad", time.Second).
+// 			AddDecoder(400, NewStringDecoder(&s)).
+//		 	Call(ctx, client)
+func (r Request) AddDecoder(status int, decoder Decoder) Request {
 	if r.Decoders == nil {
 		r.Decoders = map[int]Decoder{}
 	}
 	r.Decoders[status] = decoder
 	return r
+}
+
+// AddSuccessDecoder returns a new request with a decoder for all 2xx statuses
+func (r Request) AddSuccessDecoder(decoder Decoder) Request {
+	return r.AddDecoder(successDecodeStatus, decoder)
+}
+
+// Call is a convenience method to invoke call on the request itself
+func (r Request) Call(ctx context.Context, c *Client) error {
+	return c.Call(ctx, r)
 }
 
 // Call makes the request call. It will trace out a top level span and a span for any retry attempts.
