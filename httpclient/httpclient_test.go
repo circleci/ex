@@ -96,12 +96,12 @@ func TestClient_Call_Decodes(t *testing.T) {
 	})
 
 	t.Run("Decode JSON", func(t *testing.T) {
-		req := NewRequest("POST", "/ok", time.Second)
-
 		m := make(map[string]string)
-		req.AddDecoder(200, NewJSONDecoder(&m))
 
-		err := client.Call(ctx, req)
+		err := NewRequest("POST", "/ok", time.Second).
+			AddDecoder(200, NewJSONDecoder(&m)).
+			Call(ctx, client)
+
 		assert.Check(t, err)
 		assert.Check(t, cmp.DeepEqual(m, map[string]string{
 			"a": "value-a",
@@ -110,12 +110,12 @@ func TestClient_Call_Decodes(t *testing.T) {
 	})
 
 	t.Run("Decode bytes", func(t *testing.T) {
-		req := NewRequest("POST", "/ok", time.Second)
-
 		var bs []byte
-		req.AddSuccessDecoder(NewBytesDecoder(&bs))
 
-		err := client.Call(ctx, req)
+		err := NewRequest("POST", "/ok", time.Second).
+			AddSuccessDecoder(NewBytesDecoder(&bs)).
+			Call(ctx, client)
+
 		assert.Check(t, err)
 		assert.Check(t, cmp.DeepEqual(bs, []byte(body)))
 	})
@@ -132,12 +132,11 @@ func TestClient_Call_Decodes(t *testing.T) {
 	})
 
 	t.Run("Decode errors", func(t *testing.T) {
-		req := NewRequest("POST", "/bad", time.Second)
-
 		var s string
-		req.AddDecoder(400, NewStringDecoder(&s))
+		err := NewRequest("POST", "/bad", time.Second).
+			AddDecoder(400, NewStringDecoder(&s)).
+			Call(ctx, client)
 
-		err := client.Call(ctx, req)
 		assert.Check(t, HasStatusCode(err, 400))
 		assert.Check(t, cmp.Equal(s, body))
 
