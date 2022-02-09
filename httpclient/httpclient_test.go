@@ -279,9 +279,10 @@ func TestClient_Call_SetQuery(t *testing.T) {
 	}))
 
 	client := New(Config{
-		Name:    "context-cancel",
-		BaseURL: server.URL,
-		Timeout: 10 * time.Second,
+		Name:      "context-cancel",
+		BaseURL:   server.URL,
+		Timeout:   10 * time.Second,
+		UserAgent: "Foo",
 	})
 	req := NewRequest("POST", "/", time.Second)
 	req.Query = url.Values{}
@@ -295,7 +296,7 @@ func TestClient_Call_SetQuery(t *testing.T) {
 		Header: http.Header{
 			"Accept-Encoding":                      {"gzip"},
 			"Content-Length":                       {"0"},
-			"User-Agent":                           {"Go-http-client/1.1"},
+			"User-Agent":                           {"Foo"},
 			propagation.TracePropagationHTTPHeader: {""},
 		},
 		Body: []uint8{},
