@@ -48,6 +48,8 @@ type Config struct {
 	Timeout time.Duration
 	// MaxConnectionsPerHost sets the connection pool size
 	MaxConnectionsPerHost int
+	// UserAgent that will be used for every request
+	UserAgent string
 }
 
 // Client is the o11y instrumented http client.
@@ -59,6 +61,7 @@ type Client struct {
 	authToken             string
 	authHeader            string
 	acceptType            string
+	additionalHeaders     map[string]string
 
 	mu      sync.RWMutex
 	last429 time.Time
@@ -80,6 +83,7 @@ func New(cfg Config) *Client {
 		baseURL:               cfg.BaseURL,
 		backOffMaxElapsedTime: cfg.Timeout,
 		authHeader:            cfg.AuthHeader,
+		additionalHeaders:     map[string]string{"User-Agent": cfg.UserAgent},
 		authToken:             cfg.AuthToken,
 		acceptType:            cfg.AcceptType,
 		httpClient: &http.Client{
@@ -174,6 +178,9 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 			}
 		}
 
+		for k, v := range c.additionalHeaders {
+			req.Header.Set(k, v)
+		}
 		for k, v := range r.Headers {
 			req.Header.Set(k, v)
 		}
