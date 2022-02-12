@@ -18,20 +18,37 @@ type HTTPServer struct {
 	server   *http.Server
 }
 
-func New(ctx context.Context, name, addr string, handler http.Handler) (s *HTTPServer, err error) {
-	ctx, span := o11y.StartSpan(ctx, "server: new-server "+name)
-	defer o11y.End(span, &err)
-	span.AddField("server_name", name)
-	span.AddField("address", addr)
+type Config struct {
+	// Name is the name of the server in o11y
+	Name string
+	// Addr is the address to listen on
+	Addr string
+	// Handler is the  HTTP handler to delegate requests to.
+	Handler http.Handler
 
-	ln, err := net.Listen("tcp", addr)
+	// Optional
+	// Network must be "tcp", "tcp4", "tcp6", "unix", "unixpacket" or "" (which defaults to tcp).
+	Network string
+}
+
+func New(ctx context.Context, cfg Config) (s *HTTPServer, err error) {
+	ctx, span := o11y.StartSpan(ctx, "server: new-server "+cfg.Name)
+	defer o11y.End(span, &err)
+	if cfg.Network == "" {
+		cfg.Network = "tcp"
+	}
+	span.AddField("server_name", cfg.Name)
+	span.AddField("address", cfg.Addr)
+	span.AddField("network", cfg.Network)
+
+	ln, err := net.Listen(cfg.Network, cfg.Addr)
 	if err != nil {
 		return nil, err
 	}
 
 	tr := &trackedListener{
 		Listener: ln,
-		name:     name,
+		name:     cfg.Name,
 	}
 	ln = tr
 
@@ -40,8 +57,8 @@ func New(ctx context.Context, name, addr string, handler http.Handler) (s *HTTPS
 	return &HTTPServer{
 		listener: tr,
 		server: &http.Server{
-			Addr:         addr,
-			Handler:      handler,
+			Addr:         cfg.Addr,
+			Handler:      cfg.Handler,
 			ReadTimeout:  55 * time.Second,
 			WriteTimeout: 55 * time.Second,
 		},

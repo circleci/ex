@@ -104,7 +104,11 @@ func TestMiddleware(t *testing.T) {
 		}
 	})
 
-	srv, err := httpserver.New(ctx, "test-server", "127.0.0.1:0", Middleware(provider, "test-server", r))
+	srv, err := httpserver.New(ctx, httpserver.Config{
+		Name:    "test-server",
+		Addr:    "localhost:0",
+		Handler: Middleware(provider, "test-server", r),
+	})
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -223,7 +227,11 @@ func TestMiddleware_with_sampling(t *testing.T) {
 		}
 	})
 
-	srv, err := httpserver.New(ctx, "test-server", "127.0.0.1:0", Middleware(provider, "test-server", r))
+	srv, err := httpserver.New(ctx, httpserver.Config{
+		Name:    "test-server",
+		Addr:    "localhost:0",
+		Handler: Middleware(provider, "test-server", r),
+	})
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)

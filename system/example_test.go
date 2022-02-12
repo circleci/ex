@@ -63,6 +63,10 @@ func run() (err error) {
 func loadAPI(ctx context.Context, cli cli, sys *system.System) error {
 	r := ginrouter.Default(ctx, "api")
 
-	_, err := httpserver.Load(ctx, "api", cli.APIAddr, r, sys)
+	_, err := httpserver.Load(ctx, httpserver.Config{
+		Name:    "api",
+		Addr:    cli.APIAddr,
+		Handler: r,
+	}, sys)
 	return err
 }

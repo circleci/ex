@@ -50,6 +50,8 @@ type Config struct {
 	MaxConnectionsPerHost int
 	// UserAgent that will be used for every request
 	UserAgent string
+	// Transport allows overriding the default HTTP transport the client will use.
+	Transport *http.Transport
 }
 
 // Client is the o11y instrumented http client.
@@ -71,12 +73,14 @@ type Client struct {
 
 // New creates a client configured with the config param
 func New(cfg Config) *Client {
-	t := http.DefaultTransport.(*http.Transport).Clone()
-	if cfg.MaxConnectionsPerHost == 0 {
-		cfg.MaxConnectionsPerHost = 10
+	if cfg.Transport == nil {
+		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
+		if cfg.MaxConnectionsPerHost == 0 {
+			cfg.MaxConnectionsPerHost = 10
+		}
+		cfg.Transport.MaxConnsPerHost = cfg.MaxConnectionsPerHost
+		cfg.Transport.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
 	}
-	t.MaxConnsPerHost = cfg.MaxConnectionsPerHost
-	t.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
 
 	return &Client{
 		name:                  cfg.Name,
@@ -87,7 +91,7 @@ func New(cfg Config) *Client {
 		authToken:             cfg.AuthToken,
 		acceptType:            cfg.AcceptType,
 		httpClient: &http.Client{
-			Transport: t,
+			Transport: cfg.Transport,
 		},
 		now: time.Now,
 	}
