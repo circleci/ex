@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -94,6 +95,14 @@ func New(cfg Config) *Client {
 			Transport: cfg.Transport,
 		},
 		now: time.Now,
+	}
+}
+
+func UnixTransport(socket string) *http.Transport {
+	return &http.Transport{
+		DialContext: func(_ctx context.Context, _network, _addr string) (net.Conn, error) {
+			return net.Dial("unix", socket)
+		},
 	}
 }
 
