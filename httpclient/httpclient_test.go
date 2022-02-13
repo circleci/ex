@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -173,14 +172,10 @@ func TestClient_Call_UnixSocket(t *testing.T) {
 	})
 
 	client := New(Config{
-		Name:    "name",
-		BaseURL: "http://localhost",
-		Timeout: time.Second,
-		Transport: &http.Transport{
-			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
-				return net.Dial("unix", socket)
-			},
-		},
+		Name:      "name",
+		BaseURL:   "http://localhost",
+		Timeout:   time.Second,
+		Transport: UnixTransport(socket),
 	})
 
 	t.Run("Decode String", func(t *testing.T) {
