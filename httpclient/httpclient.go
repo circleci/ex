@@ -83,12 +83,17 @@ func New(cfg Config) *Client {
 		cfg.Transport.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
 	}
 
+	additionalHeaders := make(map[string]string)
+	if cfg.UserAgent != "" {
+		additionalHeaders["User-Agent"] = cfg.UserAgent
+	}
+
 	return &Client{
 		name:                  cfg.Name,
 		baseURL:               cfg.BaseURL,
 		backOffMaxElapsedTime: cfg.Timeout,
 		authHeader:            cfg.AuthHeader,
-		additionalHeaders:     map[string]string{"User-Agent": cfg.UserAgent},
+		additionalHeaders:     additionalHeaders,
 		authToken:             cfg.AuthToken,
 		acceptType:            cfg.AcceptType,
 		httpClient: &http.Client{
