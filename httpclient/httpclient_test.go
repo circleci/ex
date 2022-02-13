@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sync"
 	"testing"
@@ -85,9 +88,8 @@ func TestClient_Call_Decodes(t *testing.T) {
 		c.Data(400, "application/json", []byte(body))
 	})
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		router.ServeHTTP(w, req)
-	}))
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
 
 	client := New(Config{
 		Name:    "name",
@@ -140,6 +142,55 @@ func TestClient_Call_Decodes(t *testing.T) {
 		assert.Check(t, HasStatusCode(err, 400))
 		assert.Check(t, cmp.Equal(s, body))
 
+	})
+}
+
+func TestClient_Call_UnixSocket(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
+	defer cancel()
+
+	router := ginrouter.Default(ctx, "httpclient")
+	router.GET("/ok", func(c *gin.Context) {
+		c.String(http.StatusOK, "hello unix socket")
+	})
+
+	socket := filepath.Join(os.TempDir(), "httpclient-test.sock")
+
+	srv, err := httpserver.New(ctx, httpserver.Config{
+		Name:    "test-server-unix",
+		Addr:    socket,
+		Handler: router,
+		Network: "unix",
+	})
+	assert.Assert(t, err)
+
+	g, ctx := errgroup.WithContext(ctx)
+	t.Cleanup(func() {
+		assert.Check(t, g.Wait())
+	})
+	g.Go(func() error {
+		return srv.Serve(ctx)
+	})
+
+	client := New(Config{
+		Name:    "name",
+		BaseURL: "http://localhost",
+		Timeout: time.Second,
+		Transport: &http.Transport{
+			DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+				return net.Dial("unix", socket)
+			},
+		},
+	})
+
+	t.Run("Decode String", func(t *testing.T) {
+		s := ""
+		err := NewRequest("GET", "/ok", time.Second).
+			AddDecoder(200, NewStringDecoder(&s)).
+			Call(ctx, client)
+
+		assert.Check(t, err)
+		assert.Check(t, cmp.Equal("hello unix socket", s))
 	})
 }
 
@@ -462,7 +513,11 @@ func TestClient_ConnectionPool(t *testing.T) {
 		// to help the client have the full number of concurrent requests in flight
 		time.Sleep(2 * time.Millisecond)
 	})
-	srv, err := httpserver.New(ctx, "test server", "localhost:0", h)
+	srv, err := httpserver.New(ctx, httpserver.Config{
+		Name:    "test-server",
+		Addr:    "localhost:0",
+		Handler: h,
+	})
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -571,7 +626,11 @@ func TestClient_ExplicitBackoff(t *testing.T) {
 		time.Sleep(2 * time.Millisecond)
 	})
 
-	srv, err := httpserver.New(ctx, "test server", "localhost:0", h)
+	srv, err := httpserver.New(ctx, httpserver.Config{
+		Name:    "test server",
+		Addr:    "localhost:0",
+		Handler: h,
+	})
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)

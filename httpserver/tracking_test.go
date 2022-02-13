@@ -23,12 +23,15 @@ func TestTrackedListener(t *testing.T) {
 	handling := make(chan struct{})
 
 	// make a server with a handler where we can control concurrent requests in flight
-	s, err := New(ctx, "test-server", "localhost:0",
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	s, err := New(ctx, Config{
+		Name: "test-server",
+		Addr: "localhost:0",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			handling <- struct{}{}
 			handled <- struct{}{}
 			w.WriteHeader(http.StatusNoContent)
-		}))
+		}),
+	})
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)
@@ -125,7 +128,10 @@ func TestTrackedListener(t *testing.T) {
 }
 
 func TestTrackedListenerName(t *testing.T) {
-	s, err := New(context.Background(), "test-server", "localhost:0", nil)
+	s, err := New(context.Background(), Config{
+		Name: "test-server",
+		Addr: "localhost:0",
+	})
 	assert.Assert(t, err)
 	assert.Check(t, cmp.Equal(s.MetricsProducer().MetricName(), "test-server-listener"))
 }

@@ -122,7 +122,11 @@ func TestMiddleware(t *testing.T) {
 		}
 	})
 
-	srv, err := httpserver.New(ctx, "test-server", "127.0.0.1:0", r)
+	srv, err := httpserver.New(ctx, httpserver.Config{
+		Name:    "test-server",
+		Addr:    "localhost:0",
+		Handler: r,
+	})
 	assert.Assert(t, err)
 
 	g, ctx := errgroup.WithContext(ctx)

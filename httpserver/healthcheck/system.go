@@ -14,5 +14,9 @@ func Load(ctx context.Context, addr string, sys *system.System) (*httpserver.HTT
 		return nil, fmt.Errorf("error creating health check API")
 	}
 
-	return httpserver.Load(ctx, "admin", addr, healthAPI.Handler(), sys)
+	return httpserver.Load(ctx, httpserver.Config{
+		Name:    "admin",
+		Addr:    addr,
+		Handler: healthAPI.Handler(),
+	}, sys)
 }

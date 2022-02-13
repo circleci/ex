@@ -41,7 +41,11 @@ func run(adminOnly bool) error {
 			c.JSON(http.StatusOK, os.Environ())
 		})
 
-		_, err = httpserver.Load(ctx, "the-server-name", "localhost:0", r, sys)
+		_, err = httpserver.Load(ctx, httpserver.Config{
+			Name:    "the-server-name",
+			Addr:    "localhost:0",
+			Handler: r,
+		}, sys)
 		if err != nil {
 			return err
 		}
