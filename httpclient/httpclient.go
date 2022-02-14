@@ -129,85 +129,184 @@ func (c *Client) CloseIdleConnections() {
 	c.httpClient.CloseIdleConnections()
 }
 
-type Decoder func(r io.Reader) error
+type decoder func(r io.Reader) error
 
 const successDecodeStatus = -1
 
-// Request is an individual http request that the Client will send
+// Request is an individual http Request that the Client will send
+// NewRequest should be used to create a new Request rather than constructing a Request directly.
 type Request struct {
-	Method string
-	Route  string
-	Body   interface{} // If set this will be sent as JSON
+	method string
+	route  string
+	body   interface{} // If set this will be sent as JSON
 
-	// Deprecated: Use Decoders instead. If set will be used to decode the response body
-	Decoder Decoder
+	decoders map[int]decoder // If set will be used to decode the response body by http status code
+	cookie   *http.Cookie
+	headers  map[string]string
+	timeout  time.Duration // The individual per call timeout
+	query    url.Values
 
-	Decoders      map[int]Decoder // If set will be used to decode the response body by http status code
-	Cookie        *http.Cookie
-	Headers       map[string]string
-	Timeout       time.Duration // The individual per call timeout
-	Query         url.Values
-	NoPropagation bool
+	propagation bool
 
 	url string
 }
 
-// NewRequest should be used to create a new request rather than constructing a Request directly.
+// NewRequest should be used to create a new Request rather than constructing a Request directly.
 // This encourages the user to specify a "route" for the tracing, and avoid high cardinality routes
 // (when parts of the url may contain many varying values).
-// The returned Request can be further altered before being passed to the client.Call.
-func NewRequest(method, route string, timeout time.Duration, routeParams ...interface{}) Request {
-	return Request{
-		Method:  method,
-		url:     fmt.Sprintf(route, routeParams...),
-		Route:   route,
-		Timeout: timeout,
+//
+// Example:
+//   req := httpclient.NewRequest("POST", "/api/person/%s",
+//     httpclient.RouteParams("person-id"),
+//     httpclient.Timeout(time.Second),
+//   )
+func NewRequest(method, route string, opts ...func(*Request)) Request {
+	r := Request{
+		method:      method,
+		url:         route,
+		route:       route,
+		decoders:    map[int]decoder{},
+		headers:     map[string]string{},
+		query:       url.Values{},
+		propagation: true,
 	}
-}
-
-// AddDecoder returns a new request with a specific response body decoder to some http status code
-// Note this will not modify the original request.
-// Example usage:
-// 		err := NewRequest("POST", "/bad", time.Second).
-// 			AddDecoder(400, NewStringDecoder(&s)).
-//		 	Call(ctx, client)
-func (r Request) AddDecoder(status int, decoder Decoder) Request {
-	if r.Decoders == nil {
-		r.Decoders = map[int]Decoder{}
+	for _, opt := range opts {
+		opt(&r)
 	}
-	r.Decoders[status] = decoder
 	return r
 }
 
-// AddSuccessDecoder returns a new request with a decoder for all 2xx statuses
-func (r Request) AddSuccessDecoder(decoder Decoder) Request {
-	return r.AddDecoder(successDecodeStatus, decoder)
+func RouteParams(routeParams ...interface{}) func(*Request) {
+	return func(r *Request) {
+		r.url = fmt.Sprintf(r.route, routeParams...)
+	}
 }
 
-// Call is a convenience method to invoke call on the request itself
-func (r Request) Call(ctx context.Context, c *Client) error {
-	return c.Call(ctx, r)
+// Decoder adds a response body decoder to some http status code
+// Note this will modify the original Request.
+//
+// Example:
+//   err := client.Call(ctx, httpclient.NewRequest("POST", "/bad",
+//     httpclient.Decoder(http.StatusBadRequest, httpclient.NewStringDecoder(&s)),
+//   ))
+func Decoder(status int, decoder decoder) func(*Request) {
+	return func(r *Request) {
+		r.decoders[status] = decoder
+	}
 }
 
-// Call makes the request call. It will trace out a top level span and a span for any retry attempts.
+// SuccessDecoder sets the decoder for all 2xx statuses
+func SuccessDecoder(decoder decoder) func(*Request) {
+	return Decoder(successDecodeStatus, decoder)
+}
+
+// JSONDecoder is a shorthand to decode the success body as JSON
+func JSONDecoder(resp interface{}) func(*Request) {
+	return SuccessDecoder(NewJSONDecoder(resp))
+}
+
+// StringDecoder is a shorthand to decode the success body as a string
+func StringDecoder(resp *string) func(*Request) {
+	return SuccessDecoder(NewStringDecoder(resp))
+}
+
+// BytesDecoder is a shorthand to decode the success body as raw bytes
+func BytesDecoder(resp *[]byte) func(*Request) {
+	return SuccessDecoder(NewBytesDecoder(resp))
+}
+
+// Body sets the request body that will be sent as JSON
+func Body(body interface{}) func(*Request) {
+	return func(r *Request) {
+		r.body = body
+	}
+}
+
+// Cookie sets the cookie for the request
+func Cookie(cookie *http.Cookie) func(*Request) {
+	return func(r *Request) {
+		r.cookie = cookie
+	}
+}
+
+// Header sets one header value for the request
+func Header(key, val string) func(*Request) {
+	return func(r *Request) {
+		r.headers[key] = val
+	}
+}
+
+// Headers sets multiple headers in one go for the request
+func Headers(headers map[string]string) func(*Request) {
+	return func(r *Request) {
+		for k, v := range headers {
+			r.headers[k] = v
+		}
+	}
+}
+
+// QueryParam sets one query param for the request
+func QueryParam(key, value string) func(*Request) {
+	return func(r *Request) {
+		r.query.Set(key, value)
+	}
+}
+
+// QueryParams sets multiple query params for the request
+func QueryParams(params map[string]string) func(*Request) {
+	return func(r *Request) {
+		for k, v := range params {
+			r.query.Set(k, v)
+		}
+	}
+}
+
+// Timeout sets the individual request timeout,
+// and does not take into account of retries.
+// This is different from setting the timeout field on the http client,
+// which is the total timeout across all retries.
+func Timeout(timeout time.Duration) func(*Request) {
+	return func(r *Request) {
+		r.timeout = timeout
+	}
+}
+
+// Propagation sets the tracing propagation header on the request if set to true,
+// the header is not set if set to false
+func Propagation(propagation bool) func(*Request) {
+	return func(r *Request) {
+		r.propagation = propagation
+	}
+}
+
+// Call makes the Request call. It will trace out a top level span and a span for any retry attempts.
 // Retries will be attempted on any 5XX responses.
 // If the http call completed with a non 2XX status code then an HTTPError will be returned containing
 // details of result of the call.
+//
+// Example:
+//   err := client.Call(ctx, httpclient.NewRequest("POST", "/api/fruit/%s",
+//     httpclient.RouteParams("apple"),
+//     httpclient.Timeout(time.Second),
+//   ))
+//   if err != nil {
+//     panic(err)
+//   }
 func (c *Client) Call(ctx context.Context, r Request) (err error) {
-	spanName := fmt.Sprintf("httpclient: %s %s", c.name, r.Route)
+	spanName := fmt.Sprintf("httpclient: %s %s", c.name, r.route)
 	// most clients should use NewRequest, but if they created a Request directly
-	// use the raw Route
+	// use the raw route
 	if r.url == "" {
-		r.url = r.Route
+		r.url = r.route
 	}
 	u, err := url.Parse(c.baseURL + r.url)
 	if err != nil {
 		return err
 	}
-	u.RawQuery = r.Query.Encode() // returns "" if Query is nil
+	u.RawQuery = r.query.Encode() // returns "" if query is nil
 
 	newRequestFn := func() (*http.Request, error) {
-		req, err := http.NewRequest(r.Method, u.String(), nil)
+		req, err := http.NewRequest(r.method, u.String(), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -222,24 +321,24 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 		for k, v := range c.additionalHeaders {
 			req.Header.Set(k, v)
 		}
-		for k, v := range r.Headers {
+		for k, v := range r.headers {
 			req.Header.Set(k, v)
 		}
 
-		if r.Cookie != nil {
-			req.AddCookie(r.Cookie)
+		if r.cookie != nil {
+			req.AddCookie(r.cookie)
 		}
 
 		if c.acceptType != "" {
 			req.Header.Set("Accept", c.acceptType)
 		}
 
-		if r.Body != nil {
+		if r.body != nil {
 			req.Header.Set("Content-Type", JSON)
 			b := &bytes.Buffer{}
-			err = json.NewEncoder(b).Encode(r.Body)
+			err = json.NewEncoder(b).Encode(r.body)
 			if err != nil {
-				return nil, fmt.Errorf("could not json encode request: %w", err)
+				return nil, fmt.Errorf("could not json encode Request: %w", err)
 			}
 			req.Body = ioutil.NopCloser(b)
 		}
@@ -251,7 +350,7 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	return doneRetrying(err)
 }
 
-// retryRequest will make the request and only call the decoder when a 2XX has been received.
+// retryRequest will make the Request and only call the decoder when a 2XX has been received.
 // Any response body in non 2XX cases is discarded.
 // nolint: funlen
 func (c *Client) retryRequest(ctx context.Context, name string, r Request, newReq func() (*http.Request, error)) error {
@@ -275,7 +374,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		// Add the per single http request timeout.
 		// This client is essentially for service to service calls, anyone is going to expect
 		// it to have a sane default timeout, hence 5 seconds if one is not specified.
-		requestTimeout := r.Timeout
+		requestTimeout := r.timeout
 		if requestTimeout == 0 {
 			requestTimeout = time.Second * 5
 		}
@@ -283,16 +382,16 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		defer cancel()
 
 		if c.tracer != nil {
-			ctx = c.tracer.WithTracer(ctx, r.Route)
+			ctx = c.tracer.WithTracer(ctx, r.route)
 		}
 
 		req = req.WithContext(ctx)
-		if !r.NoPropagation {
+		if r.propagation {
 			req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
 		}
 
 		span.AddRawField("http.client_name", c.name)
-		span.AddRawField("http.route", r.Route)
+		span.AddRawField("http.route", r.route)
 		span.AddRawField("http.base_url", c.baseURL)
 		addReqToSpan(span, req, attemptCounter)
 
@@ -304,7 +403,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 				err = e.Err
 			}
 			return fmt.Errorf("call: %s %s failed with: %w after %d attempt(s)",
-				req.Method, r.Route, err, attemptCounter)
+				req.Method, r.route, err, attemptCounter)
 		}
 		defer func() {
 			// drain anything left in the body and close it, to ensure we can take advantage of keep alive
@@ -319,8 +418,8 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 				float64(time.Since(before).Nanoseconds())/1000000.0,
 				[]string{
 					"http.client_name:" + c.name,
-					"http.route:" + r.Route,
-					"http.method:" + r.Method,
+					"http.route:" + r.route,
+					"http.method:" + r.method,
 					"http.status_code:" + strconv.Itoa(res.StatusCode),
 					"http.retry:" + strconv.FormatBool(attemptCounter > 1),
 				},
@@ -329,7 +428,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		}
 		addRespToSpan(span, res)
 
-		err = extractHTTPError(req, res, attemptCounter, r.Route)
+		err = extractHTTPError(req, res, attemptCounter, r.route)
 		if err != nil {
 			if HasStatusCode(err, http.StatusTooManyRequests) {
 				c.setLast429()
@@ -358,19 +457,15 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 }
 
 func (r Request) decodeBody(resp *http.Response, success bool, attemptCounter int) error {
-
-	var decoder Decoder
+	var decoder decoder
+	code := resp.StatusCode
 
 	if success {
-		if d, ok := r.Decoders[successDecodeStatus]; ok {
+		if d, ok := r.decoders[successDecodeStatus]; ok {
 			decoder = d
-		} else if r.Decoder != nil { // TODO: Remove when Request.Decoder is removed
-			decoder = r.Decoder
 		}
 	}
-
-	code := resp.StatusCode
-	if d, ok := r.Decoders[code]; ok {
+	if d, ok := r.decoders[code]; ok {
 		decoder = d
 	}
 
@@ -379,7 +474,7 @@ func (r Request) decodeBody(resp *http.Response, success bool, attemptCounter in
 		if err != nil {
 			// do not retry decoding errors
 			return backoff.Permanent(fmt.Errorf("call: %s %s decoding failed with: %w after %d attempt(s)",
-				r.Method, r.Route, err, attemptCounter))
+				r.method, r.route, err, attemptCounter))
 		}
 	}
 
@@ -431,7 +526,7 @@ func (c *Client) setLast429() {
 // NewJSONDecoder returns a decoder func enclosing the resp param
 // the func returned takes an io reader which will be passed to a json decoder to
 // decode into the resp.
-func NewJSONDecoder(resp interface{}) Decoder {
+func NewJSONDecoder(resp interface{}) decoder {
 	return func(r io.Reader) error {
 		if err := json.NewDecoder(r).Decode(resp); err != nil {
 			return fmt.Errorf("failed to unmarshal: %w", err)
@@ -441,7 +536,7 @@ func NewJSONDecoder(resp interface{}) Decoder {
 }
 
 // NewBytesDecoder decodes the response body into a byte slice
-func NewBytesDecoder(resp *[]byte) Decoder {
+func NewBytesDecoder(resp *[]byte) decoder {
 	return func(r io.Reader) error {
 		bs, err := io.ReadAll(r)
 		if err != nil {
@@ -453,7 +548,7 @@ func NewBytesDecoder(resp *[]byte) Decoder {
 }
 
 // NewStringDecoder decodes the response body into a string
-func NewStringDecoder(resp *string) Decoder {
+func NewStringDecoder(resp *string) decoder {
 	return func(r io.Reader) error {
 		var bs []byte
 		err := NewBytesDecoder(&bs)(r)

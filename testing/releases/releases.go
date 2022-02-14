@@ -29,22 +29,24 @@ func New(baseURL string) *Releases {
 	return &Releases{baseURL: baseURL, client: httpclient.New(httpclient.Config{
 		Name:    "releases",
 		BaseURL: baseURL,
+		Timeout: 10 * time.Second,
 	})}
 }
 
 // Version gets the latest released version of an artifact.
 func (d *Releases) Version(ctx context.Context) (string, error) {
 	version := ""
-
-	err := httpclient.NewRequest("GET", "/release.txt", time.Minute).
-		AddSuccessDecoder(httpclient.NewStringDecoder(&version)).
-		Call(ctx, d.client)
-
+	err := d.client.Call(ctx, httpclient.NewRequest("GET", "/release.txt",
+		httpclient.StringDecoder(&version),
+	))
+	if err != nil {
+		return "", err
+	}
 	version = strings.TrimSpace(version)
 	if version == "" {
 		return version, ErrNotFound
 	}
-	return version, err
+	return version, nil
 }
 
 // ResolveURL gets the raw download URL for a release, based on the requirements (version, OS, arch)
@@ -73,11 +75,9 @@ func (d *Releases) ResolveURLs(ctx context.Context, rq Requirements) (map[string
 
 func (d *Releases) resolveURLs(ctx context.Context, rq Requirements) ([]string, error) {
 	urls := ""
-
-	err := httpclient.NewRequest("GET", "/"+rq.Version+"/checksums.txt", time.Minute).
-		AddSuccessDecoder(httpclient.NewStringDecoder(&urls)).
-		Call(ctx, d.client)
-
+	err := d.client.Call(ctx, httpclient.NewRequest("GET", "/"+rq.Version+"/checksums.txt",
+		httpclient.StringDecoder(&urls),
+	))
 	if err != nil {
 		return nil, err
 	}

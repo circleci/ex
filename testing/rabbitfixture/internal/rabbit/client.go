@@ -36,23 +36,19 @@ func basicAuth(username string, password secret.String) string {
 }
 
 func (c *Client) ListVHosts(ctx context.Context) (info []VHostInfo, err error) {
-	err = c.client.Call(ctx, httpclient.Request{
-		Method:  "GET",
-		Route:   "/api/vhosts",
-		Decoder: httpclient.NewJSONDecoder(&info),
-	})
+	err = c.client.Call(ctx, httpclient.NewRequest("GET", "/api/vhosts",
+		httpclient.JSONDecoder(&info),
+	))
 	if err != nil {
 		return nil, err
 	}
 	return info, nil
 }
 
-func (c *Client) DeleteVHost(ctx context.Context, name string) (err error) {
-	err = c.client.Call(ctx, httpclient.NewRequest(
-		"DELETE",
-		"/api/vhosts/%s",
-		time.Second*5,
-		url.PathEscape(name),
+func (c *Client) DeleteVHost(ctx context.Context, name string) error {
+	err := c.client.Call(ctx, httpclient.NewRequest("DELETE", "/api/vhosts/%s",
+		httpclient.RouteParams(url.PathEscape(name)),
+		httpclient.Timeout(5*time.Second),
 	))
 	if httpclient.HasStatusCode(err, http.StatusNotFound) {
 		return nil
@@ -69,15 +65,12 @@ type VHostSettings struct {
 	Tracing     bool     `json:"tracing"`
 }
 
-func (c *Client) PutVHost(ctx context.Context, name string, settings VHostSettings) (err error) {
-	req := httpclient.NewRequest(
-		"PUT",
-		"/api/vhosts/%s",
-		time.Second*5,
-		url.PathEscape(name),
-	)
-	req.Body = settings
-	return c.client.Call(ctx, req)
+func (c *Client) PutVHost(ctx context.Context, name string, settings VHostSettings) error {
+	return c.client.Call(ctx, httpclient.NewRequest("PUT", "/api/vhosts/%s",
+		httpclient.RouteParams(url.PathEscape(name)),
+		httpclient.Timeout(5*time.Second),
+		httpclient.Body(settings),
+	))
 }
 
 type Permissions struct {
@@ -86,14 +79,10 @@ type Permissions struct {
 	Read      string `json:"read"`
 }
 
-func (c *Client) UpdatePermissionsIn(ctx context.Context, vhost, username string, p Permissions) (err error) {
-	req := httpclient.NewRequest(
-		"PUT",
-		"/api/permissions/%s/%s",
-		time.Second*5,
-		url.PathEscape(vhost),
-		url.PathEscape(username),
-	)
-	req.Body = p
-	return c.client.Call(ctx, req)
+func (c *Client) UpdatePermissionsIn(ctx context.Context, vhost, username string, p Permissions) error {
+	return c.client.Call(ctx, httpclient.NewRequest("PUT", "/api/permissions/%s/%s",
+		httpclient.RouteParams(url.PathEscape(vhost), url.PathEscape(username)),
+		httpclient.Timeout(5*time.Second),
+		httpclient.Body(p),
+	))
 }

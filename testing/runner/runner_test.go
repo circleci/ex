@@ -60,11 +60,9 @@ func TestRunner(t *testing.T) {
 			})
 
 			var env []string
-			err := c.Call(ctx, httpclient.Request{
-				Method:  "GET",
-				Route:   "/api/env",
-				Decoder: httpclient.NewJSONDecoder(&env),
-			})
+			err = c.Call(ctx, httpclient.NewRequest("GET", "/api/env",
+				httpclient.JSONDecoder(&env),
+			))
 			assert.Check(t, err)
 			assert.Check(t, cmp.DeepEqual([]string{"a=a", "b=b", "c=c", "d=d", "e=e"}, env))
 		})

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
@@ -45,7 +44,7 @@ func TestMiddleware(t *testing.T) {
 	})
 
 	t.Run("Check we can get a 200 response", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("GET", "/foo", time.Second))
+		err = client.Call(ctx, httpclient.NewRequest("GET", "/foo"))
 		assert.Assert(t, err)
 	})
 }
