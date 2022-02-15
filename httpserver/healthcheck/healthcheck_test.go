@@ -76,13 +76,35 @@ func TestAPI_NotReady(t *testing.T) {
 func TestAPI_Debug(t *testing.T) {
 	baseurl := startAPI(t)
 
-	body, status := get(t, baseurl, "debug")
-	assert.Check(t, cmp.Equal(status, http.StatusOK))
-	assert.Check(t, cmp.Contains(body, `Types of profiles available`))
+	t.Run("standard", func(t *testing.T) {
+		// The index page html
+		body, status := get(t, baseurl, "debug/pprof")
+		assert.Check(t, cmp.Equal(status, http.StatusOK))
+		assert.Check(t, cmp.Contains(body, `Types of profiles available`))
 
-	body, status = get(t, baseurl, "debug/cmdline")
-	assert.Check(t, cmp.Equal(status, http.StatusOK))
-	assert.Check(t, cmp.Contains(body, `test`))
+		// Index served sub profiles
+		body, status = get(t, baseurl, "debug/pprof/heap")
+		assert.Check(t, cmp.Equal(status, http.StatusOK))
+		assert.Check(t, len(body) > 100) // we should have some content
+
+		_, status = get(t, baseurl, "debug/pprof/mutex")
+		assert.Check(t, cmp.Equal(status, http.StatusOK))
+
+	})
+
+	// The special profiles
+	for _, p := range []string{"cmdline", "profile", "symbol", "trace"} {
+		t.Run(p, func(t *testing.T) {
+			_, status := get(t, baseurl, fmt.Sprintf("debug/pprof/%s?seconds=1", p))
+			assert.Check(t, cmp.Equal(status, http.StatusOK))
+		})
+	}
+
+	t.Run("not-found", func(t *testing.T) {
+		_, status := get(t, baseurl, "debug/pprof/nowt")
+		assert.Check(t, cmp.Equal(status, http.StatusNotFound))
+	})
+
 }
 
 type mockHealthChecks struct {
