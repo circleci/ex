@@ -72,6 +72,49 @@ func TestClient_Call_Propagates(t *testing.T) {
 	assert.Check(t, cmp.Equal(httpClientSpanID, <-traceIDChan))
 }
 
+func TestClient_Call_Propagates_Otel(t *testing.T) {
+	ctx := testcontext.Background()
+	re := regexp.MustCompile(`trace_id=([A-z0-9]+)`)
+
+	traceIDChan := make(chan string, 1)
+	defer close(traceIDChan)
+
+	rec := httprecorder.New()
+	okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, span := o11y.StartSpan(ctx, "test server span")
+		traceIDChan <- re.FindStringSubmatch(span.SerializeHeaders())[1]
+		_ = rec.Record(r)
+	})
+
+	server := httptest.NewServer(o11ynethttp.Middleware(o11y.FromContext(ctx), "name", okHandler))
+	client := New(Config{
+		Name:             "name",
+		BaseURL:          server.URL,
+		Timeout:          time.Second,
+		TracePropagation: TraceOtel,
+	})
+	req := NewRequest("POST", "/", time.Second)
+
+	ctx, span := o11y.StartSpan(ctx, "test client span")
+	err := client.Call(ctx, req)
+	assert.Check(t, err)
+	span.End()
+
+	h := rec.LastRequest().Header
+	otelPropagationHeader := h.Get(propagation.TraceparentHeader)
+
+	serializedBeelineHeaders := span.SerializeHeaders()
+	assert.Check(t, cmp.Contains(otelPropagationHeader, re.FindStringSubmatch(serializedBeelineHeaders)[1]))
+
+	httpClientSpanID := re.FindStringSubmatch(serializedBeelineHeaders)[1]
+	// otel header format details: https://w3c.github.io/trace-context/#traceparent-header
+	// <version>-<trace-id>-<parent-id>-<trace-flags>
+	// 00-<trace-id>-<parent-id>-00
+	httpServerSpanID := strings.Split(otelPropagationHeader, "-")[1]
+	assert.Check(t, cmp.Equal(httpClientSpanID, httpServerSpanID))
+	assert.Check(t, cmp.Equal(httpClientSpanID, <-traceIDChan))
+}
+
 func TestClient_Call_Decodes(t *testing.T) {
 	ctx := testcontext.Background()
 	// language=json

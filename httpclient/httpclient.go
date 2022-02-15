@@ -23,7 +23,11 @@ import (
 	"github.com/circleci/ex/o11y"
 )
 
-const JSON = "application/json; charset=utf-8"
+const (
+	JSON           = "application/json; charset=utf-8"
+	TraceHoneycomb = iota - 1 // for "default" behaviour of an int
+	TraceOtel
+)
 
 var (
 	ErrNoContent     = o11y.NewWarning("no content")
@@ -63,6 +67,9 @@ type Config struct {
 	Tracer tracer
 	// DialContext allows a dial context to be injected into the HTTP transport.
 	DialContext func(ctx context.Context, network string, addr string) (net.Conn, error)
+	// TracePropagation style, one of httpclient.TraceHoneycomb or httpclient.TraceOtel.
+	// Defaults to httpclient.TraceHoneycomb.
+	TracePropagation int
 }
 
 // Client is the o11y instrumented http client.
@@ -76,6 +83,7 @@ type Client struct {
 	acceptType            string
 	additionalHeaders     map[string]string
 	tracer                tracer
+	tracePropagationType  int
 
 	mu      sync.RWMutex
 	last429 time.Time
@@ -118,6 +126,7 @@ func New(cfg Config) *Client {
 		additionalHeaders:     additionalHeaders,
 		authToken:             cfg.AuthToken,
 		acceptType:            cfg.AcceptType,
+		tracePropagationType:  cfg.TracePropagation,
 		httpClient: &http.Client{
 			Transport: roundTripper,
 		},
@@ -438,7 +447,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 
 		req = req.WithContext(ctx)
 		if r.propagation {
-			req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+			c.serializePropagationHeader(ctx, req, span)
 		}
 		if requestClose {
 			// In the case where we see a timed out connection being reused it if usually the case that
@@ -528,6 +537,22 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	bo.InitialInterval = time.Millisecond * 50
 	bo.MaxElapsedTime = c.backOffMaxElapsedTime
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
+}
+
+func (c *Client) serializePropagationHeader(ctx context.Context, req *http.Request, span o11y.Span) {
+	serializedSpanHeaders := span.SerializeHeaders()
+	switch c.tracePropagationType {
+	case TraceHoneycomb:
+		req.Header.Add(propagation.TracePropagationHTTPHeader, serializedSpanHeaders)
+	case TraceOtel:
+		propCtx, err := propagation.UnmarshalHoneycombTraceContext(serializedSpanHeaders)
+		if err == nil {
+			_, w3cheaders := propagation.MarshalW3CTraceContext(ctx, propCtx)
+			for k, v := range w3cheaders {
+				req.Header.Add(k, v)
+			}
+		}
+	}
 }
 
 func (r Request) decodeBody(resp *http.Response, success bool, attemptCounter int) error {

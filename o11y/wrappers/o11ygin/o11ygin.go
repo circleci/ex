@@ -105,10 +105,18 @@ func startSpanOrTraceFromHTTP(ctx context.Context, c *gin.Context, p o11y.Provid
 	span := p.GetSpan(ctx)
 	if span == nil {
 		// there is no trace yet. We should make one! and use the root span.
-		beelineHeader := c.Request.Header.Get(propagation.TracePropagationHTTPHeader)
-		prop, _ := propagation.UnmarshalHoneycombTraceContext(beelineHeader)
+		beelinePropagationHeader := c.Request.Header.Get(propagation.TracePropagationHTTPHeader)
+
+		var prop *propagation.PropagationContext
+		if beelinePropagationHeader != "" {
+			prop, _ = propagation.UnmarshalHoneycombTraceContext(beelinePropagationHeader)
+		} else {
+			// Fall through to the OpenTelemetry/W3 standard traceparent header
+			_, prop, _ = propagation.UnmarshalW3CTraceContext(ctx, flattenHeaders(c.Request.Header))
+		}
 
 		var tr *trace.Trace
+		// if prop is nil due to a failure to read propagation headers, the new trace will be unlinked to the incoming request
 		ctx, tr = trace.NewTrace(ctx, prop)
 		span = honeycomb.WrapSpan(tr.GetRootSpan())
 		span.AddRawField("name", fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()))
@@ -117,4 +125,15 @@ func startSpanOrTraceFromHTTP(ctx context.Context, c *gin.Context, p o11y.Provid
 		ctx, span = o11y.StartSpan(ctx, fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()))
 	}
 	return ctx, span
+}
+
+// flattenHeaders takes an http.Header (map[string][]string) and returns an equivalent
+// map[string]string by selecting the first value for each key in the existing header map.
+func flattenHeaders(headers http.Header) map[string]string {
+	flatHeaders := make(map[string]string, len(headers))
+	for k, v := range headers {
+		flatHeaders[k] = v[0]
+	}
+
+	return flatHeaders
 }
