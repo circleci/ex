@@ -76,13 +76,19 @@ func TestAPI_NotReady(t *testing.T) {
 func TestAPI_Debug(t *testing.T) {
 	baseurl := startAPI(t)
 
-	body, status := get(t, baseurl, "debug")
+	body, status := get(t, baseurl, "debug/pprof")
 	assert.Check(t, cmp.Equal(status, http.StatusOK))
 	assert.Check(t, cmp.Contains(body, `Types of profiles available`))
 
-	body, status = get(t, baseurl, "debug/cmdline")
+	body, status = get(t, baseurl, "debug/pprof/cmdline")
 	assert.Check(t, cmp.Equal(status, http.StatusOK))
 	assert.Check(t, cmp.Contains(body, `test`))
+
+	_, status = get(t, baseurl, "debug/pprof/heap")
+	assert.Check(t, cmp.Equal(status, http.StatusOK))
+
+	_, status = get(t, baseurl, "debug/pprof/mutex")
+	assert.Check(t, cmp.Equal(status, http.StatusOK))
 }
 
 type mockHealthChecks struct {
