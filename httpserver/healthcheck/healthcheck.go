@@ -30,14 +30,30 @@ func New(ctx context.Context, checked []system.HealthChecker) (*API, error) {
 	r.GET("/live", gin.WrapH(heathLive.Handler()))
 	r.GET("/ready", gin.WrapH(heathReady.Handler()))
 
-	debug := r.Group("/debug")
-	debug.GET("/", gin.WrapF(pprof.Index))
-	debug.GET("/cmdline/", gin.WrapF(pprof.Cmdline))
-	debug.GET("/profile/", gin.WrapF(pprof.Profile))
-	debug.GET("/symbol/", gin.WrapF(pprof.Symbol))
-	debug.GET("/trace/", gin.WrapF(pprof.Trace))
+	r.GET("/debug/pprof/*prof", handlePprof)
 
 	return &API{router: r}, nil
+}
+
+func handlePprof(c *gin.Context) {
+	// There are special profiles that are not served from the generic pprof
+	// index handler.
+	// The index handler expects a debug/pprof prefix, and because of
+	// Gins wildcard handling, and the desire to serve these on the
+	// same paths as the std lib (keeping the index links accurate)
+	// we need to handle the 4 special profiles specifically.
+	switch c.Param("prof") {
+	case "/cmdline":
+		gin.WrapF(pprof.Cmdline)(c)
+	case "/profile":
+		gin.WrapF(pprof.Profile)(c)
+	case "/symbol":
+		gin.WrapF(pprof.Symbol)(c)
+	case "/trace":
+		gin.WrapF(pprof.Trace)(c)
+	default:
+		gin.WrapF(pprof.Index)(c)
+	}
 }
 
 func (a *API) Handler() http.Handler {
