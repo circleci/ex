@@ -31,6 +31,11 @@ var (
 	ErrServerBackoff = errors.New("server requested explicit backoff")
 )
 
+type tracer interface {
+	Wrap(name string, r http.RoundTripper) http.RoundTripper
+	WithTracer(ctx context.Context, route string) context.Context
+}
+
 // Config provides the client configuration
 type Config struct {
 	// Name is used to identify the client in spans
@@ -53,6 +58,8 @@ type Config struct {
 	UserAgent string
 	// Transport allows overriding the default HTTP transport the client will use.
 	Transport *http.Transport
+	//
+	Tracer tracer
 }
 
 // Client is the o11y instrumented http client.
@@ -65,6 +72,7 @@ type Client struct {
 	authHeader            string
 	acceptType            string
 	additionalHeaders     map[string]string
+	tracer                tracer
 
 	mu      sync.RWMutex
 	last429 time.Time
@@ -88,6 +96,10 @@ func New(cfg Config) *Client {
 		additionalHeaders["User-Agent"] = cfg.UserAgent
 	}
 
+	var roundTripper http.RoundTripper = cfg.Transport
+	if cfg.Tracer != nil {
+		roundTripper = cfg.Tracer.Wrap(cfg.Name, roundTripper)
+	}
 	return &Client{
 		name:                  cfg.Name,
 		baseURL:               cfg.BaseURL,
@@ -97,9 +109,10 @@ func New(cfg Config) *Client {
 		authToken:             cfg.AuthToken,
 		acceptType:            cfg.AcceptType,
 		httpClient: &http.Client{
-			Transport: cfg.Transport,
+			Transport: roundTripper,
 		},
-		now: time.Now,
+		tracer: cfg.Tracer,
+		now:    time.Now,
 	}
 }
 
@@ -244,7 +257,7 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 func (c *Client) retryRequest(ctx context.Context, name string, r Request, newReq func() (*http.Request, error)) error {
 	attemptCounter := 0
 	attempt := func() (err error) {
-		_, span := o11y.StartSpan(ctx, name)
+		ctx, span := o11y.StartSpan(ctx, name)
 		defer o11y.End(span, &err)
 		before := time.Now()
 
@@ -268,6 +281,10 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		}
 		ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 		defer cancel()
+
+		if c.tracer != nil {
+			ctx = c.tracer.WithTracer(ctx, r.Route)
+		}
 
 		req = req.WithContext(ctx)
 		if !r.NoPropagation {
