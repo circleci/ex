@@ -29,7 +29,7 @@ import (
 func TestMetrics(t *testing.T) {
 
 	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(time.Millisecond * 200)
+		time.Sleep(time.Millisecond * 100)
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -82,7 +82,9 @@ func TestMetrics(t *testing.T) {
 		assert.Check(t, ok)
 		assert.Check(t, cmp.Equal(len(g), 2))
 		assert.Check(t, cmp.Equal(g[0].Val, float64(0)))
-		assert.Check(t, cmp.Equal(g[1].Val, float64(100)))
+		assert.Check(t, g[1].Val > float64(70), g[1].Val)
+		assert.Check(t, g[1].Val <= float64(100), g[1].Val)
+
 		g, ok = gauges["pool_avail_estimate"]
 		assert.Check(t, ok)
 		assert.Check(t, cmp.Equal(len(g), 1))
@@ -104,13 +106,14 @@ func TestMetrics(t *testing.T) {
 		metrics, err := done() // wait for the stats server to stop
 		assert.NilError(t, err)
 
-		assert.Check(t, cmp.Equal(len(metrics), 974))
+		assert.Check(t, len(metrics) > 900, len(metrics))
+		assert.Check(t, len(metrics) < 1000, len(metrics))
 
-		assertIn(t, metrics, "delayed:true", 10, 30)
-		assertIn(t, metrics, "starved:true", 10, 30)
+		assertIn(t, metrics, "delayed:true", 5, 70)
+		assertIn(t, metrics, "starved:true", 5, 70)
 		idle := (concurrentRequests - maxConnections) + concurrentRequests
-		assertIn(t, metrics, "idle:false", idle, idle)
-		assertIn(t, metrics, "reused:false", maxConnections, maxConnections)
+		assertIn(t, metrics, "idle:false", idle-20, idle+20)
+		assertIn(t, metrics, "reused:false", maxConnections-60, maxConnections)
 	})
 
 	t.Run("no-starvation", func(t *testing.T) {
@@ -127,7 +130,7 @@ func TestMetrics(t *testing.T) {
 			assert.NilError(t, err)
 		}()
 
-		concurrentRequests := 50
+		concurrentRequests := 20
 		maxConnections := 70
 		cl := httpclient.New(httpclient.Config{
 			Name:                  "test-client",
@@ -154,7 +157,8 @@ func TestMetrics(t *testing.T) {
 		assert.Check(t, ok)
 		assert.Check(t, cmp.Equal(len(g), 2))
 		assert.Check(t, cmp.Equal(g[0].Val, float64(0)))
-		assert.Check(t, cmp.Equal(g[1].Val, float64(50)))
+		assert.Check(t, g[1].Val > float64(15), g[1].Val)
+		assert.Check(t, g[1].Val <= float64(50), g[1].Val)
 		g, ok = gauges["pool_avail_estimate"]
 		assert.Check(t, ok)
 		assert.Check(t, cmp.Equal(len(g), 1))
@@ -176,8 +180,8 @@ func TestMetrics(t *testing.T) {
 		metrics, err := done() // wait for the stats server to stop
 		assert.NilError(t, err)
 
-		assert.Check(t, len(metrics) > 400, len(metrics))
-		assert.Check(t, len(metrics) < 520, len(metrics))
+		assert.Check(t, len(metrics) > 150, len(metrics))
+		assert.Check(t, len(metrics) < 220, len(metrics))
 
 		assertIn(t, metrics, "delayed:true", 0, 0)
 		assertIn(t, metrics, "starved:true", 0, 0)

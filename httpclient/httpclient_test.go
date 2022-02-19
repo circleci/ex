@@ -274,13 +274,13 @@ func TestClient_Call_Retry500(t *testing.T) {
 	}))
 	client := New(Config{
 		BaseURL: server.URL,
-		Timeout: time.Second,
+		Timeout: 5 * time.Second,
 	})
 	req := NewRequest("POST", "/", time.Millisecond)
 	ctx := testcontext.Background()
 	err := client.Call(ctx, req)
 	// confirm it is still an http error carrying the expected code
-	assert.Check(t, HasStatusCode(err, http.StatusInternalServerError))
+	assert.Check(t, HasStatusCode(err, http.StatusInternalServerError), err)
 	// confirm that it is now not a warning
 	assert.Check(t, !o11y.IsWarning(err))
 }

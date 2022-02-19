@@ -71,7 +71,6 @@ jobs:
           MONGO_INITDB_DATABASE: dbname
     resource_class: large
     working_directory: ~/project/<<parameters.submodule>>
-    parallelism: 1
     steps:
       - checkout:
           path: ~/project
