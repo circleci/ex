@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/honeycombio/beeline-go/trace"
@@ -125,12 +124,16 @@ func TestMiddleware(t *testing.T) {
 	})
 
 	t.Run("Hit an ID that exists", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s", time.Second, "exists"))
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s",
+			httpclient.RouteParams("exists"),
+		))
 		assert.Assert(t, err)
 	})
 
 	t.Run("Hit an ID that does not exist", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s", time.Second, "does-not-exist"))
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s",
+			httpclient.RouteParams("does-not-exist"),
+		))
 		assert.Check(t, httpclient.HasStatusCode(err, http.StatusNotFound))
 	})
 }
@@ -248,12 +251,16 @@ func TestMiddleware_with_sampling(t *testing.T) {
 	})
 
 	t.Run("Hit an ID that exists", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s", time.Second, "exists"))
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s",
+			httpclient.RouteParams("exists"),
+		))
 		assert.Assert(t, err)
 	})
 
 	t.Run("Hit an ID that does not exist", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s", time.Second, "does-not-exist"))
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s",
+			httpclient.RouteParams("does-not-exist"),
+		))
 		assert.Check(t, httpclient.HasStatusCode(err, http.StatusNotFound))
 	})
 }

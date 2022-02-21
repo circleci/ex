@@ -56,11 +56,17 @@ func TestMetrics(t *testing.T) {
 			Tracer:                tracer,
 		})
 
-		r := httpclient.NewRequest("GET", "/test/%s", time.Second, "foo")
+		r := httpclient.NewRequest("GET", "/test/%s",
+			httpclient.RouteParams("foo"),
+			httpclient.Timeout(time.Second),
+		)
 		err := cl.Call(ctx, r)
 		assert.NilError(t, err)
 
-		r = httpclient.NewRequest("GET", "/test/%s", time.Second, "foo")
+		r = httpclient.NewRequest("GET", "/test/%s",
+			httpclient.RouteParams("foo"),
+			httpclient.Timeout(time.Second),
+		)
 		err = cl.Call(ctx, r)
 		assert.NilError(t, err)
 
@@ -70,7 +76,9 @@ func TestMetrics(t *testing.T) {
 		for i := 0; i < concurrentRequests; i++ {
 			go func() {
 				defer wg.Done()
-				r := httpclient.NewRequest("GET", "/test", time.Second)
+				r := httpclient.NewRequest("GET", "/test",
+					httpclient.Timeout(time.Second),
+				)
 				err := cl.Call(ctx, r)
 				assert.NilError(t, err)
 			}()
@@ -94,7 +102,9 @@ func TestMetrics(t *testing.T) {
 		for i := 0; i < concurrentRequests; i++ {
 			go func() {
 				defer wg.Done()
-				r := httpclient.NewRequest("GET", "/test/thing", time.Second)
+				r := httpclient.NewRequest("GET", "/test/thing",
+					httpclient.Timeout(time.Second),
+				)
 				err := cl.Call(ctx, r)
 				assert.NilError(t, err)
 			}()
@@ -145,7 +155,9 @@ func TestMetrics(t *testing.T) {
 		for i := 0; i < concurrentRequests; i++ {
 			go func() {
 				defer wg.Done()
-				r := httpclient.NewRequest("GET", "/test", time.Second)
+				r := httpclient.NewRequest("GET", "/test",
+					httpclient.Timeout(time.Second),
+				)
 				err := cl.Call(ctx, r)
 				assert.NilError(t, err)
 			}()
@@ -168,7 +180,9 @@ func TestMetrics(t *testing.T) {
 		for i := 0; i < concurrentRequests; i++ {
 			go func() {
 				defer wg.Done()
-				r := httpclient.NewRequest("GET", "/test/thing", time.Second)
+				r := httpclient.NewRequest("GET", "/test/thing",
+					httpclient.Timeout(time.Second),
+				)
 				err := cl.Call(ctx, r)
 				assert.NilError(t, err)
 			}()
