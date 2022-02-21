@@ -132,6 +132,9 @@ func (m *Metrics) WithTracer(ctx context.Context, route string) context.Context 
 			atomic.AddInt64(&r.m.poolAvailable, 1)
 		},
 		GotFirstResponseByte: func() {
+			// This can race with WroteRequest (on internal retires I think)
+			r.mu.RLock()
+			defer r.mu.RUnlock()
 			if r.requestDoneAt.IsZero() {
 				return
 			}
@@ -168,8 +171,10 @@ func (m *Metrics) WithTracer(ctx context.Context, route string) context.Context 
 		TLSHandshakeDone: func(state tls.ConnectionState, err error) {
 			r.con.tlsDoneAt = time.Now()
 		},
-		//WroteHeaders:
 		WroteRequest: func(info httptrace.WroteRequestInfo) {
+			// This can race with GotFirstResponseByte (on internal retires I think)
+			r.mu.Lock()
+			defer r.mu.Unlock()
 			r.requestDoneAt = time.Now()
 			duration := r.requestDoneAt.Sub(r.conDoneAt)
 			o11y.AddField(ctx, "req.wrote_request", duration)
@@ -186,8 +191,10 @@ type request struct {
 	ctx        context.Context
 	commonTags []string
 
-	con           *con
-	conDoneAt     time.Time
+	con       *con
+	conDoneAt time.Time
+
+	mu            sync.RWMutex
 	requestDoneAt time.Time
 }
 
