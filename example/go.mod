@@ -3,12 +3,12 @@ module github.com/circleci/ex/example
 go 1.17
 
 require (
-	github.com/alecthomas/kong v0.2.22
-	github.com/circleci/ex v1.0.1589-c20d3cb
+	github.com/alecthomas/kong v0.4.1
+	github.com/circleci/ex v1.0.2243-9b70e9b
 	github.com/gin-gonic/gin v1.7.7
 	github.com/google/uuid v1.3.0
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
-	gotest.tools/v3 v3.0.3
+	gotest.tools/v3 v3.1.0
 )
 
 require (
@@ -23,14 +23,14 @@ require (
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.9.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/google/go-cmp v0.5.7 // indirect
 	github.com/hellofresh/health-go/v4 v4.5.0 // indirect
-	github.com/honeycombio/beeline-go v1.4.0 // indirect
+	github.com/honeycombio/beeline-go v1.6.0 // indirect
 	github.com/honeycombio/dynsampler-go v0.2.1 // indirect
-	github.com/honeycombio/libhoney-go v1.15.6 // indirect
+	github.com/honeycombio/libhoney-go v1.15.8 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
-	github.com/klauspost/compress v1.13.6 // indirect
+	github.com/klauspost/compress v1.14.3 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/lib/pq v1.10.4 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
@@ -39,7 +39,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rollbar/rollbar-go v1.4.2 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.3.4 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.opentelemetry.io/otel v1.0.0 // indirect
 	go.opentelemetry.io/otel/trace v1.0.0 // indirect

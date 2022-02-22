@@ -7,7 +7,9 @@ metadata:
     chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "-" }}
 spec:
   {{- if not .Values.canary }}
+  {{- if not (hasKey . "autoscaling") }}
   replicas: {{ .replicas }}
+  {{- end }}
   {{- else }}
   replicas: 1
   {{- end }}
@@ -111,4 +113,72 @@ spec:
           timeoutSeconds: 10
           successThreshold: 1
           failureThreshold: 2
+
+{{- if not .Values.canary }}
+{{- if hasKey . "autoscaling" }}
+---
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Release.Name }}-{{ .name }}
+  labels:
+    chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "-" }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Release.Name }}-{{ .name }}
+  minReplicas: {{ .autoscaling.minReplicas | default 2 }}
+  maxReplicas: {{ .autoscaling.maxReplicas | default 8 }}
+  metrics:
+  {{- if hasKey .autoscaling "metrics" }}
+{{ toYaml .autoscaling.metrics | indent 4}}
+  {{- else}}
+    - type: Resource
+      resource:
+        # Target 70% of utilized memory
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        # Target 70% of utilized CPU
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  {{- end }}
+  behavior:
+{{- if hasKey .autoscaling "behavior" }}
+{{ toYaml .autoscaling.behavior | indent 4}}
+  {{- else}}
+    scaleDown:
+      # When the metrics indicate that the target should be scaled down the algorithm looks into previously
+      # computed desired states and uses the highest value from the specified interval - 5 minutes
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          # Scale down a max of 50% of the running pods
+          value: 50
+          # per 2 minutes
+          periodSeconds: 120
+    scaleUp:
+      # do we need to scale up? do the math based on the previous 2 min.
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Percent
+          value: 50
+          # if new need to add a pod, do it every 15 secs
+          periodSeconds: 15
+        - type: Pods
+          # maximum of 4 pods added at once
+          value: 4
+          # per 15 seconds
+          periodSeconds: 15
+      selectPolicy: Max # the largest of all defined policies is selected for scale up
+  {{- end }}
+{{- end }}
+{{- end }}
+
 {{- end -}}

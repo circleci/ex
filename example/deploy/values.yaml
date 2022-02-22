@@ -12,7 +12,9 @@ deployments:
   api:
     cmd: /api
     name: api
-    replicas: 2
+    autoscaling:
+      minReplicas: 2
+      maxReplicas: 16
     ports:
       - containerPort: 8000
         name: api
