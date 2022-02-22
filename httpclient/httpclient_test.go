@@ -424,3 +424,28 @@ func TestClient_ConnectionPool(t *testing.T) {
 			"made mre connections (%d) than expected (%d)", totalNewConnectionsMade, maxConnections+5)
 	})
 }
+
+func TestClient_RawBody(t *testing.T) {
+	ctx := context.Background()
+	r := ginrouter.Default(ctx, "raw body")
+	r.POST("/", func(c *gin.Context) {
+		bs, err := io.ReadAll(c.Request.Body)
+		assert.NilError(t, err)
+		c.Data(200, "application/octet-stream", bs)
+	})
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+
+	client := httpclient.New(httpclient.Config{
+		Name:    "raw body",
+		BaseURL: server.URL,
+	})
+
+	bs := []byte("madoka")
+	var resp []byte
+
+	req := httpclient.NewRequest("POST", "/", httpclient.RawBody(bs), httpclient.BytesDecoder(&resp))
+	err := client.Call(ctx, req)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.DeepEqual(bs, resp))
+}
