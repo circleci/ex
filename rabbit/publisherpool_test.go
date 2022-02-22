@@ -17,12 +17,11 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
+	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
-	"github.com/circleci/ex/testing/testcontext"
-
-	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/testing/rabbitfixture"
+	"github.com/circleci/ex/testing/testcontext"
 )
 
 const queueName = "queue-name"

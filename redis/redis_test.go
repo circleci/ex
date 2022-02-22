@@ -4,9 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"gotest.tools/v3/assert"
-
 	"github.com/go-redis/redis/v8"
+	"gotest.tools/v3/assert"
 
 	"github.com/circleci/ex/testing/testcontext"
 )

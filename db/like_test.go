@@ -3,9 +3,8 @@ package db
 import (
 	"testing"
 
-	"gotest.tools/v3/assert/cmp"
-
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestEscapeLike(t *testing.T) {
