@@ -16,7 +16,7 @@ require (
 	github.com/honeycombio/libhoney-go v1.15.8
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/jolestar/go-commons-pool/v2 v2.1.1
-	github.com/klauspost/compress v1.14.3
+	github.com/klauspost/compress v1.14.4
 	github.com/lib/pq v1.10.4
 	github.com/makasim/amqpextra v0.16.4
 	github.com/rollbar/rollbar-go v1.4.2
