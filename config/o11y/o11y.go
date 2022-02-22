@@ -36,18 +36,8 @@ type Config struct {
 	StatsdTelemetryDisabled bool
 }
 
-// Setup is the primary entrypoint to initialise the o11y system both in development and production.
-//
-// To support projects with monobinaries, DevInit can be called first.
+// Setup is the primary entrypoint to initialise the o11y system.
 func Setup(ctx context.Context, o Config) (context.Context, func(context.Context), error) {
-	if coordinator == nil {
-		return setup(ctx, o)
-	}
-	return coordinator.setup(ctx, o)
-}
-
-func setup(ctx context.Context, o Config) (context.Context, func(context.Context), error) {
-	// Set up observability by creating our observable context
 	honeyConfig, err := honeyComb(o)
 	if err != nil {
 		return nil, nil, err
