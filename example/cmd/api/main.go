@@ -84,6 +84,10 @@ func loadAPI(ctx context.Context, cli cli, sys *system.System) error {
 		Store: books.NewStore(txm),
 	})
 
-	_, err = httpserver.Load(ctx, "api", cli.APIAddr, a.Handler(), sys)
+	_, err = httpserver.Load(ctx, httpserver.Config{
+		Name:    "api",
+		Addr:    cli.APIAddr,
+		Handler: a.Handler(),
+	}, sys)
 	return err
 }
