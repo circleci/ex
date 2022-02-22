@@ -7,9 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"gotest.tools/v3/assert/cmp"
-
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestRequest_StringBody(t *testing.T) {
