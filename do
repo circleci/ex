@@ -31,11 +31,33 @@ check-rootcerts() {
 help_generate="generate any generated code"
 generate() {
     go generate -x ./...
+    run-goimports ./rootcerts
 }
 
+
+# This variable is used, but shellcheck can't tell.
+# shellcheck disable=SC2034
+help_run_goimports="Run goimports for package"
+run-goimports () {
+  command -v ./bin/gosimports > /dev/null || install-go-bin "github.com/rinchsan/gosimports/cmd/gosimports@v0.1.5"
+
+  local files
+  files=$(find . \( -name '*.go' -not -path "./example/*" \))
+  ./bin/gosimports -local "github.com/circleci/ex" -w $files
+}
+
+# This variable is used, but shellcheck can't tell.
+# shellcheck disable=SC2034
 help_lint="Run golanci-lint to lint go files."
 lint() {
     ./bin/golangci-lint run "${@:-./...}"
+
+    local files
+    files=$(find . \( -name '*.go' -not -path "./example*" \))
+    if [ -n "$(./bin/gosimports -local "github.com/circleci/ex" -d $files)" ]; then
+        echo "Go imports check failed, please run ./do run-goimports"
+        exit 1
+    fi
 }
 
 help_lint_report="Run golanci-lint to lint go files and generate an xml report."
@@ -130,7 +152,8 @@ install-devtools() {
     install-github-binary gotestyourself gotestsum '_' '.tar.gz' 1.6.4
 
     install-go-bin \
-            "github.com/gwatts/rootcerts/gencerts@v0.0.0-20210602134037-977e162fa4a7"
+            "github.com/gwatts/rootcerts/gencerts@v0.0.0-20210602134037-977e162fa4a7" \
+            "github.com/rinchsan/gosimports/cmd/gosimports@v0.1.5"
 }
 
 help_create_stub_test_files="Create an empty pkg_test in all directories with no tests.
