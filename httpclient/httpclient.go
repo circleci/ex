@@ -136,9 +136,10 @@ const successDecodeStatus = -1
 // Request is an individual http Request that the Client will send
 // NewRequest should be used to create a new Request rather than constructing a Request directly.
 type Request struct {
-	method string
-	route  string
-	body   interface{} // If set this will be sent as JSON
+	method  string
+	route   string
+	body    interface{} // If set this will be sent as JSON
+	rawBody []byte      // If set this will be sent as is
 
 	decoders map[int]decoder // If set will be used to decode the response body by http status code
 	cookie   *http.Cookie
@@ -222,6 +223,13 @@ func Body(body interface{}) func(*Request) {
 	}
 }
 
+// RawBody sets the request body that will be sent as is
+func RawBody(body []byte) func(*Request) {
+	return func(r *Request) {
+		r.rawBody = body
+	}
+}
+
 // Cookie sets the cookie for the request
 func Cookie(cookie *http.Cookie) func(*Request) {
 	return func(r *Request) {
@@ -292,7 +300,11 @@ func Propagation(propagation bool) func(*Request) {
 //   if err != nil {
 //     panic(err)
 //   }
+// nolint:funlen
 func (c *Client) Call(ctx context.Context, r Request) (err error) {
+	if r.rawBody != nil && r.body != nil {
+		return errors.New("cannot have both body and raw body be set")
+	}
 	spanName := fmt.Sprintf("httpclient: %s %s", c.name, r.route)
 	// most clients should use NewRequest, but if they created a Request directly
 	// use the raw route
@@ -342,6 +354,12 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 			}
 			req.Body = ioutil.NopCloser(b)
 		}
+
+		if r.rawBody != nil {
+			b := bytes.NewReader(r.rawBody)
+			req.Body = ioutil.NopCloser(b)
+		}
+
 		return req, nil
 	}
 
