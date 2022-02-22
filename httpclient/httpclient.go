@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cenkalti/backoff"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/honeycombio/beeline-go/propagation"
 
 	"github.com/circleci/ex/o11y"
