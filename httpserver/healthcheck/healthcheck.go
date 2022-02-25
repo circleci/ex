@@ -3,7 +3,6 @@ package healthcheck
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -63,17 +62,12 @@ func handleHealth(h *health.Health) func(*gin.Context) {
 		ctx := c.Request.Context()
 		check := h.Measure(ctx)
 
-		data, err := json.Marshal(check)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
-			return
-		}
 		code := http.StatusOK
 		if check.Status == health.StatusUnavailable {
 			o11y.AddField(ctx, "failures", check.Failures)
 			code = http.StatusServiceUnavailable
 		}
-		c.Data(code, "application/json", data)
+		c.JSON(code, check)
 	}
 }
 
