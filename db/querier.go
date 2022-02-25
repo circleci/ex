@@ -18,11 +18,12 @@ type Querier interface {
 
 	// GetContext expects placeholder parameters in the query and will bind args to them.
 	// A single row result will be mapped to dest which must be a pointer to a struct.
-	// In the case of no result the error returned will be sql.ErrNoRows.
+	// In the case of no result the error returned will be db.ErrNop.
 	GetContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
 
 	// NamedGetContext expect a query with named parameters, fields from the arg struct will be mapped
 	// to the named parameters. A single row result will be mapped to dest which must be a pointer to a struct.
+	// In the case of no result the error returned will be db.ErrNop.
 	NamedGetContext(ctx context.Context, dest interface{}, query string, arg interface{}) error
 
 	// NamedExecContext expect a query with named parameters, fields from the arg struct will be mapped
