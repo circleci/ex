@@ -3,6 +3,7 @@ package healthcheck
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
@@ -12,6 +13,7 @@ import (
 	"github.com/hellofresh/health-go/v4"
 
 	"github.com/circleci/ex/httpserver/ginrouter"
+	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/system"
 )
 
@@ -27,8 +29,8 @@ func New(ctx context.Context, checked []system.HealthChecker) (*API, error) {
 		return nil, fmt.Errorf("failed to create health checks: %w", err)
 	}
 
-	r.GET("/live", gin.WrapH(heathLive.Handler()))
-	r.GET("/ready", gin.WrapH(heathReady.Handler()))
+	r.GET("/live", handleHealth(heathLive))
+	r.GET("/ready", handleHealth(heathReady))
 
 	r.GET("/debug/pprof/*prof", handlePprof)
 
@@ -56,8 +58,23 @@ func handlePprof(c *gin.Context) {
 	}
 }
 
-func (a *API) Handler() http.Handler {
-	return a.router
+func handleHealth(h *health.Health) func(*gin.Context) {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		check := h.Measure(ctx)
+
+		data, err := json.Marshal(check)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+			return
+		}
+		code := http.StatusOK
+		if check.Status == health.StatusUnavailable {
+			o11y.AddField(ctx, "failures", check.Failures)
+			code = http.StatusServiceUnavailable
+		}
+		c.Data(code, "application/json", data)
+	}
 }
 
 func newHealthHandlers(checked []system.HealthChecker) (*health.Health, *health.Health, error) {
@@ -100,4 +117,8 @@ func newHealthHandlers(checked []system.HealthChecker) (*health.Health, *health.
 	}
 
 	return heathLive, heathReady, nil
+}
+
+func (a *API) Handler() http.Handler {
+	return a.router
 }
