@@ -11,7 +11,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/google/go-cmp v0.5.7
 	github.com/hellofresh/health-go/v4 v4.5.0
-	github.com/honeycombio/beeline-go v1.6.0
+	github.com/honeycombio/beeline-go v1.7.0
 	github.com/honeycombio/dynsampler-go v0.2.1
 	github.com/honeycombio/libhoney-go v1.15.8
 	github.com/jmoiron/sqlx v1.3.4
