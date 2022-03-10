@@ -14,6 +14,7 @@ Browse the docs at [pkg.go.dev](https://pkg.go.dev/github.com/circleci/ex).
 - `db` Common patterns using when talking to an RDBMS. Only supports PostgreSQL at present.
 - `httpclient` A simple HTTP client that adds observability and resilience to the standard
   Go HTTP client.
+- `httpclient/dnscache` A simple DNS cache for use with the HTTP client.
 - `httpserver` Starting and stopping the standard Go http server cleanly.
 - `httpserver/ginrouter` A common base for configuring a Gin router instance.
 - `httpserver/healthcheck` A healthcheck HTTP server that can accept all the checks from a `system`.

@@ -58,8 +58,10 @@ type Config struct {
 	UserAgent string
 	// Transport allows overriding the default HTTP transport the client will use.
 	Transport *http.Transport
-	//
+	// Tracer allows http stats tracing to be enabled.
 	Tracer tracer
+	// DialContext allows a dial context to be injected into the HTTP transport.
+	DialContext func(ctx context.Context, network string, addr string) (net.Conn, error)
 }
 
 // Client is the o11y instrumented http client.
@@ -89,6 +91,7 @@ func New(cfg Config) *Client {
 		}
 		cfg.Transport.MaxConnsPerHost = cfg.MaxConnectionsPerHost
 		cfg.Transport.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
+		cfg.Transport.DialContext = cfg.DialContext
 	}
 
 	additionalHeaders := make(map[string]string)
