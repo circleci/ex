@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +23,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/httpclient"
+	"github.com/circleci/ex/httpclient/dnscache"
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/httpserver/ginrouter"
 	"github.com/circleci/ex/o11y"
@@ -126,6 +129,25 @@ func TestClient_Call_Decodes(t *testing.T) {
 		assert.Check(t, httpclient.HasStatusCode(err, 400))
 		assert.Check(t, cmp.Equal(s, body))
 	})
+}
+
+func TestClient_Call_DialContext(t *testing.T) {
+	ctx := testcontext.Background()
+
+	client := httpclient.New(httpclient.Config{
+		Name:    "test",
+		BaseURL: "https://checkip.amazonaws.com",
+		Timeout: time.Second,
+		// Wire in the DNS cache
+		DialContext: dnscache.DialContext(dnscache.New(dnscache.Config{}), nil),
+	})
+
+	s := ""
+	err := client.Call(ctx, httpclient.NewRequest("GET", "/",
+		httpclient.StringDecoder(&s),
+	))
+	assert.Check(t, err)
+	assert.Check(t, net.ParseIP(strings.TrimSpace(s)) != nil)
 }
 
 func TestClient_Call_UnixSocket(t *testing.T) {
