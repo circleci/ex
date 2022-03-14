@@ -148,6 +148,7 @@ type Request struct {
 	cookie   *http.Cookie
 	headers  map[string]string
 	timeout  time.Duration // The individual per call timeout
+	retry    bool
 	query    url.Values
 
 	propagation bool
@@ -173,6 +174,7 @@ func NewRequest(method, route string, opts ...func(*Request)) Request {
 		headers:     map[string]string{},
 		query:       url.Values{},
 		propagation: true,
+		retry:       true,
 	}
 	for _, opt := range opts {
 		opt(&r)
@@ -279,6 +281,13 @@ func QueryParams(params map[string]string) func(*Request) {
 func Timeout(timeout time.Duration) func(*Request) {
 	return func(r *Request) {
 		r.timeout = timeout
+	}
+}
+
+// NoRetry prevents any retries from being made for this request.
+func NoRetry() func(*Request) {
+	return func(r *Request) {
+		r.retry = false
 	}
 }
 
@@ -469,6 +478,10 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		}
 
 		return nil
+	}
+
+	if !r.retry {
+		return attempt()
 	}
 
 	bo := backoff.NewExponentialBackOff()
