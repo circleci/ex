@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -148,6 +149,33 @@ func TestClient_Call_DialContext(t *testing.T) {
 	))
 	assert.Check(t, err)
 	assert.Check(t, net.ParseIP(strings.TrimSpace(s)) != nil)
+}
+
+func TestClient_Call_NoRetry(t *testing.T) {
+	ctx := testcontext.Background()
+
+	var counter int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count := atomic.AddInt64(&counter, 1)
+		if count == 1 {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	client := httpclient.New(httpclient.Config{
+		Name:    "test",
+		BaseURL: srv.URL,
+		Timeout: time.Second,
+		// Wire in the DNS cache
+		DialContext: dnscache.DialContext(dnscache.New(dnscache.Config{}), nil),
+	})
+
+	err := client.Call(ctx, httpclient.NewRequest("GET", "/",
+		httpclient.NoRetry(),
+	))
+	assert.Check(t, cmp.ErrorContains(err, "500 (Internal Server Error)"))
+	assert.Check(t, cmp.Equal(atomic.LoadInt64(&counter), int64(1)))
 }
 
 func TestClient_Call_UnixSocket(t *testing.T) {
