@@ -8,7 +8,7 @@ require (
 	github.com/alecthomas/kong v0.5.0
 	github.com/cenkalti/backoff/v4 v4.1.2
 	github.com/gin-gonic/gin v1.7.7
-	github.com/go-redis/redis/v8 v8.11.4
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/go-cmp v0.5.7
 	github.com/hellofresh/health-go/v4 v4.5.0
 	github.com/honeycombio/beeline-go v1.7.0
@@ -57,7 +57,7 @@ require (
 	go.opentelemetry.io/otel v1.0.0 // indirect
 	go.opentelemetry.io/otel/trace v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20210920023735-84f357641f63 // indirect
-	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
+	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/grpc v1.43.0 // indirect
