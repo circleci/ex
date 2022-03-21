@@ -30,9 +30,6 @@ workflows:
               only: main
 
 executors:
-  default:
-    docker:
-      - image: &goimage cimg/go:1.17
   ccc:
     docker:
       - image: circleci/command-convenience:0.1
