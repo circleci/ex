@@ -148,8 +148,8 @@ install-go-bin() {
 
 help_install_devtools="Install tools that other tasks expect into ./bin"
 install-devtools() {
-    install-github-binary golangci golangci-lint '-' '.zip' 1.40.1
-    install-github-binary gotestyourself gotestsum '_' '.tar.gz' 1.6.4
+    install-github-binary golangci golangci-lint '-' '.zip' 1.45.0
+    install-github-binary gotestyourself gotestsum '_' '.tar.gz' 1.7.0
 
     install-go-bin \
             "github.com/gwatts/rootcerts/gencerts@v0.0.0-20210602134037-977e162fa4a7" \

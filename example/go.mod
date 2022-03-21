@@ -1,6 +1,6 @@
 module github.com/circleci/ex/example
 
-go 1.17
+go 1.18
 
 require (
 	github.com/alecthomas/kong v0.4.1

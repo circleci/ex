@@ -8,12 +8,14 @@ workflows:
             parameters:
               go_version:
                 - '1.17'
+                - '1.18'
       - test:
           name: test-<< matrix.go_version >><< matrix.submodule >>
           matrix:
             parameters:
               go_version:
                 - '1.17'
+                - '1.18'
               submodule:
                 - ""
                 - example
