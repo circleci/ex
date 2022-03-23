@@ -20,6 +20,7 @@ type Config struct {
 	RollbarServerRoot string
 	HoneycombEnabled  bool
 	HoneycombDataset  string
+	HoneycombHost     string
 	HoneycombKey      secret.String
 	SampleTraces      bool
 	SampleKeyFunc     func(map[string]interface{}) string
@@ -122,7 +123,7 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 	}
 
 	conf := honeycomb.Config{
-		Host:          "",
+		Host:          o.HoneycombHost,
 		Dataset:       o.HoneycombDataset,
 		Key:           string(o.HoneycombKey),
 		Format:        o.Format,
