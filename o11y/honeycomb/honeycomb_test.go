@@ -31,15 +31,18 @@ func TestHoneycomb(t *testing.T) {
 		assert.Check(t, cmp.Contains(event, `"raw_key":"span-value"`), "span.AddRawField is unprefixed")
 		assert.Check(t, cmp.Contains(event, `"app.another_key":"span-value"`), "o11y.AddField is prefixed")
 		assert.Check(t, cmp.Contains(event, `"app.trace_key":"trace-value"`), "o11y.AddFieldToTrace is prefixed")
+		assert.Check(t, cmp.Contains(event, `"service_name":"a-service-name"`))
 	}
 	// set up a minimal server with the check defined above
 	url := honeycombServer(t, check)
 	ctx := context.Background()
 
 	h := New(Config{
-		Dataset:    "test-dataset",
-		Host:       url,
-		SendTraces: true,
+		Dataset:     "test-dataset",
+		Host:        url,
+		SendTraces:  true,
+		Key:         "a-key",
+		ServiceName: "a-service-name",
 	})
 
 	h.AddGlobalField("version", 42)
@@ -58,9 +61,11 @@ func TestHoneycomb(t *testing.T) {
 
 func TestHoneycomb_ValidatesKeys(t *testing.T) {
 	h := New(Config{
-		Dataset:    "test-dataset",
-		Host:       "invalid-url",
-		SendTraces: true,
+		Dataset:     "test-dataset",
+		Host:        "invalid-url",
+		SendTraces:  true,
+		Key:         "a-key",
+		ServiceName: "a-service-name",
 	})
 
 	recovery := func(key string) {
@@ -113,9 +118,11 @@ func TestHoneycombMetricsDoesntPolluteWhenNotConfigured(t *testing.T) {
 	ctx := context.Background()
 
 	h := New(Config{
-		Dataset:    "test-dataset",
-		Host:       url,
-		SendTraces: true,
+		Dataset:     "test-dataset",
+		Host:        url,
+		SendTraces:  true,
+		Key:         "a-key",
+		ServiceName: "a-service-name",
 	})
 	h.AddGlobalField("version", 42)
 
@@ -138,10 +145,12 @@ func TestHoneycombMetrics(t *testing.T) {
 
 	fakeMetrics := &fakemetrics.Provider{}
 	h := New(Config{
-		Dataset:    "test-dataset",
-		Host:       url,
-		SendTraces: true,
-		Metrics:    fakeMetrics,
+		Dataset:     "test-dataset",
+		Host:        url,
+		SendTraces:  true,
+		Metrics:     fakeMetrics,
+		Key:         "a-key",
+		ServiceName: "a-service-name",
 	})
 	h.AddGlobalField("version", 42)
 
@@ -231,9 +240,11 @@ func TestHoneycombWithError(t *testing.T) {
 	ctx := context.Background()
 
 	h := New(Config{
-		Dataset:    "error-dataset",
-		Host:       url,
-		SendTraces: true,
+		Dataset:     "error-dataset",
+		Host:        url,
+		SendTraces:  true,
+		Key:         "a-key",
+		ServiceName: "a-service-name",
 	})
 
 	_ = func() (err error) {
@@ -261,9 +272,11 @@ func TestHoneycombWithNilError(t *testing.T) {
 	ctx := context.Background()
 
 	h := New(Config{
-		Dataset:    "error-dataset",
-		Host:       url,
-		SendTraces: true,
+		Dataset:     "error-dataset",
+		Host:        url,
+		SendTraces:  true,
+		Key:         "a-key",
+		ServiceName: "a-service-name",
 	})
 
 	_, _ = func() (result string, err error) {
