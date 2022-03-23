@@ -130,6 +130,7 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 		SampleTraces:  o.SampleTraces,
 		SampleKeyFunc: o.SampleKeyFunc,
 		SampleRates:   o.SampleRates,
+		ServiceName:   o.Service,
 		Debug:         o.Debug,
 	}
 	return conf, conf.Validate()

@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	beeline "github.com/honeycombio/beeline-go"
+	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/dynsampler-go"
-	libhoney "github.com/honeycombio/libhoney-go"
+	"github.com/honeycombio/libhoney-go"
 	"github.com/honeycombio/libhoney-go/transmission"
 
 	"github.com/circleci/ex/o11y"
@@ -36,6 +36,7 @@ type Config struct {
 	SampleRates   map[string]int
 	Writer        io.Writer
 	Metrics       o11y.ClosableMetricsProvider
+	ServiceName   string
 
 	Debug bool
 }
@@ -101,8 +102,10 @@ func New(conf Config) o11y.Provider {
 	})
 
 	bc := beeline.Config{
-		Client: client,
-		Debug:  conf.Debug,
+		Client:      client,
+		Debug:       conf.Debug,
+		WriteKey:    conf.Key,
+		ServiceName: conf.ServiceName,
 	}
 
 	if conf.SampleTraces {
