@@ -21,7 +21,7 @@ func Background() context.Context {
 func newContext() context.Context {
 	return o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
 		ServiceName: "test-service",
-		Key:         "some-key",
+		Key:         "unused-test-key",
 		Format:      "color",
 		Metrics:     &statsd.NoOpClient{},
 	}))
