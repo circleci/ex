@@ -1,8 +1,8 @@
 package rootcerts
 
 // Generated using github.com/gwatts/rootcerts/gencert
-// Generated on Tue, 01 Feb 2022 14:46:30 -0500
-// Input file SHA1: 9e9498ebe87ab3dc3dcc8e782c20cc34281a1df8
+// Generated on Thu, 31 Mar 2022 10:46:30 +0100
+// Input file SHA1: 0eab3fb0f18e7a0b6a947dc54601211339b0ca8c
 
 import (
 	"crypto/tls"
