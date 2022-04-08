@@ -17,7 +17,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/jolestar/go-commons-pool/v2 v2.1.1
 	github.com/klauspost/compress v1.15.1
-	github.com/lib/pq v1.10.4
+	github.com/lib/pq v1.10.5
 	github.com/makasim/amqpextra v0.16.4
 	github.com/rollbar/rollbar-go v1.4.2
 	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
@@ -29,10 +29,7 @@ require (
 
 require golang.org/x/net v0.0.0-20210913180222-943fd674d43e
 
-require (
-	golang.org/x/net v0.0.0-20210913180222-943fd674d43e
-	google.golang.org/grpc v1.43.0
-)
+require google.golang.org/grpc v1.43.0
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
