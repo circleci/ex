@@ -22,7 +22,7 @@ require (
 	github.com/rollbar/rollbar-go v1.4.2
 	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
 	github.com/vmihailenco/go-tinylfu v0.2.2
-	go.mongodb.org/mongo-driver v1.8.4
+	go.mongodb.org/mongo-driver v1.9.0
 	golang.org/x/sync v0.0.0-20201020160332-67f06af15bc9
 	gotest.tools/v3 v3.1.0
 )
