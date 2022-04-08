@@ -29,7 +29,7 @@ require (
 
 require golang.org/x/net v0.0.0-20210913180222-943fd674d43e
 
-require google.golang.org/grpc v1.43.0
+require google.golang.org/grpc v1.45.0
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
