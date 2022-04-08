@@ -19,6 +19,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/honeycombio/beeline-go/propagation"
+	"golang.org/x/net/http/httpproxy"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -498,4 +499,94 @@ func TestClient_RawBody(t *testing.T) {
 	err := client.Call(ctx, req)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.DeepEqual(bs, resp))
+}
+
+func TestClient_Proxies(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
+	t.Cleanup(cancel)
+
+	proxy := startFwdProxy(t)
+
+	// start our server with a handler that writes a response
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"hello": "world!"} ...`)
+		// to help the client have the full number of concurrent requests in flight
+		time.Sleep(2 * time.Millisecond)
+	})
+	server := httptest.NewServer(h)
+
+	// default transport proxy is not used for 127.0.0.1 so use a name
+	serverURL, _ := url.Parse(server.URL)
+	localURL := "http://local.com:" + serverURL.Port()
+
+	t.Run("proxied", func(t *testing.T) {
+
+		t.Setenv("HTTP_PROXY", proxy.URL)
+		// can't use the default transport here - since ProxyFromEnvironment
+		// detects proxy settings once when first round-tripped
+		// similarly we can't use ProxyFromEnvironment here for the same reason
+
+		// similar to the default transport proxy lookup from env
+		pf := func(req *http.Request) (*url.URL, error) {
+			return httpproxy.FromEnvironment().ProxyFunc()(req.URL)
+		}
+
+		client := httpclient.New(httpclient.Config{
+			Name:        "proxy",
+			BaseURL:     localURL,
+			DialContext: localhostDialler(),
+			Transport: &http.Transport{
+				Proxy: pf,
+			},
+		})
+
+		req := httpclient.NewRequest("GET", "/path1/path2")
+		err := client.Call(ctx, req)
+		assert.NilError(t, err)
+
+		// assert that the proxy server was used
+		prxURL, _ := url.Parse(proxy.ProxiedURL)
+		host, _, _ := net.SplitHostPort(prxURL.Host)
+		assert.Check(t, cmp.Equal(host, "local.com"))
+		assert.Check(t, cmp.Equal(prxURL.Path, "/path1/path2"))
+
+		t.Run("force_no_proxy", func(t *testing.T) {
+			// the client may use the transport with the result of an earlier call to ProxyFromEnvironment
+			// so may not honour the env var set in the parent test but we set the prosy nil here explicitly
+			client := httpclient.New(httpclient.Config{
+				Name:        "no-proxy",
+				BaseURL:     localURL,
+				DialContext: localhostDialler(),
+				TransportModifier: func(t *http.Transport) {
+					t.Proxy = nil
+				},
+			})
+
+			// make a call and confirm that the proxy was not used
+			proxy.ProxiedURL = ""
+			req := httpclient.NewRequest("GET", "/path3/path4")
+			err := client.Call(ctx, req)
+			assert.NilError(t, err)
+
+			assert.Check(t, cmp.Equal(proxy.ProxiedURL, ""))
+		})
+	})
+}
+
+type dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
+// localhostDialler is a dialer that only dials 127.0.0.1 for any addr
+func localhostDialler() dialFunc {
+	baseDial := (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		_, p, err := net.SplitHostPort(addr)
+		if err != nil {
+			return nil, err
+		}
+		return baseDial(ctx, network, net.JoinHostPort("127.0.0.1", p))
+	}
 }
