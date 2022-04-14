@@ -38,12 +38,7 @@ type queryFn func(context.Context, Querier) error
 //nolint:funlen
 func (t *TxManager) WithTx(ctx context.Context, f queryFn) (err error) {
 	// Set up the main transaction function that we will retry on ErrBadCon
-	transaction := func(attempt int) (err error) {
-		ctx, span := o11y.StartSpan(ctx, "tx-manager: tx")
-		defer o11y.End(span, &err)
-
-		span.AddField("attempt", attempt)
-
+	transaction := func() (err error) {
 		tx, err := t.db.BeginTxx(ctx, nil)
 		if err != nil {
 			_, err = mapBadCon(err)
@@ -114,7 +109,7 @@ func (t *TxManager) WithTx(ctx context.Context, f queryFn) (err error) {
 	// Attempt the transaction a few times.
 	// (More than 3 ErrBadCon errors is going to be very unlikely.)
 	for i := 0; i < 3; i++ {
-		err = transaction(i)
+		err = transaction()
 		// We can only retry on bad connection errors
 		if !badConn(err) {
 			break
