@@ -5,6 +5,7 @@ reliable, observable, zero-downtime services using Go.
 ## Documentation
 
 Browse the docs at [pkg.go.dev](https://pkg.go.dev/github.com/circleci/ex).
+See example / template repo [here](https://github.com/circleci/ex-service-template).
 
 ## What is in here?
 - `config/o11y` Wiring code for the `o11y` package.

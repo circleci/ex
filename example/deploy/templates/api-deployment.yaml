@@ -1,2 +1,0 @@
-{{- $deploy := deepCopy . | merge .Values.deployments.api -}}
-{{include "deploy" $deploy}}
