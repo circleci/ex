@@ -8,7 +8,7 @@ import (
 	pool "github.com/jolestar/go-commons-pool/v2"
 	"github.com/makasim/amqpextra"
 	"github.com/makasim/amqpextra/publisher"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/circleci/ex/o11y"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/makasim/amqpextra"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/system"
