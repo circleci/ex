@@ -19,17 +19,15 @@ require (
 	github.com/klauspost/compress v1.15.1
 	github.com/lib/pq v1.10.5
 	github.com/makasim/amqpextra v0.17.0
+	github.com/rabbitmq/amqp091-go v1.3.4
 	github.com/rollbar/rollbar-go v1.4.2
-	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.mongodb.org/mongo-driver v1.9.0
+	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	google.golang.org/grpc v1.45.0
 	gotest.tools/v3 v3.1.0
 )
-
-require golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f
-
-require google.golang.org/grpc v1.45.0
 
 require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -51,7 +49,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/rabbitmq/amqp091-go v1.3.4 // indirect
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

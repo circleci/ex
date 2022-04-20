@@ -10,7 +10,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/makasim/amqpextra"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"gotest.tools/v3/assert"
 
 	"github.com/circleci/ex/config/secret"
