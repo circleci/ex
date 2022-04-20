@@ -10,15 +10,12 @@ workflows:
                 - '1.17'
                 - '1.18'
       - test:
-          name: test-<< matrix.go_version >><< matrix.submodule >>
+          name: test-<< matrix.go_version >>
           matrix:
             parameters:
               go_version:
                 - '1.17'
                 - '1.18'
-              submodule:
-                - ""
-                - example
       - release:
           requires:
             - lint
@@ -54,8 +51,6 @@ jobs:
     parameters:
       go_version:
         type: string
-      submodule:
-        type: string
     docker:
       - image: cimg/go:<<parameters.go_version>>
       - image: circleci/postgres:13.3-ram
@@ -72,7 +67,6 @@ jobs:
           MONGO_INITDB_ROOT_PASSWORD: password
           MONGO_INITDB_DATABASE: dbname
     resource_class: large
-    working_directory: ~/project/<<parameters.submodule>>
     steps:
       - checkout:
           path: ~/project
