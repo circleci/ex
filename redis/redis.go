@@ -13,6 +13,9 @@ import (
 )
 
 type Options struct {
+	// Name of the client for metrics and health check, default is "redis"
+	Name string
+	
 	Host string
 	Port int
 

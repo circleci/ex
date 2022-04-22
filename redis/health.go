@@ -8,11 +8,12 @@ import (
 )
 
 type HealthCheck struct {
+	name   string
 	client *redis.Client
 }
 
-func NewHealthCheck(client *redis.Client) *HealthCheck {
-	return &HealthCheck{client: client}
+func NewHealthCheck(client *redis.Client, name string) *HealthCheck {
+	return &HealthCheck{name: name, client: client}
 }
 
 func (r *HealthCheck) HealthChecks() (name string, ready, live func(ctx context.Context) error) {
@@ -28,6 +29,9 @@ func (r *HealthCheck) HealthChecks() (name string, ready, live func(ctx context.
 
 		return nil
 	}
-
-	return "redis", ready, nil
+	name = r.name
+	if name == "" {
+		name = "redis"
+	}
+	return name, ready, nil
 }

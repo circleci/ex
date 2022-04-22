@@ -17,8 +17,12 @@ func Load(o Options, sys *system.System) *redis.Client {
 		return client.Close()
 	})
 
-	sys.AddHealthCheck(NewHealthCheck(client))
-	sys.AddMetrics(NewMetrics("redis", client))
+	name := o.Name
+	if name == "" {
+		name = "redis"
+	}
+	sys.AddHealthCheck(NewHealthCheck(client, name))
+	sys.AddMetrics(NewMetrics(name, client))
 
 	return client
 }
