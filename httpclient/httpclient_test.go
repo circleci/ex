@@ -116,11 +116,17 @@ func TestClient_Call_Decodes(t *testing.T) {
 
 	t.Run("Decode string", func(t *testing.T) {
 		var s string
+		var respContentType string
 		err := client.Call(ctx, httpclient.NewRequest("POST", "/ok",
 			httpclient.StringDecoder(&s),
+			httpclient.ResponseHeader(func(header http.Header) {
+				respContentType = header.Get("Content-Type")
+			}),
 		))
 		assert.Check(t, err)
 		assert.Check(t, cmp.Equal(s, body))
+		assert.Check(t, cmp.Equal(respContentType, "application/json"))
+
 	})
 
 	t.Run("Decode errors", func(t *testing.T) {

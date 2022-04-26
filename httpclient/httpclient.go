@@ -149,7 +149,8 @@ type Request struct {
 	body    interface{} // If set this will be sent as JSON
 	rawBody []byte      // If set this will be sent as is
 
-	decoders map[int]decoder // If set will be used to decode the response body by http status code
+	decoders map[int]decoder          // If set will be used to decode the response body by http status code
+	headerFn func(header http.Header) // If set will be called with the response header
 	cookie   *http.Cookie
 	headers  map[string]string
 	timeout  time.Duration // The individual per call timeout
@@ -224,6 +225,12 @@ func StringDecoder(resp *string) func(*Request) {
 // BytesDecoder is a shorthand to decode the success body as raw bytes
 func BytesDecoder(resp *[]byte) func(*Request) {
 	return SuccessDecoder(NewBytesDecoder(resp))
+}
+
+func ResponseHeader(f func(http.Header)) func(*Request) {
+	return func(r *Request) {
+		r.headerFn = f
+	}
 }
 
 // Body sets the request body that will be sent as JSON
@@ -440,6 +447,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			return fmt.Errorf("call: %s %s failed with: %w after %d attempt(s)",
 				req.Method, r.route, err, attemptCounter)
 		}
+
 		defer func() {
 			// drain anything left in the body and close it, to ensure we can take advantage of keep alive
 			// this is best-efforts so any errors here are not important
@@ -475,6 +483,10 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			}
 
 			return err
+		}
+
+		if r.headerFn != nil {
+			r.headerFn(res.Header)
 		}
 
 		err = r.decodeBody(res, true, attemptCounter)
