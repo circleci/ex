@@ -26,3 +26,22 @@ func Load(o Options, sys *system.System) *redis.Client {
 
 	return client
 }
+
+// LoadCluster will create a new Redis cluster client, and wire it into the provided System with
+// default lifecycle management and observability.
+func LoadCluster(o ClusterOptions, sys *system.System) *redis.ClusterClient {
+	client := NewCluster(o)
+
+	sys.AddCleanup(func(_ context.Context) error {
+		return client.Close()
+	})
+
+	name := o.Name
+	if name == "" {
+		name = "redis"
+	}
+	sys.AddHealthCheck(NewHealthCheck(client, name))
+	sys.AddMetrics(NewMetrics(name, client))
+
+	return client
+}
