@@ -9,10 +9,10 @@ import (
 
 type HealthCheck struct {
 	name   string
-	client *redis.Client
+	client redis.UniversalClient
 }
 
-func NewHealthCheck(client *redis.Client, name string) *HealthCheck {
+func NewHealthCheck(client redis.UniversalClient, name string) *HealthCheck {
 	return &HealthCheck{name: name, client: client}
 }
 

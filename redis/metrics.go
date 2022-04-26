@@ -8,10 +8,10 @@ import (
 
 type Metrics struct {
 	name   string
-	client *redis.Client
+	client redis.UniversalClient
 }
 
-func NewMetrics(name string, client *redis.Client) *Metrics {
+func NewMetrics(name string, client redis.UniversalClient) *Metrics {
 	return &Metrics{
 		name:   name,
 		client: client,
