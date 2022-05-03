@@ -22,7 +22,7 @@ require (
 	github.com/rabbitmq/amqp091-go v1.3.4
 	github.com/rollbar/rollbar-go v1.4.2
 	github.com/vmihailenco/go-tinylfu v0.2.2
-	go.mongodb.org/mongo-driver v1.9.0
+	go.mongodb.org/mongo-driver v1.9.1
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/grpc v1.46.0
