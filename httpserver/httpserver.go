@@ -16,6 +16,7 @@ import (
 type HTTPServer struct {
 	listener *trackedListener
 	server   *http.Server
+	grace    time.Duration
 }
 
 type Config struct {
@@ -29,6 +30,9 @@ type Config struct {
 	// Optional
 	// Network must be "tcp", "tcp4", "tcp6", "unix", "unixpacket" or "" (which defaults to tcp).
 	Network string
+
+	// ShutdownGrace is the period during which the server allows requests to be fully served.
+	ShutdownGrace time.Duration
 }
 
 func New(ctx context.Context, cfg Config) (s *HTTPServer, err error) {
@@ -54,6 +58,12 @@ func New(ctx context.Context, cfg Config) (s *HTTPServer, err error) {
 
 	span.AddField("address", ln.Addr().String())
 
+	grace := cfg.ShutdownGrace
+	if grace == 0 {
+		grace = 10 * time.Second
+	}
+	span.AddField("shutdown_grace", grace)
+
 	return &HTTPServer{
 		listener: tr,
 		server: &http.Server{
@@ -62,6 +72,7 @@ func New(ctx context.Context, cfg Config) (s *HTTPServer, err error) {
 			ReadTimeout:  55 * time.Second,
 			WriteTimeout: 55 * time.Second,
 		},
+		grace: grace,
 	}, nil
 }
 
@@ -72,7 +83,7 @@ func (s *HTTPServer) Serve(ctx context.Context) error {
 
 	g.Go(func() error {
 		<-ctx.Done()
-		cctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cctx, cancel := context.WithTimeout(context.Background(), s.grace)
 		defer cancel()
 		if err := s.server.Shutdown(cctx); err != nil {
 			return fmt.Errorf("server shutdown failed: %w", err)
