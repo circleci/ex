@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rollbar/rollbar-go"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/rollbar/rollbar-go"
 )
 
 type Provider interface {
@@ -92,15 +92,15 @@ const (
 )
 
 type Metric struct {
-	Type MetricType
+	Type MetricType `json:"metricType"`
 	// Name is the metric name that will be emitted
-	Name string
+	Name string `json:"name"`
 	// Field is the span field to use as the metric's value
-	Field string
+	Field string `json:"field"`
 	// FixedTag is an optional tag added at Metric definition time
-	FixedTag *Tag
+	FixedTag *Tag `json:"fixedTag"`
 	// TagFields are additional span fields to use as metric tags
-	TagFields []string
+	TagFields []string `json:"tagFields"`
 }
 
 type Tag struct {
