@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq"
 	"gotest.tools/v3/assert"
 
 	"github.com/circleci/ex/config/secret"
@@ -72,7 +72,7 @@ func SetupDB(ctx context.Context, t types.TestingTB, schema string, con Connecti
 	assert.NilError(t, err)
 	t.Cleanup(func() {
 		p := o11y.FromContext(ctx)
-		ctx, cancel := context.WithTimeout(o11y.WithProvider(context.Background(), p), 5*time.Second)
+		ctx, cancel := context.WithTimeout(o11y.WithProvider(context.Background(), p), 10*time.Second)
 		defer cancel()
 
 		if r := recover(); r != nil {
@@ -123,7 +123,7 @@ func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName,
 	span.AddField("dbname", fix.DBName)
 	span.AddField("host", con.Host)
 	span.AddField("user", con.User)
-	createDB := fmt.Sprintf("CREATE DATABASE %s", pq.QuoteIdentifier(fix.DBName))
+	createDB := fmt.Sprintf("CREATE DATABASE %s", pgx.Identifier{fix.DBName}.Sanitize())
 	_, err = d.ExecContext(ctx, createDB)
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func newDB(con Connection, name string) (db *sqlx.DB, err error) {
 		RawQuery: params.Encode(),
 	}
 
-	db, err = sqlx.Open("postgres", uri.String())
+	db, err = sqlx.Open("pgx", uri.String())
 	if err != nil {
 		return nil, err
 	}
@@ -231,9 +231,27 @@ func (m *Manager) cleanup(ctx context.Context, db *sqlx.DB, fixture *Fixture) er
 		return nil
 	}
 
-	_, err = db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE %s", pq.QuoteIdentifier(fixture.DBName)))
+	// attempt to kick out any melingering connections before dropping the database
+	_, err = db.ExecContext(ctx,
+		fmt.Sprintf("REVOKE CONNECT ON DATABASE %s FROM public;", pgx.Identifier{fixture.DBName}.Sanitize()))
 	if err != nil {
-		return err
+		return fmt.Errorf("revoke con: %w", err)
+	}
+
+	killConSQL := `
+SELECT pid, pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE datname = '%s' AND pid <> pg_backend_pid();
+`
+	_, err = db.ExecContext(ctx, fmt.Sprintf(killConSQL, fixture.DBName))
+	if err != nil {
+		o11y.LogError(ctx, "db: cleanup drop con", err)
+	}
+
+	dbName := pgx.Identifier{fixture.DBName}.Sanitize()
+	_, err = db.ExecContext(ctx, fmt.Sprintf("DROP DATABASE %s", dbName))
+	if err != nil {
+		return fmt.Errorf("drop db: %w", err)
 	}
 
 	return nil
@@ -274,10 +292,8 @@ func (f *Fixture) Reset(ctx context.Context) (err error) {
 
 		for _, table := range f.tables {
 			// nolint: gosec
-			_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s.%s`,
-				pq.QuoteIdentifier(table.Schema),
-				pq.QuoteIdentifier(table.Name),
-			))
+			_, err := tx.ExecContext(ctx, fmt.Sprintf(`DELETE FROM %s`,
+				pgx.Identifier{table.Schema, table.Name}.Sanitize()))
 			if squelchNopError(err) != nil {
 				return fmt.Errorf("could not delete from table: %w", err)
 			}

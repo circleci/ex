@@ -2,12 +2,14 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
 
+	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/db"
 	"github.com/circleci/ex/testing/dbfixture"
 	"github.com/circleci/ex/testing/testcontext"
@@ -22,7 +24,7 @@ func TestDB(t *testing.T) {
 	}
 
 	const schema = `
-    CREATE TABLE peeps (id text PRIMARY KEY, name text, height smallint, dob timestamp);
+    CREATE TABLE peeps (id text PRIMARY KEY, name text, height smallint, dob timestamp, password text, raw json);
     CREATE TABLE birbs (id text PRIMARY KEY, peep_id text, name text);
 	ALTER TABLE ONLY birbs
 	ADD CONSTRAINT birbs_fk FOREIGN KEY (peep_id) REFERENCES peeps(id);`
@@ -30,25 +32,37 @@ func TestDB(t *testing.T) {
 
 	t.Run("statements", func(t *testing.T) {
 		type person struct {
-			ID     string
-			Name   string
-			Height int
-			DOB    time.Time
+			ID       string
+			Name     string
+			Height   int
+			DOB      time.Time
+			Password secret.String
+			Raw      json.RawMessage
 		}
 		// add a person
 		person1 := person{
-			ID:     "id1",
-			Name:   "bob",
-			Height: 187,
-			DOB:    time.Date(1998, 7, 4, 0, 0, 0, 0, time.UTC),
+			ID:       "id1",
+			Name:     "bob",
+			Height:   187,
+			DOB:      time.Date(1998, 7, 4, 0, 0, 0, 0, time.UTC),
+			Password: "correct horse battery staple",
+			Raw:      json.RawMessage(`{"help": "me"}`), // note the space
 		}
 		err := fix.TX.WithTx(ctx, func(ctx context.Context, q db.Querier) error {
-			const sql = "INSERT INTO peeps (id,name,height,dob) VALUES (:id,:name,:height,:dob);"
+
+			const sql = `
+INSERT INTO peeps 
+(id,name,height,dob,password,raw) 
+VALUES (:id,:name,:height,:dob,:password,:raw);
+`
 			_, err := q.NamedExecContext(ctx, sql, person1)
 
 			return err
 		})
 		assert.Assert(t, err)
+
+		// note the space removed - this behaviour may change from driver to driver
+		person1.Raw = json.RawMessage(`{"help":"me"}`)
 
 		t.Run("get", func(t *testing.T) {
 			p := person{}
@@ -57,6 +71,12 @@ func TestDB(t *testing.T) {
 			})
 			assert.Assert(t, err)
 			assert.DeepEqual(t, p, person1)
+
+			var ps []person
+			q := "SELECT * from peeps WHERE id=any($1)"
+			err = fix.TX.NoTx().SelectContext(ctx, &ps, q, []string{"id1", "id2"})
+			assert.Assert(t, err)
+			assert.DeepEqual(t, p, ps[0])
 		})
 
 		t.Run("get named", func(t *testing.T) {
@@ -101,14 +121,14 @@ func TestDB(t *testing.T) {
 			assert.Check(t, errors.Is(err, db.ErrConstrained))
 			assert.ErrorContains(t, err, "birbs_fk")
 
-			// an example of how to extract the constraint that failed
-			if errors.Is(err, db.ErrConstrained) && db.PqError(err).Constraint == "birbs_fk" {
+			//an example of how to extract the constraint that failed
+			if errors.Is(err, db.ErrConstrained) && db.PqError(err).ConstraintName == "birbs_fk" {
 				// do your constraint behaviour
 			} else {
-				t.Error("got the wrong constraint", db.PqError(err).Constraint)
+				t.Error("got the wrong constraint", db.PqError(err).ConstraintName)
 			}
 			// or if you want to go direct
-			if db.PqError(err) != nil && db.PqError(err).Constraint == "birbs_fk" {
+			if db.PqError(err) != nil && db.PqError(err).ConstraintName == "birbs_fk" {
 				// you may need to map the code here - which would be bad.
 				// but you could check the db mapping
 				assert.Check(t, errors.Is(err, db.ErrConstrained))

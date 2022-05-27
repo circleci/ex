@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgconn"
 
 	"github.com/circleci/ex/o11y"
 )
@@ -51,7 +51,7 @@ func mapError(err error) (bool, error) {
 	if ok, e := mapBadCon(err); ok {
 		return true, e
 	}
-	e := &pq.Error{}
+	e := &pgconn.PgError{}
 	if errors.As(err, &e) {
 		switch e.Code {
 		case pgForeignKeyConstraintErrorCode:
@@ -83,12 +83,12 @@ func badConn(err error) bool {
 // The sentinel is included for easier testing of the existing error vars.
 // for example errors.Is(err, ErrConstrained)
 type Error struct {
-	pqErr    *pq.Error
+	pqErr    *pgconn.PgError
 	sentinel error
 }
 
 // PqError will return any wrapped pqError is e has one
-func (e Error) PqError() *pq.Error {
+func (e Error) PqError() *pgconn.PgError {
 	return e.pqErr
 }
 
@@ -120,7 +120,7 @@ func (e *Error) Error() string {
 	return "unknown database error"
 }
 
-func PqError(err error) *pq.Error {
+func PqError(err error) *pgconn.PgError {
 	e := &Error{}
 	if errors.As(err, &e) {
 		return e.pqErr

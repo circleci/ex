@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"time"
 
+	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq" // Load PostgresSQL Driver
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
@@ -56,7 +56,7 @@ func New(ctx context.Context, dbName, appName string, options Config) (db *sqlx.
 		Path:     options.Name,
 		RawQuery: params.Encode(),
 	}
-	db, err = sqlx.Open("postgres", uri.String())
+	db, err = sqlx.Open("pgx", uri.String())
 	if err != nil {
 		return nil, err
 	}
