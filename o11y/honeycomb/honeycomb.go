@@ -334,6 +334,22 @@ func (s *span) AddRawField(key string, val interface{}) {
 	s.span.AddField(key, val)
 }
 
+func (s *span) AddTraceField(key string, val interface{}) {
+	mustValidateKey(key)
+	if err, ok := val.(error); ok {
+		val = err.Error()
+	}
+	s.span.AddTraceField("app."+key, val)
+}
+
+func (s *span) AddRawTraceField(key string, val interface{}) {
+	mustValidateKey(key)
+	if err, ok := val.(error); ok {
+		val = err.Error()
+	}
+	s.span.AddTraceField(key, val)
+}
+
 func (s *span) RecordMetric(metric o11y.Metric) {
 	s.metrics = append(s.metrics, metric)
 	// Stash the metrics list as a span field, the pre-send hook will fish it out

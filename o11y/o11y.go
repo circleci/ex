@@ -73,6 +73,16 @@ type Span interface {
 	// https://github.com/open-telemetry/opentelemetry-specification/tree/7ae3d066c95c716ef3086228ef955d84ba03ac88/specification/trace/semantic_conventions
 	AddRawField(key string, val interface{})
 
+	// AddTraceField is for adding application-level information to all spans in the trace
+	// Generally AddField is preferred unless having the field on all spans is useful.
+	//
+	// Any field name will be prefixed with "app."
+	AddTraceField(key string, val interface{})
+
+	// AddRawTraceField is for adding useful information to the trace in library/plumbing code
+	// Review using AddField() AddRawField() and AddTraceField() before choosing this function.
+	AddRawTraceField(key string, val interface{})
+
 	// RecordMetric tells the provider to emit a metric to its metric backend when the span ends
 	RecordMetric(metric Metric)
 
@@ -313,6 +323,10 @@ func (s *noopSpan) SerializeHeaders() string {
 func (s *noopSpan) AddField(key string, val interface{}) {}
 
 func (s *noopSpan) AddRawField(key string, val interface{}) {}
+
+func (s *noopSpan) AddTraceField(key string, val interface{}) {}
+
+func (s *noopSpan) AddRawTraceField(key string, val interface{}) {}
 
 func (s *noopSpan) RecordMetric(metric Metric) {}
 
