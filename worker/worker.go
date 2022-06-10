@@ -80,7 +80,7 @@ func doWork(provider o11y.Provider, cfg Config) (backoff time.Duration) {
 
 	ctx = o11y.WithProvider(ctx, provider)
 	ctx, span := provider.StartSpan(ctx, fmt.Sprintf("worker loop: %s", cfg.Name))
-	span.AddField("loop_name", cfg.Name)
+	o11y.AddFieldToTrace(ctx, "loop_name", cfg.Name)
 	span.AddRawField("meta.type", "worker_loop")
 
 	span.RecordMetric(o11y.Timing("worker_loop", "loop_name", "result"))
