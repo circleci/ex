@@ -18,6 +18,12 @@ func (s String) GoString() string {
 func (s String) Value() string {
 	return string(s)
 }
+
 func (s String) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + redacted + `"`), nil
+}
+
+// Get is used by pqx before any other type checks to get the underlying type
+func (s String) Get() interface{} {
+	return string(s)
 }
