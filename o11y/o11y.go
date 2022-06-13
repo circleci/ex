@@ -149,6 +149,8 @@ type MetricsProvider interface {
 	Gauge(name string, value float64, tags []string, rate float64) error
 	// Count sends an individual value in time.
 	Count(name string, value int64, tags []string, rate float64) error
+	// Histogram tracks the statistical distribution of a set of values on each host.
+	Histogram(name string, value float64, tags []string, rate float64) error
 }
 
 type ClosableMetricsProvider interface {
