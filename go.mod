@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
-	github.com/alecthomas/kong v0.5.0
+	github.com/alecthomas/kong v0.6.0
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-redis/redis/v8 v8.11.5
