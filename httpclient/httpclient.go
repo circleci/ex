@@ -57,7 +57,7 @@ type Config struct {
 	// UserAgent that will be used for every request
 	UserAgent string
 	// Transport allows overriding the default HTTP transport the client will use.
-	Transport *http.Transport
+	Transport http.RoundTripper
 	// TransportModifier can modify the transport after the client has applied other config settings
 	TransportModifier func(Transport *http.Transport)
 	// Tracer allows http stats tracing to be enabled.
@@ -87,16 +87,19 @@ type Client struct {
 // New creates a client configured with the config param
 func New(cfg Config) *Client {
 	if cfg.Transport == nil {
-		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
+		transport := http.DefaultTransport.(*http.Transport).Clone()
 		if cfg.MaxConnectionsPerHost == 0 {
 			cfg.MaxConnectionsPerHost = 10
 		}
-		cfg.Transport.MaxConnsPerHost = cfg.MaxConnectionsPerHost
-		cfg.Transport.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
-		cfg.Transport.DialContext = cfg.DialContext
+		transport.MaxConnsPerHost = cfg.MaxConnectionsPerHost
+		transport.MaxIdleConnsPerHost = cfg.MaxConnectionsPerHost
+		transport.DialContext = cfg.DialContext
+		cfg.Transport = transport
 	}
 	if cfg.TransportModifier != nil {
-		cfg.TransportModifier(cfg.Transport)
+		if transport, ok := cfg.Transport.(*http.Transport); ok {
+			cfg.TransportModifier(transport)
+		}
 	}
 
 	additionalHeaders := make(map[string]string)
@@ -104,7 +107,7 @@ func New(cfg Config) *Client {
 		additionalHeaders["User-Agent"] = cfg.UserAgent
 	}
 
-	var roundTripper http.RoundTripper = cfg.Transport
+	var roundTripper = cfg.Transport
 	if cfg.Tracer != nil {
 		roundTripper = cfg.Tracer.Wrap(cfg.Name, roundTripper)
 	}
