@@ -20,7 +20,7 @@ func TestHelp(t *testing.T) {
 	c := cli{}
 	s := Help(t, &c)
 	assert.Check(t, golden.String(s, "help.txt"))
-	assert.Check(t, cmp.Equal(c, cli{
+	assert.Check(t, cmp.DeepEqual(c, cli{
 		StringVar:   "string-default",
 		IntVar:      123,
 		BoolVar:     true,
