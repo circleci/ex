@@ -20,7 +20,7 @@ require (
 	github.com/klauspost/compress v1.15.7
 	github.com/makasim/amqpextra v0.17.0
 	github.com/rabbitmq/amqp091-go v1.3.4
-	github.com/rollbar/rollbar-go v1.4.2
+	github.com/rollbar/rollbar-go v1.4.4
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.mongodb.org/mongo-driver v1.9.1
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
