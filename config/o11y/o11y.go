@@ -126,13 +126,13 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 		Host:          o.HoneycombHost,
 		Dataset:       o.HoneycombDataset,
 		Key:           string(o.HoneycombKey),
-		Format:        o.Format,
+		Format:        "json",
 		SendTraces:    o.HoneycombEnabled,
 		SampleTraces:  o.SampleTraces,
 		SampleKeyFunc: o.SampleKeyFunc,
 		SampleRates:   o.SampleRates,
 		ServiceName:   o.Service,
-		Debug:         o.Debug,
+		Debug:         true,
 	}
 	return conf, conf.Validate()
 }
