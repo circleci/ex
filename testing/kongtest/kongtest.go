@@ -1,3 +1,7 @@
+/*
+Package kongtest helps write golden tests for your [Kong](https://github.com/alecthomas/kong)
+CLI parsing.
+*/
 package kongtest
 
 import (
@@ -21,8 +25,8 @@ func Help(t *testing.T, cli interface{}) string {
 	)
 	assert.Check(t, err)
 
-	_, err = app.Parse([]string{"--help"})
-	assert.Check(t, err)
+	// Intentionally ignore the error, as it's not useful
+	_, _ = app.Parse([]string{"--help"})
 	assert.Check(t, cmp.Equal(0, rc))
 
 	return w.String()

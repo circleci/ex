@@ -1,4 +1,4 @@
-Usage: test-app
+Usage: test-app --required-var=REQUIRED-VAR
 
 Flags:
   -h, --help                Show context-sensitive help.
@@ -7,3 +7,5 @@ Flags:
       --int-var=123         ($INT_VAR)
       --bool-var            ($BOOL_VAR)
       --duration-var=10s    ($DURATION_VAR)
+      --required-var=REQUIRED-VAR
+                            The config YAML file ($CONFIG_FILE)
