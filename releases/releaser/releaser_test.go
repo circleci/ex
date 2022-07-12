@@ -33,7 +33,12 @@ func TestReleaser_Publish(t *testing.T) {
 	r := NewWithClient(fix.Client)
 
 	assert.Assert(t, t.Run("Publish", func(t *testing.T) {
-		err := r.Publish(ctx, filepath.Join("testdata", "target", "bin"), fix.Bucket, "app", "0.0.1-dev")
+		err := r.Publish(ctx, PublishParameters{
+			Path:    filepath.Join("testdata", "target", "bin"),
+			Bucket:  fix.Bucket,
+			App:     "app",
+			Version: "0.0.1-dev",
+		})
 		assert.Assert(t, err)
 	}))
 
@@ -109,7 +114,11 @@ func TestReleaser_Release(t *testing.T) {
 	r := NewWithClient(fix.Client)
 
 	assert.Assert(t, t.Run("Release", func(t *testing.T) {
-		err := r.Release(ctx, fix.Bucket, "app", "0.0.1-dev")
+		err := r.Release(ctx, ReleaseParameters{
+			Bucket:  fix.Bucket,
+			App:     "app",
+			Version: "0.0.1-dev",
+		})
 		assert.Assert(t, err)
 	}))
 
