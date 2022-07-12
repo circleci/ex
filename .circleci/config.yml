@@ -66,6 +66,15 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: root
           MONGO_INITDB_ROOT_PASSWORD: password
           MONGO_INITDB_DATABASE: dbname
+      - image: minio/minio
+        environment:
+          MINIO_ROOT_USER: 'minio'
+          MINIO_ROOT_PASSWORD: 'minio123'
+        command: [
+          'server',
+          '/data/1', '/data/2','/data/3', '/data/4',
+          '--address', ':9123',
+        ]
     resource_class: large
     steps:
       - checkout:

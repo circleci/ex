@@ -6,19 +6,16 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/fs"
 	"gotest.tools/v3/icmd"
 )
 
 func TestCompiler_Compile(t *testing.T) {
-	c := New()
+	tempDir := fs.NewDir(t, "")
+
+	c := newCompiler(tempDir.Path(), "-w -s")
 
 	binary := ""
-	t.Cleanup(func() {
-		c.Cleanup()
-		_, err := os.Stat(binary)
-		assert.Check(t, os.IsNotExist(err))
-	})
-
 	assert.Assert(t, t.Run("Compile binary", func(t *testing.T) {
 		var err error
 		binary, err = c.Compile(context.Background(), Work{

@@ -41,3 +41,18 @@ services:
     image: catkins/statsd-logger
     ports:
       - '127.0.0.1:8125:8125/udp'
+
+  minio:
+    image: 'minio/minio'
+    command: [
+      'server',
+      '/data/1', '/data/2','/data/3', '/data/4',
+      '--address', ':9123',
+      '--console-address', ':9000',
+    ]
+    environment:
+      MINIO_ROOT_USER: 'minio'
+      MINIO_ROOT_PASSWORD: 'minio123'
+    ports:
+      - '127.0.0.1:9123:9123'
+      - '127.0.0.1:9000:9000'
