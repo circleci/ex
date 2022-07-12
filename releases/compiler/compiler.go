@@ -2,34 +2,27 @@ package compiler
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
-type Compiler struct {
-	dir string
-}
-
-func New() *Compiler {
-	tempDir, err := ioutil.TempDir("", "acceptance-tests")
-	if err != nil {
-		panic(err)
-	}
-
-	return &Compiler{
-		dir: tempDir,
+func newCompiler(baseDir, ldFlags string) *compiler {
+	return &compiler{
+		baseDir: baseDir,
+		ldFlags: ldFlags,
 	}
 }
 
-func (c *Compiler) Dir() string {
-	return c.dir
+type compiler struct {
+	baseDir string
+	ldFlags string
 }
 
-func (c *Compiler) Cleanup() {
-	_ = os.RemoveAll(c.dir)
+func (c *compiler) Dir() string {
+	return c.baseDir
 }
 
 type Work struct {
@@ -42,17 +35,24 @@ type Work struct {
 }
 
 // Compile a binary for testing. target is the path to the main package.
-func (c *Compiler) Compile(ctx context.Context, work Work) (string, error) {
+func (c *compiler) Compile(ctx context.Context, work Work) (string, error) {
 	cwd, err := filepath.Abs(work.Target)
 	if err != nil {
 		return "", err
 	}
 
-	path := binaryPath(work.Name, c.dir)
+	goos := runtime.GOOS
+	for _, e := range work.Environment {
+		if strings.HasPrefix(e, "GOOS=") {
+			goos = strings.SplitN(e, "=", 2)[1]
+		}
+	}
+
+	path := binaryPath(work.Name, c.baseDir, goos)
 	goBin := goPath()
 	// #nosec - this is fine
 	cmd := exec.CommandContext(ctx, goBin, "build",
-		"-ldflags=-w -s",
+		"-ldflags="+c.ldFlags,
 		"-o", path,
 		work.Source,
 	)
@@ -81,9 +81,9 @@ func goPath() string {
 	return filepath.Join(goroot, "bin", "go")
 }
 
-func binaryPath(name, tempDir string) string {
+func binaryPath(name, tempDir, goos string) string {
 	path := filepath.Join(tempDir, name)
-	if runtime.GOOS == "windows" {
+	if goos == "windows" {
 		return path + ".exe"
 	}
 	return path

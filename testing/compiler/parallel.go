@@ -2,22 +2,28 @@ package compiler
 
 import (
 	"context"
+	"io/ioutil"
+	"os"
 
-	"golang.org/x/sync/errgroup"
+	"github.com/circleci/ex/releases/compiler"
 )
 
 type Parallel struct {
-	compiler    *Compiler
-	parallelism int
-
-	work chan Work
+	compiler *compiler.Parallel
 }
 
 func NewParallel(parallelism int) *Parallel {
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		panic(err)
+	}
+
 	return &Parallel{
-		compiler:    New(),
-		parallelism: parallelism,
-		work:        make(chan Work, 100),
+		compiler: compiler.New(compiler.Config{
+			BaseDir:     dir,
+			LDFlags:     "-w -s",
+			Parallelism: parallelism,
+		}),
 	}
 }
 
@@ -26,45 +32,16 @@ func (t *Parallel) Dir() string {
 }
 
 func (t *Parallel) Cleanup() {
-	defer t.compiler.Cleanup()
-	close(t.work)
+	t.compiler.Cleanup()
+	_ = os.RemoveAll(t.compiler.Dir())
 }
 
-func (t *Parallel) Add(work Work) {
-	if work.Result == nil {
-		panic("work.Result not set")
-	}
-	if work.Name == "" {
-		panic("work.Name not set")
-	}
-	if work.Target == "" {
-		panic("work.Target not set")
-	}
-	if work.Source == "" {
-		panic("work.Source not set")
-	}
+type Work = compiler.Work
 
-	if *work.Result == "" {
-		t.work <- work
-	}
+func (t *Parallel) Add(work Work) {
+	t.compiler.Add(work)
 }
 
 func (t *Parallel) Run(ctx context.Context) error {
-	g, ctx := errgroup.WithContext(ctx)
-	for i := 0; i < t.parallelism; i++ {
-		g.Go(func() error {
-			for {
-				select {
-				case w := <-t.work:
-					_, err := t.compiler.Compile(ctx, w)
-					if err != nil {
-						return err
-					}
-				default:
-					return nil
-				}
-			}
-		})
-	}
-	return g.Wait()
+	return t.compiler.Run(ctx)
 }

@@ -28,6 +28,8 @@ See example / template repo [here](https://github.com/circleci/ex-service-templa
 - `rabbit` **Experimental** RabbitMQ publishing client.
 - `redis` Wiring and observability for Redis.
 - `system` Manage the startup, running, metrics and shutdown of a Go service.
+- `releases/compiler` Compile your Go binaries in a consistent way.
+- `releases/releaser` Release your Go binaries in a consistent way.
 - `termination` A handler to aid signal based service termination. (Used internally by
   the `system` package).
 - `testing/compiler` At CircleCI we aim to acceptance test whole compiled binaries. This
@@ -39,6 +41,7 @@ See example / template repo [here](https://github.com/circleci/ex-service-templa
 - `testing/httprecorder` Record HTTP requests inside an HTTP server, and search them.
 - `testing/kongtest` If you are using [kong](https://github.com/alecthomas/kong) for your
   CLI parsing, this helps in writing golden tests for the CLI definition.
+- `testing/miniofixture` Get a temporary bucket to put your objects in.
 - `testing/mongofixture` Get an isolated Mongo database for your tests, so they don't interfere.
 - `testing/rabbitfixture` Get an isolated RabbitMQ VHost for your tests, so they don't interfere.
 - `testing/redisfixture` Get an isolated Redis DB for your tests, so they don't interfere.
