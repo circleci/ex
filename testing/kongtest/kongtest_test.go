@@ -1,6 +1,7 @@
 package kongtest
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ func TestHelp(t *testing.T) {
 		IntVar      int           `default:"123" env:"INT_VAR"`
 		BoolVar     bool          `default:"true" env:"BOOL_VAR"`
 		DurationVar time.Duration `default:"10s" env:"DURATION_VAR"`
+		RequiredVar *os.File      `env:"CONFIG_FILE" required:"true" help:"The config YAML file"`
 	}
 
 	c := cli{}
