@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -38,6 +39,10 @@ func TestReleaser_Publish(t *testing.T) {
 			Bucket:  fix.Bucket,
 			App:     "app",
 			Version: "0.0.1-dev",
+
+			IncludeFilter: func(path string, info os.FileInfo) bool {
+				return strings.HasSuffix(path, "agent") || strings.HasSuffix(path, "agent.exe")
+			},
 		})
 		assert.Assert(t, err)
 	}))
@@ -79,8 +84,22 @@ func TestReleaser_Publish(t *testing.T) {
 	}))
 
 	t.Run("Verify checksums", func(t *testing.T) {
-		for _, e := range checksumEntries {
-			t.Run(e.Path, func(t *testing.T) {
+		tests := []struct {
+			path string
+		}{
+			{path: "darwin/amd64/agent"},
+			{path: "darwin/arm64/agent"},
+			{path: "linux/amd64/agent"},
+			{path: "linux/arm64/agent"},
+			{path: "windows/amd64/agent.exe"},
+		}
+
+		assert.Assert(t, cmp.Len(checksumEntries, len(tests)))
+
+		for i, tt := range tests {
+			tt := tt
+			e := checksumEntries[i]
+			t.Run(tt.path, func(t *testing.T) {
 				resp, err := fix.Client.GetObject(ctx, &s3.GetObjectInput{
 					Bucket: &fix.Bucket,
 					Key:    aws.String("app/0.0.1-dev/" + e.Path),

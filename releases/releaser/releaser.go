@@ -52,6 +52,8 @@ type PublishParameters struct {
 	Bucket  string
 	App     string
 	Version string
+
+	IncludeFilter func(path string, info os.FileInfo) bool
 }
 
 func (r *Releaser) Publish(ctx context.Context, params PublishParameters) error {
@@ -86,7 +88,7 @@ func (r *Releaser) Release(ctx context.Context, params ReleaseParameters) error 
 }
 
 func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters) error {
-	return r.walkFiles(params.Path, func(path string, info os.FileInfo) (err error) {
+	return r.walkFiles(params.Path, params.IncludeFilter, func(path string, info os.FileInfo) (err error) {
 		key := r.fileKey(params.App, params.Version, strings.TrimPrefix(path, params.Path))
 		fmt.Printf("Uploading: %q\n", key)
 
@@ -134,7 +136,7 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters) error {
 	var checksums bytes.Buffer
 
-	err := r.walkFiles(params.Path, func(path string, info os.FileInfo) (err error) {
+	err := r.walkFiles(params.Path, params.IncludeFilter, func(path string, info os.FileInfo) (err error) {
 		//#nosec:G304 // Intentionally reading file from disk
 		f, err := os.Open(path)
 		if err != nil {
@@ -168,7 +170,8 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 	return err
 }
 
-func (r *Releaser) walkFiles(basePath string, fn func(path string, info os.FileInfo) error) error {
+func (r *Releaser) walkFiles(basePath string, includeFn func(path string, info os.FileInfo) bool,
+	observerFn func(path string, info os.FileInfo) error) error {
 	return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -178,7 +181,11 @@ func (r *Releaser) walkFiles(basePath string, fn func(path string, info os.FileI
 			return nil
 		}
 
-		return fn(path, info)
+		if includeFn != nil && !includeFn(path, info) {
+			return nil
+		}
+
+		return observerFn(path, info)
 	})
 }
 
