@@ -47,13 +47,22 @@ func NewWithClient(client *s3.Client) *Releaser {
 	}
 }
 
-func (r *Releaser) Publish(ctx context.Context, path, bucket, app, version string) error {
-	err := r.uploadBinaries(ctx, path, bucket, app, version)
+type PublishParameters struct {
+	Path    string
+	Bucket  string
+	App     string
+	Version string
+
+	IncludeFilter func(path string, info os.FileInfo) bool
+}
+
+func (r *Releaser) Publish(ctx context.Context, params PublishParameters) error {
+	err := r.uploadBinaries(ctx, params)
 	if err != nil {
 		return err
 	}
 
-	err = r.uploadChecksums(ctx, path, bucket, app, version)
+	err = r.uploadChecksums(ctx, params)
 	if err != nil {
 		return err
 	}
@@ -61,20 +70,26 @@ func (r *Releaser) Publish(ctx context.Context, path, bucket, app, version strin
 	return nil
 }
 
-func (r *Releaser) Release(ctx context.Context, bucket, app, version string) error {
-	key := filepath.Join(app, "release.txt")
-	fmt.Printf("Releasing: %q - %s\n", key, version)
+type ReleaseParameters struct {
+	Bucket  string
+	App     string
+	Version string
+}
+
+func (r *Releaser) Release(ctx context.Context, params ReleaseParameters) error {
+	key := filepath.Join(params.App, "release.txt")
+	fmt.Printf("Releasing: %q - %s\n", key, params.Version)
 	_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
-		Bucket: &bucket,
-		Body:   strings.NewReader(version),
+		Bucket: &params.Bucket,
+		Body:   strings.NewReader(params.Version),
 		Key:    &key,
 	})
 	return err
 }
 
-func (r *Releaser) uploadBinaries(ctx context.Context, basePath, bucket, app, version string) error {
-	return r.walkFiles(basePath, func(path string, info os.FileInfo) (err error) {
-		key := r.fileKey(app, version, strings.TrimPrefix(path, basePath))
+func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters) error {
+	return r.walkFiles(params.Path, params.IncludeFilter, func(path string, info os.FileInfo) (err error) {
+		key := r.fileKey(params.App, params.Version, strings.TrimPrefix(path, params.Path))
 		fmt.Printf("Uploading: %q\n", key)
 
 		//#nosec:G304 // Intentionally uploading file from disk
@@ -97,7 +112,7 @@ func (r *Releaser) uploadBinaries(ctx context.Context, basePath, bucket, app, ve
 
 		g.Go(func() error {
 			_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
-				Bucket:          &bucket,
+				Bucket:          &params.Bucket,
 				Body:            pr,
 				Key:             &key,
 				ContentEncoding: &contentEncodingGZIP,
@@ -118,10 +133,10 @@ func (r *Releaser) uploadBinaries(ctx context.Context, basePath, bucket, app, ve
 	})
 }
 
-func (r *Releaser) uploadChecksums(ctx context.Context, basePath, bucket, app, version string) error {
+func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters) error {
 	var checksums bytes.Buffer
 
-	err := r.walkFiles(basePath, func(path string, info os.FileInfo) (err error) {
+	err := r.walkFiles(params.Path, params.IncludeFilter, func(path string, info os.FileInfo) (err error) {
 		//#nosec:G304 // Intentionally reading file from disk
 		f, err := os.Open(path)
 		if err != nil {
@@ -136,7 +151,7 @@ func (r *Releaser) uploadChecksums(ctx context.Context, basePath, bucket, app, v
 			return err
 		}
 
-		fileName := strings.TrimPrefix(path, basePath)
+		fileName := strings.TrimPrefix(path, params.Path)
 		fileName = strings.TrimPrefix(fileName, string(os.PathSeparator))
 		_, err = fmt.Fprintf(&checksums, "%x *%s\n", h.Sum(nil), fileName)
 		return err
@@ -145,17 +160,18 @@ func (r *Releaser) uploadChecksums(ctx context.Context, basePath, bucket, app, v
 		return err
 	}
 
-	key := r.fileKey(app, version, "checksums.txt")
+	key := r.fileKey(params.App, params.Version, "checksums.txt")
 	fmt.Printf("Uploading: %q\n", key)
 	_, err = r.uploader.Upload(ctx, &s3.PutObjectInput{
-		Bucket: &bucket,
+		Bucket: &params.Bucket,
 		Key:    &key,
 		Body:   &checksums,
 	})
 	return err
 }
 
-func (r *Releaser) walkFiles(basePath string, fn func(path string, info os.FileInfo) error) error {
+func (r *Releaser) walkFiles(basePath string, includeFn func(path string, info os.FileInfo) bool,
+	observerFn func(path string, info os.FileInfo) error) error {
 	return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -165,7 +181,11 @@ func (r *Releaser) walkFiles(basePath string, fn func(path string, info os.FileI
 			return nil
 		}
 
-		return fn(path, info)
+		if includeFn != nil && !includeFn(path, info) {
+			return nil
+		}
+
+		return observerFn(path, info)
 	})
 }
 
