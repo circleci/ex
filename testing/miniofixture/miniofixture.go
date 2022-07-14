@@ -54,6 +54,27 @@ func Setup(ctx context.Context, t testing.TB, cfg Config) *Fixture {
 	})
 	assert.Assert(t, err)
 
+	_, err = c.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+		Bucket: aws.String(cfg.Bucket),
+		Policy: aws.String(`
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "PublicRead",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": [
+                "arn:aws:s3:::*"
+            ]
+        }
+    ]
+}`)})
+	assert.Assert(t, err)
 	t.Cleanup(func() {
 		clean(t, c, cfg.Bucket)
 	})

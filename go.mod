@@ -14,6 +14,7 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/go-cmp v0.5.8
+	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hellofresh/health-go/v4 v4.6.0
 	github.com/honeycombio/beeline-go v1.9.0
 	github.com/honeycombio/dynsampler-go v0.2.1
