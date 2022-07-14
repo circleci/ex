@@ -10,6 +10,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,7 +54,11 @@ type PublishParameters struct {
 	App     string
 	Version string
 
+	// IncludeFilter optionally allows filtering the files to be uploaded
 	IncludeFilter func(path string, info os.FileInfo) bool
+
+	// Tags optionally allows bucket tags to be applied
+	Tags map[string]string
 }
 
 func (r *Releaser) Publish(ctx context.Context, params PublishParameters) error {
@@ -74,22 +79,34 @@ type ReleaseParameters struct {
 	Bucket  string
 	App     string
 	Version string
+
+	// Environment optionally allows specifying the environment, defaults to "release"
+	Environment string
+
+	// Tags optionally allows bucket tags to be applied
+	Tags map[string]string
 }
 
 func (r *Releaser) Release(ctx context.Context, params ReleaseParameters) error {
-	key := filepath.Join(params.App, "release.txt")
+	if params.Environment == "" {
+		params.Environment = "release"
+	}
+
+	key := filepath.Join(params.App, params.Environment+".txt")
 	fmt.Printf("Releasing: %q - %s\n", key, params.Version)
 	_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &params.Bucket,
 		Body:   strings.NewReader(params.Version),
 		Key:    &key,
+
+		Tagging: encodeTags(params.Tags),
 	})
 	return err
 }
 
 func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters) error {
 	return r.walkFiles(params.Path, params.IncludeFilter, func(path string, info os.FileInfo) (err error) {
-		key := r.fileKey(params.App, params.Version, strings.TrimPrefix(path, params.Path))
+		key := fileKey(params.App, params.Version, strings.TrimPrefix(path, params.Path))
 		fmt.Printf("Uploading: %q\n", key)
 
 		//#nosec:G304 // Intentionally uploading file from disk
@@ -102,7 +119,7 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 		g, _ := errgroup.WithContext(ctx)
 		defer func() {
 			ferr := g.Wait()
-			if err == nil {
+			if ferr != nil {
 				err = ferr
 			}
 		}()
@@ -117,6 +134,8 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 				Key:             &key,
 				ContentEncoding: &contentEncodingGZIP,
 				ContentType:     &contentTypeOctetStream,
+
+				Tagging: encodeTags(params.Tags),
 			})
 			if err != nil {
 				_ = pw.CloseWithError(err)
@@ -160,7 +179,7 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 		return err
 	}
 
-	key := r.fileKey(params.App, params.Version, "checksums.txt")
+	key := fileKey(params.App, params.Version, "checksums.txt")
 	fmt.Printf("Uploading: %q\n", key)
 	_, err = r.uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &params.Bucket,
@@ -189,8 +208,20 @@ func (r *Releaser) walkFiles(basePath string, includeFn func(path string, info o
 	})
 }
 
-func (r *Releaser) fileKey(app, version, file string) string {
+func fileKey(app, version, file string) string {
 	return filepath.Join(app, version, file)
+}
+
+func encodeTags(tags map[string]string) *string {
+	if len(tags) == 0 {
+		return nil
+	}
+	params := url.Values{}
+	for k, v := range tags {
+		params.Add(k, v)
+	}
+	encoded := params.Encode()
+	return &encoded
 }
 
 func closer(r io.Closer, in *error) {
