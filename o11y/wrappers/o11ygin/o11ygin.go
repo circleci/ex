@@ -51,6 +51,7 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 		}
 
 		// Server OTEL attributes
+		span.AddRawField("meta.type", "http_server")
 		span.AddRawField("http.server_name", serverName)
 		span.AddRawField("http.route", c.FullPath())
 		span.AddRawField("http.client_ip", c.ClientIP())
