@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -97,7 +96,7 @@ func get(t *testing.T, c *http.Client, baseurl, path string) (string, int) {
 		assert.Assert(t, r.Body.Close())
 	}()
 
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	assert.Assert(t, err)
 
 	return string(b), r.StatusCode

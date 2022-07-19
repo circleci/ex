@@ -1,7 +1,7 @@
 package httprecorder
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -229,7 +229,7 @@ func newRequest(t *testing.T, method, rawurl, body string, h http.Header) *http.
 		Method: method,
 		URL:    &u,
 		Header: h,
-		Body:   ioutil.NopCloser(strings.NewReader(body)),
+		Body:   io.NopCloser(strings.NewReader(body)),
 	}
 }
 

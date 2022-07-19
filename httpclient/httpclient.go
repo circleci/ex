@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -379,12 +378,12 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 			if err != nil {
 				return nil, fmt.Errorf("could not json encode Request: %w", err)
 			}
-			req.Body = ioutil.NopCloser(b)
+			req.Body = io.NopCloser(b)
 		}
 
 		if r.rawBody != nil {
 			b := bytes.NewReader(r.rawBody)
-			req.Body = ioutil.NopCloser(b)
+			req.Body = io.NopCloser(b)
 		}
 
 		return req, nil
@@ -454,7 +453,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		defer func() {
 			// drain anything left in the body and close it, to ensure we can take advantage of keep alive
 			// this is best-efforts so any errors here are not important
-			_, _ = io.Copy(ioutil.Discard, res.Body)
+			_, _ = io.Copy(io.Discard, res.Body)
 			_ = res.Body.Close()
 		}()
 

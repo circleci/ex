@@ -3,7 +3,7 @@ package honeycomb
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -300,7 +300,7 @@ func honeycombServer(t *testing.T, cb func(string)) string {
 		defer reader.Close()
 		defer r.Body.Close()
 
-		b, err := ioutil.ReadAll(reader)
+		b, err := io.ReadAll(reader)
 		if err != nil {
 			t.Error("could not read request", err)
 		}

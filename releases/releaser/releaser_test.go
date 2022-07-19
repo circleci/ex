@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,7 +63,7 @@ func TestReleaser_Publish(t *testing.T) {
 		assert.Assert(t, err)
 		defer resp.Body.Close()
 
-		b, err := ioutil.ReadAll(resp.Body)
+		b, err := io.ReadAll(resp.Body)
 		assert.Assert(t, err)
 		checksums = string(b)
 
@@ -72,7 +71,7 @@ func TestReleaser_Publish(t *testing.T) {
 	}))
 
 	assert.Assert(t, t.Run("Check checksums are written to disk", func(t *testing.T) {
-		b, err := ioutil.ReadFile(tmpDir.Join("bin", "checksums.txt"))
+		b, err := os.ReadFile(tmpDir.Join("bin", "checksums.txt"))
 		assert.Assert(t, err)
 		checksums = string(b)
 
@@ -204,7 +203,7 @@ func TestReleaser_Release(t *testing.T) {
 				assert.Assert(t, err)
 				defer resp.Body.Close()
 
-				b, err := ioutil.ReadAll(resp.Body)
+				b, err := io.ReadAll(resp.Body)
 				assert.Assert(t, err)
 				assert.Check(t, cmp.Equal(string(b), "0.0.1-dev"))
 				assert.Check(t, cmp.Equal(resp.TagCount, int32(1)))

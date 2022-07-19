@@ -4,7 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -52,7 +52,7 @@ func TestDownloader_Download(t *testing.T) {
 
 	ctx := context.Background()
 
-	dir, err := ioutil.TempDir("", "e2e-test")
+	dir, err := os.MkdirTemp("", "e2e-test")
 	assert.NilError(t, err)
 
 	d, err := NewDownloader(10*time.Second, dir)
@@ -170,7 +170,7 @@ func assertFileContents(t *testing.T, path, contents string) {
 		assert.Check(t, f.Close())
 	})
 
-	b, err := ioutil.ReadAll(f)
+	b, err := io.ReadAll(f)
 	assert.NilError(t, err)
 
 	assert.Equal(t, string(b), contents)
