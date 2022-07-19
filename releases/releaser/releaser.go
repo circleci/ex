@@ -179,6 +179,14 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 		return err
 	}
 
+	checksumsFile := filepath.Join(params.Path, "checksums.txt")
+	fmt.Printf("Writing: %q\n", checksumsFile)
+	//#nosec:G306 // These permissions are intentional
+	err = os.WriteFile(checksumsFile, checksums.Bytes(), 0644)
+	if err != nil {
+		return err
+	}
+
 	key := fileKey(params.App, params.Version, "checksums.txt")
 	fmt.Printf("Uploading: %q\n", key)
 	_, err = r.uploader.Upload(ctx, &s3.PutObjectInput{
