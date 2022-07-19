@@ -19,6 +19,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
 	"gotest.tools/v3/golden"
 
 	"github.com/circleci/ex/testing/miniofixture"
@@ -35,9 +36,11 @@ func TestReleaser_Publish(t *testing.T) {
 
 	r := NewWithClient(fix.Client)
 
+	tmpDir := fs.NewDir(t, "", fs.FromDir(filepath.Join("testdata", "target")))
+
 	assert.Assert(t, t.Run("Publish", func(t *testing.T) {
 		err := r.Publish(ctx, PublishParameters{
-			Path:    filepath.Join("testdata", "target", "bin"),
+			Path:    tmpDir.Join("bin"),
 			Bucket:  fix.Bucket,
 			App:     "app",
 			Version: "0.0.1-dev",
@@ -62,6 +65,14 @@ func TestReleaser_Publish(t *testing.T) {
 		defer resp.Body.Close()
 
 		b, err := ioutil.ReadAll(resp.Body)
+		assert.Assert(t, err)
+		checksums = string(b)
+
+		assert.Check(t, golden.String(checksums, "expected-checksums.txt"))
+	}))
+
+	assert.Assert(t, t.Run("Check checksums are written to disk", func(t *testing.T) {
+		b, err := ioutil.ReadFile(tmpDir.Join("bin", "checksums.txt"))
 		assert.Assert(t, err)
 		checksums = string(b)
 

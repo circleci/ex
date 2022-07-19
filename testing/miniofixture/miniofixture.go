@@ -4,9 +4,13 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"net"
+	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -34,6 +38,7 @@ type Fixture struct {
 
 func Setup(ctx context.Context, t testing.TB, cfg Config) *Fixture {
 	t.Helper()
+	skipIfNotRunning(t, cfg)
 
 	if cfg.Bucket == "" {
 		cfg.Bucket = BucketName(t)
@@ -85,7 +90,26 @@ func Setup(ctx context.Context, t testing.TB, cfg Config) *Fixture {
 	}
 }
 
+func skipIfNotRunning(t testing.TB, cfg Config) {
+	t.Helper()
+	if strings.EqualFold("true", strings.ToLower(os.Getenv("CI"))) {
+		return
+	}
+
+	u, err := url.Parse(cfg.URL)
+	assert.Assert(t, err)
+
+	timeout := 2 * time.Second
+	conn, err := net.DialTimeout("tcp", u.Host, timeout)
+	if err != nil {
+		t.Skip("Minio is not running")
+	}
+	_ = conn.Close()
+}
+
 func BucketName(t testing.TB) string {
+	t.Helper()
+
 	r := rand.Uint32() >> 8 //#nosec:G404 // just to avoid matching bucket names in case of failed cleanup
 	prefix := strings.ToLower(t.Name())
 	prefix = strings.ReplaceAll(prefix, "_", "-")
