@@ -2,7 +2,6 @@ package compiler
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 
 	"github.com/circleci/ex/releases/compiler"
@@ -13,7 +12,7 @@ type Parallel struct {
 }
 
 func NewParallel(parallelism int) *Parallel {
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		panic(err)
 	}

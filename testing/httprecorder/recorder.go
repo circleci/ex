@@ -3,7 +3,7 @@ package httprecorder
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -47,11 +47,11 @@ func (r *RequestRecorder) Record(request *http.Request) (err error) {
 		req.Header[k] = v
 	}
 
-	req.Body, err = ioutil.ReadAll(request.Body)
+	req.Body, err = io.ReadAll(request.Body)
 	if err != nil {
 		return err
 	}
-	request.Body = ioutil.NopCloser(bytes.NewReader(req.Body))
+	request.Body = io.NopCloser(bytes.NewReader(req.Body))
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
