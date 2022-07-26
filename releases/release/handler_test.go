@@ -98,7 +98,9 @@ func startAPI(ctx context.Context, t *testing.T) fixture {
 	assert.Assert(t, err)
 
 	r := ginrouter.Default(ctx, "fake-downloads")
-	r.GET("downloads", release.Handler(agentList))
+	r.GET("downloads", release.Handler(release.HandlerConfig{
+		List: agentList,
+	}))
 
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
