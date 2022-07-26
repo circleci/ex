@@ -25,7 +25,7 @@ require (
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/klauspost/compress v1.15.9
 	github.com/makasim/amqpextra v0.17.0
-	github.com/rabbitmq/amqp091-go v1.3.4
+	github.com/rabbitmq/amqp091-go v1.4.0
 	github.com/rollbar/rollbar-go v1.4.4
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.mongodb.org/mongo-driver v1.10.0
@@ -90,7 +90,6 @@ require (
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/sys v0.0.0-20220513210249-45d2b4557a2a // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/tools v0.1.10 // indirect
 	google.golang.org/genproto v0.0.0-20210602131652-f16073e35f0c // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/alexcesaro/statsd.v2 v2.0.0 // indirect
