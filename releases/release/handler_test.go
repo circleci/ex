@@ -2,6 +2,7 @@ package release_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -42,13 +43,15 @@ func TestHandler(t *testing.T) {
 	t.Run("Test for unknown arch", func(t *testing.T) {
 		fix := startAPI(ctx, t)
 
-		t.Run("Can get a release", func(t *testing.T) {
+		t.Run("Release not found", func(t *testing.T) {
 			_, err := fix.Download(ctx, release.Requirements{
 				Platform: "linux",
 				Arch:     "enemy",
 			})
 
-			assert.Check(t, cmp.ErrorContains(err, "404 (Not Found)"))
+			assert.Check(t, cmp.ErrorContains(err,
+				`404 (Not Found) (1 attempts): no download found for version="1.1.1-abcdef01" os="linux" arch="enemy"`,
+			))
 		})
 	})
 
@@ -60,29 +63,45 @@ func TestHandler(t *testing.T) {
 				Arch: "enemy",
 			})
 
-			assert.Check(t, cmp.ErrorContains(err, "400 (Bad Request)"))
+			assert.Check(t, cmp.ErrorContains(err,
+				`400 (Bad Request) (1 attempts): bad request: platform is required`,
+			))
 		})
 		t.Run("No arch", func(t *testing.T) {
 			_, err := fix.Download(ctx, release.Requirements{
 				Platform: "linux",
 			})
 
-			assert.Check(t, cmp.ErrorContains(err, "400 (Bad Request)"))
+			assert.Check(t, cmp.ErrorContains(err,
+				`400 (Bad Request) (1 attempts): bad request: arch is required`,
+			))
 		})
 	})
 }
 
 func (f *fixture) Download(ctx context.Context, requirements release.Requirements) (*release.Release, error) {
 	var resp release.Release
+
+	type errorMessage struct {
+		Message string `json:"message"`
+	}
+	var errorResp errorMessage
+
 	err := f.Client.Call(ctx, httpclient.NewRequest("GET", "/downloads",
 		httpclient.Body(requirements),
 		httpclient.JSONDecoder(&resp),
+		httpclient.Decoder(http.StatusBadRequest, httpclient.NewJSONDecoder(&errorResp)),
+		httpclient.Decoder(http.StatusNotFound, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.NoRetry(),
 	))
-	if err != nil {
+	switch {
+	case httpclient.HasStatusCode(err, http.StatusBadRequest), httpclient.HasStatusCode(err, http.StatusNotFound):
+		return nil, fmt.Errorf("%w: %s", err, errorResp.Message)
+	case err != nil:
 		return nil, err
+	default:
+		return &resp, nil
 	}
-	return &resp, nil
 }
 
 type fixture struct {
