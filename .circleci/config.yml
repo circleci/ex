@@ -33,6 +33,8 @@ jobs:
     docker:
       - image: cimg/go:<<parameters.go_version>>
     resource_class: large
+    environment:
+      GOMAXPROCS: 4
     steps:
       - checkout
       - setup
@@ -76,6 +78,8 @@ jobs:
           '--address', ':9123',
         ]
     resource_class: large
+    environment:
+      GOMAXPROCS: 4
     steps:
       - checkout:
           path: ~/project
