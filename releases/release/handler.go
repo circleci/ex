@@ -44,6 +44,14 @@ func Handler(cfg HandlerConfig) func(c *gin.Context) {
 			return
 		}
 
+		// if list is nil, client should never proceed to download
+		if cfg.List == nil {
+			c.AbortWithStatusJSON(http.StatusGone, gin.H{
+				"message": "no more downloads possible",
+			})
+			return
+		}
+
 		if req.Version == "" {
 			if cfg.Resolver == nil {
 				req.Version = cfg.List.Latest()

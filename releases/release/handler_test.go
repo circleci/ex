@@ -48,7 +48,7 @@ func TestHandler(t *testing.T) {
 				Platform: "linux",
 				Arch:     "enemy",
 			})
-
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusNotFound))
 			assert.Check(t, cmp.ErrorContains(err,
 				`404 (Not Found) (1 attempts): no download found for version="1.1.1-abcdef01" os="linux" arch="enemy"`,
 			))
@@ -62,7 +62,7 @@ func TestHandler(t *testing.T) {
 			_, err := fix.Download(ctx, release.Requirements{
 				Arch: "enemy",
 			})
-
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusBadRequest))
 			assert.Check(t, cmp.ErrorContains(err,
 				`400 (Bad Request) (1 attempts): bad request: platform is required`,
 			))
@@ -71,9 +71,24 @@ func TestHandler(t *testing.T) {
 			_, err := fix.Download(ctx, release.Requirements{
 				Platform: "linux",
 			})
-
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusBadRequest))
 			assert.Check(t, cmp.ErrorContains(err,
 				`400 (Bad Request) (1 attempts): bad request: arch is required`,
+			))
+		})
+	})
+
+	t.Run("Test no downloads", func(t *testing.T) {
+		fix := startAPIWithDownloads(ctx, t, false)
+
+		t.Run("Should give 410", func(t *testing.T) {
+			_, err := fix.Download(ctx, release.Requirements{
+				Platform: "linux",
+				Arch:     "amd64",
+			})
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusGone))
+			assert.Check(t, cmp.ErrorContains(err,
+				`410 (Gone) (1 attempts): no more downloads possible`,
 			))
 		})
 	})
@@ -92,10 +107,13 @@ func (f *fixture) Download(ctx context.Context, requirements release.Requirement
 		httpclient.JSONDecoder(&resp),
 		httpclient.Decoder(http.StatusBadRequest, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.Decoder(http.StatusNotFound, httpclient.NewJSONDecoder(&errorResp)),
+		httpclient.Decoder(http.StatusGone, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.NoRetry(),
 	))
 	switch {
-	case httpclient.HasStatusCode(err, http.StatusBadRequest), httpclient.HasStatusCode(err, http.StatusNotFound):
+	case httpclient.HasStatusCode(err, http.StatusBadRequest),
+		httpclient.HasStatusCode(err, http.StatusNotFound),
+		httpclient.HasStatusCode(err, http.StatusGone):
 		return nil, fmt.Errorf("%w: %s", err, errorResp.Message)
 	case err != nil:
 		return nil, err
@@ -110,11 +128,20 @@ type fixture struct {
 }
 
 func startAPI(ctx context.Context, t *testing.T) fixture {
+	return startAPIWithDownloads(ctx, t, true)
+}
+
+func startAPIWithDownloads(ctx context.Context, t *testing.T, downloads bool) fixture {
 	s3srv := httptest.NewServer(newFakeS3("", httprecorder.New()))
 	t.Cleanup(s3srv.Close)
 
-	agentList, err := release.NewList(ctx, "agent", "", s3srv.URL)
-	assert.Assert(t, err)
+	var agentList *release.List
+	var err error
+
+	if downloads {
+		agentList, err = release.NewList(ctx, "agent", "", s3srv.URL)
+		assert.Assert(t, err)
+	}
 
 	r := ginrouter.Default(ctx, "fake-downloads")
 	r.GET("downloads", release.Handler(release.HandlerConfig{
