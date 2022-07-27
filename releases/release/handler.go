@@ -3,6 +3,7 @@ package release
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -30,12 +31,16 @@ func Handler(cfg HandlerConfig) func(c *gin.Context) {
 		var req Requirements
 		err := c.BindJSON(&req)
 		if err != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": fmt.Sprintf("bad request: %s", err),
+			})
 			return
 		}
 
 		if err = req.Validate(); err != nil {
-			c.AbortWithStatus(http.StatusBadRequest)
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+				"message": fmt.Sprintf("bad request: %s", err),
+			})
 			return
 		}
 
@@ -53,9 +58,17 @@ func Handler(cfg HandlerConfig) func(c *gin.Context) {
 
 		switch {
 		case errors.Is(err, ErrNotFound):
-			c.JSON(http.StatusNotFound, gin.H{"status": "Resource not found"})
+			c.JSON(http.StatusNotFound, gin.H{
+				"message": fmt.Sprintf("no download found for version=%q os=%q arch=%q",
+					req.Version,
+					req.Platform,
+					req.Arch,
+				),
+			})
 		case err != nil:
-			c.JSON(http.StatusInternalServerError, gin.H{"status": "An internal error has occurred"})
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"message": "An internal error has occurred",
+			})
 		default:
 			c.JSON(http.StatusOK, rel)
 		}
