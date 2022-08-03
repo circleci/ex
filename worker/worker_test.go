@@ -170,6 +170,41 @@ func TestRun_ExitsWhenContextIsCancelled(t *testing.T) {
 	assert.Check(t, calls > 1)
 }
 
+func TestRun_MinWorkTime(t *testing.T) {
+	ctx, cancel := context.WithCancel(testcontext.Background())
+	counter := 0
+	expected := 3
+
+	f := func(ctx context.Context) error {
+		counter++
+		if counter == expected {
+			cancel()
+		}
+		// busy function
+		return nil
+	}
+
+	waitCallCount := 0
+	backOff := new(fakeBackOff)
+	Run(ctx, Config{
+		Name:          "does-not-thrash",
+		NoWorkBackOff: backOff,
+		MinWorkTime:   time.Millisecond * 10,
+		WorkFunc:      f,
+		waiter: func(ctx context.Context, delay time.Duration) {
+			waitCallCount++
+		},
+	})
+
+	// Confirm normal backoff never called
+	assert.Check(t, cmp.Equal(backOff.nextCallCount, 0))
+	// Reset is called once to initialize the backOff
+	assert.Check(t, cmp.Equal(backOff.resetCallCount, expected+1))
+	// Check that the wait was called expected times since the MinWorkTime should
+	// have meant we called the wait func.
+	assert.Check(t, cmp.Equal(waitCallCount, expected))
+}
+
 func Test_doWork_WorkFuncPanics(t *testing.T) {
 	f := func(ctx context.Context) error {
 		panic("Oops")
