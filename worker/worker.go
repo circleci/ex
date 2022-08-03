@@ -1,3 +1,9 @@
+/*
+Package worker runs a service worker loop with observability and back-off for no work found.
+
+It is used by various `ex` packages internally, and can be used for any regular work your
+service might need to do, such as consuming queue-like data sources.
+*/
 package worker
 
 import (
@@ -14,9 +20,14 @@ import (
 var ErrShouldBackoff = errors.New("should back off")
 
 type Config struct {
-	Name          string
+	Name string
+	// NoWorkBackoff is the backoff strategy to use if the WorkFunc indicates a backoff should happen
 	NoWorkBackOff backoff.BackOff
-	MaxWorkTime   time.Duration
+	// MaxWorkTime is the duration after which the context passed to the WorkFunc will be cancelled.
+	MaxWorkTime time.Duration
+	// MinWorkTime is the minimum duration each work loop can take. The WorkFunc will not be invoked any sooner
+	// than the last invocation and MinWorkTime. This can be used to throttle a busy worker.
+	MinWorkTime time.Duration
 	// WorkFunc should return ErrShouldBackoff if it wants to back off, or set BackoffOnAllErrors
 	WorkFunc func(ctx context.Context) error
 	// If backoff is desired for any returned error
@@ -33,11 +44,19 @@ func Run(ctx context.Context, cfg Config) {
 	provider := o11y.FromContext(ctx)
 
 	for ctx.Err() == nil {
+		start := time.Now()
 		wait := doWork(provider, cfg)
 		if wait < 0 {
 			cfg.NoWorkBackOff.Reset()
-			continue
+			// If the work took longer than the minimum we can continue the loop
+			workDuration := time.Since(start)
+			if workDuration > cfg.MinWorkTime {
+				continue
+			}
+			// Wait for the minimum work time
+			wait = cfg.MinWorkTime - workDuration
 		}
+		// the default waiter honours context cancellation during the wait
 		cfg.waiter(ctx, wait)
 	}
 }
