@@ -491,9 +491,9 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			r.headerFn(res.Header)
 		}
 
-		err = r.decodeBody(res, true, attemptCounter)
-		if err != nil {
-			return err
+		errDecode := r.decodeBody(res, true, attemptCounter)
+		if errDecode != nil {
+			return errDecode
 		}
 
 		return nil
