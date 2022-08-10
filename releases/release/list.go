@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	ErrNotFound            = errors.New("not found")
+	ErrNotFound            = o11y.NewWarning("not found")
 	ErrListVersionNotReady = errors.New("list version not ready")
 )
 
