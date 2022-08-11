@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/db"
@@ -101,7 +102,7 @@ VALUES (:id,:name,:height,:dob,:password,:raw);
 			const sql = "INSERT INTO peeps (id,name,height,dob) VALUES (:id,:name,:height,:dob);"
 			_, err := fix.TX.NoTx().NamedExecContext(ctx, sql, person1)
 			assert.Check(t, errors.Is(err, db.ErrNop))
-			assert.ErrorContains(t, err, "peeps_pkey")
+			assert.Check(t, cmp.ErrorContains(err, "peeps_pkey"))
 		})
 
 		type birb struct {
@@ -119,7 +120,7 @@ VALUES (:id,:name,:height,:dob,:password,:raw);
 			const sql = "INSERT INTO birbs (id,name, peep_id) VALUES (:id,:name,:peepid);"
 			_, err := fix.TX.NoTx().NamedExecContext(ctx, sql, birb1)
 			assert.Check(t, errors.Is(err, db.ErrConstrained))
-			assert.ErrorContains(t, err, "birbs_fk")
+			assert.Check(t, cmp.ErrorContains(err, "birbs_fk"))
 
 			//an example of how to extract the constraint that failed
 			if errors.Is(err, db.ErrConstrained) && db.PqError(err).ConstraintName == "birbs_fk" {

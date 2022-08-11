@@ -94,11 +94,11 @@ func TestRunner(t *testing.T) {
 		})
 		t.Run("start_service_fail", func(t *testing.T) {
 			result, err := r.Start(binary, "ADMIN_ONLY=true")
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 			defer func() { _ = result.Stop() }()
 
 			err = result.Ready("not-the-server-name", time.Second)
-			assert.ErrorContains(t, err, "timeout hit")
+			assert.Check(t, cmp.ErrorContains(err, "timeout hit"))
 		})
 	})
 }

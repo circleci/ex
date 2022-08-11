@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/testing/httprecorder"
 )
@@ -53,19 +54,19 @@ func TestDownloader_Download(t *testing.T) {
 	ctx := context.Background()
 
 	dir, err := os.MkdirTemp("", "e2e-test")
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 
 	d, err := NewDownloader(10*time.Second, dir)
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 	defer func() {
-		assert.NilError(t, os.RemoveAll(dir))
+		assert.Assert(t, os.RemoveAll(dir))
 	}()
 
 	// N.B. The latter sub tests depend on earlier tests, so should be run in order.
 	t.Run("First cold download", func(t *testing.T) {
 		target, err := d.Download(ctx, server.URL+"/test/file-1.txt", 0644)
 
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-1.txt")))
 		assertFileContents(t, target, "First compressed file")
 
@@ -86,7 +87,7 @@ func TestDownloader_Download(t *testing.T) {
 	t.Run("Second cold download", func(t *testing.T) {
 		target, err := d.Download(ctx, url2, 0644)
 
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
 		assertFileContents(t, target, "Second compressed file")
 
@@ -107,7 +108,7 @@ func TestDownloader_Download(t *testing.T) {
 
 		target, err := d.Download(ctx, url2, 0644)
 
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
 		assertFileContents(t, target, "Second compressed file")
 
@@ -118,14 +119,14 @@ func TestDownloader_Download(t *testing.T) {
 		recorder.Reset()
 
 		err := d.Remove(url2)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
 		// It is fine to remove a downloader managed file that is no longer there.
 		err = d.Remove(url2)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
 		target, err := d.Download(ctx, url2, 0644)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
 		assertFileContents(t, target, "Second compressed file")
 
@@ -143,8 +144,8 @@ func TestDownloader_Download(t *testing.T) {
 
 	t.Run("Not found", func(t *testing.T) {
 		target, err := d.Download(ctx, server.URL+"/test/file-3.txt", 0644)
-		assert.ErrorContains(t, err, "unexpected status")
-		assert.Equal(t, target, "")
+		assert.Check(t, cmp.ErrorContains(err, "unexpected status"))
+		assert.Check(t, cmp.Equal(target, ""))
 
 		requests := recorder.FindRequests("GET", url.URL{Path: "/test/file-3.txt"})
 		assert.DeepEqual(t, requests, []httprecorder.Request{{
@@ -165,13 +166,13 @@ func assertFileContents(t *testing.T, path, contents string) {
 	// #nosec G304: Potential file inclusion via variable
 	// we construct the vars and ignoring close errors in tests is acceptable.
 	f, err := os.Open(path)
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 	t.Cleanup(func() {
 		assert.Check(t, f.Close())
 	})
 
 	b, err := io.ReadAll(f)
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 
-	assert.Equal(t, string(b), contents)
+	assert.Check(t, cmp.Equal(string(b), contents))
 }

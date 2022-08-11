@@ -424,11 +424,11 @@ func TestClient_ConnectionPool(t *testing.T) {
 
 		for n := 0; n < 50; n++ {
 			err := client.Call(context.Background(), req)
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 		}
 
 		// all sequential requests should have reused a single connection
-		assert.Equal(t, srv.MetricsProducer().Gauges(ctx)["total_connections"], float64(1))
+		assert.Check(t, cmp.Equal(srv.MetricsProducer().Gauges(ctx)["total_connections"], float64(1)))
 	})
 
 	t.Run("connection-reuse", func(t *testing.T) {
@@ -452,7 +452,7 @@ func TestClient_ConnectionPool(t *testing.T) {
 			go func() {
 				for n := 0; n < 10; n++ {
 					err := client.Call(testcontext.Background(), req)
-					assert.NilError(t, err)
+					assert.Assert(t, err)
 					// This delay increases the effect of not setting MaxIdleConnsPerHost
 					// on the client since this increases the chance that each connection may be
 					// considered idle and therefore be closed and a new connection created.
@@ -487,7 +487,7 @@ func TestClient_RawBody(t *testing.T) {
 	r := ginrouter.Default(ctx, "raw body")
 	r.POST("/", func(c *gin.Context) {
 		bs, err := io.ReadAll(c.Request.Body)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 		c.Data(200, "application/octet-stream", bs)
 	})
 	server := httptest.NewServer(r)
@@ -503,7 +503,7 @@ func TestClient_RawBody(t *testing.T) {
 
 	req := httpclient.NewRequest("POST", "/", httpclient.RawBody(bs), httpclient.BytesDecoder(&resp))
 	err := client.Call(ctx, req)
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 	assert.Check(t, cmp.DeepEqual(bs, resp))
 }
 
@@ -548,7 +548,7 @@ func TestClient_Proxies(t *testing.T) {
 
 		req := httpclient.NewRequest("GET", "/path1/path2")
 		err := client.Call(ctx, req)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
 		// assert that the proxy server was used
 		prxURL, _ := url.Parse(proxy.ProxiedURL)
@@ -572,7 +572,7 @@ func TestClient_Proxies(t *testing.T) {
 			proxy.ProxiedURL = ""
 			req := httpclient.NewRequest("GET", "/path3/path4")
 			err := client.Call(ctx, req)
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 
 			assert.Check(t, cmp.Equal(proxy.ProxiedURL, ""))
 		})

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestGoodProxySettings(t *testing.T) {
@@ -61,7 +62,7 @@ func TestGoodProxySettings(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_ = os.Setenv(proxyEnvKey, tc.proxy)
 			_ = os.Setenv(noProxyEnvKey, tc.noProxy)
-			assert.Equal(t, tc.expected, goodProxySettings(hostName))
+			assert.Check(t, cmp.Equal(tc.expected, goodProxySettings(hostName)))
 		})
 	}
 }

@@ -31,7 +31,7 @@ func TestHandler(t *testing.T) {
 				Arch:     "amd64",
 			})
 
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 			assert.Check(t, cmp.DeepEqual(agent, &release.Release{
 				URL:      fix.S3URL + "/1.1.1-abcdef01/linux/amd64/circleci-agent",
 				Checksum: "4a62f09b64873a20386cdbfaca87cc10d8352fab014ef0018f1abcce08a3d027",

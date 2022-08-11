@@ -247,7 +247,7 @@ func TestClient_ExplicitBackoff(t *testing.T) {
 		for n := 0; n < numReq; n++ {
 			go func() {
 				err := client.Call(context.Background(), req)
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 				wg.Done()
 			}()
 		}
@@ -299,7 +299,7 @@ func TestClient_ExplicitBackoff(t *testing.T) {
 		// but this one will definitely be an explicit backoff
 		curHandlerCount := handlerCount
 		err = client.Call(context.Background(), req)
-		assert.ErrorContains(t, err, "explicit backoff")
+		assert.Check(t, cmp.ErrorContains(err, "explicit backoff"))
 		// and will not have called the server
 		assert.Check(t, cmp.Equal(curHandlerCount, handlerCount))
 
@@ -319,7 +319,7 @@ func TestClient_ExplicitBackoff(t *testing.T) {
 			go func() {
 				err := client.Call(context.Background(), req)
 				if err != nil {
-					assert.ErrorContains(t, err, "explicit backoff")
+					assert.Check(t, cmp.ErrorContains(err, "explicit backoff"))
 				}
 				wg.Done()
 			}()
@@ -328,6 +328,6 @@ func TestClient_ExplicitBackoff(t *testing.T) {
 
 		// this call will definitely nt see the explicit backoff
 		err = client.Call(context.Background(), req)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 	})
 }
