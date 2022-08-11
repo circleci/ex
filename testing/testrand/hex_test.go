@@ -14,11 +14,11 @@ func TestRandHex(t *testing.T) {
 		assert.Check(t, cmp.Equal(len(h), i))
 		if i%2 == 0 {
 			b, err := hex.DecodeString(h)
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 			assert.Check(t, cmp.Equal(len(b), i/2), b)
 		} else {
 			_, err := hex.DecodeString(h)
-			assert.ErrorContains(t, err, "odd length hex string")
+			assert.Check(t, cmp.ErrorContains(err, "odd length hex string"))
 		}
 	}
 }

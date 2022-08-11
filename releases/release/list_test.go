@@ -89,9 +89,9 @@ func TestRequirements_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.request.Validate()
 			if tt.wantErr == "" {
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			} else {
-				assert.ErrorContains(t, err, tt.wantErr)
+				assert.Check(t, cmp.ErrorContains(err, tt.wantErr))
 			}
 		})
 	}
@@ -237,14 +237,14 @@ func TestList_Lookup(t *testing.T) {
 			dl, err := NewList(ctx, "name", "", agentURL)
 			assert.Assert(t, err)
 			_, live, _ := dl.HealthChecks()
-			assert.NilError(t, live(ctx))
+			assert.Assert(t, live(ctx))
 
 			// run this multiple times to get a cache hits
 			for i := 0; i < 5; i++ {
 				resp, err := dl.Lookup(ctx, tt.req)
 
 				if tt.wantErr == nil {
-					assert.NilError(t, err)
+					assert.Assert(t, err)
 				} else {
 					assert.Assert(t, errors.Is(err, tt.wantErr), "want error type %v, got %v", tt.wantErr, err)
 				}
@@ -252,7 +252,7 @@ func TestList_Lookup(t *testing.T) {
 				if tt.wantResp == nil {
 					assert.Check(t, cmp.Nil(resp))
 				} else {
-					assert.Equal(t, resp.Checksum, tt.wantResp.Checksum)
+					assert.Check(t, cmp.Equal(resp.Checksum, tt.wantResp.Checksum))
 					assert.Check(t, cmp.Contains(resp.URL, tt.wantResp.URL))
 				}
 			}

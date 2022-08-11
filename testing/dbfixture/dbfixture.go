@@ -69,7 +69,7 @@ func SetupDB(ctx context.Context, t types.TestingTB, schema string, con Connecti
 	t.Helper()
 	shared := SetupSystem(t, con)
 	db, err := shared.Manager().NewDB(ctx, con, t.Name(), schema)
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 	t.Cleanup(func() {
 		p := o11y.FromContext(ctx)
 		ctx, cancel := context.WithTimeout(o11y.WithProvider(context.Background(), p), 10*time.Second)

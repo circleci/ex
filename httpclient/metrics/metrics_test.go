@@ -40,7 +40,7 @@ func TestMetrics(t *testing.T) {
 		sys.AddGauges(tracer)
 		go func() {
 			err := sys.Run(ctx, time.Millisecond)
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 		}()
 
 		concurrentRequests := 100
@@ -57,14 +57,14 @@ func TestMetrics(t *testing.T) {
 			httpclient.Timeout(time.Second),
 		)
 		err := cl.Call(ctx, r)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
 		r = httpclient.NewRequest("GET", "/test/%s",
 			httpclient.RouteParams("foo"),
 			httpclient.Timeout(time.Second),
 		)
 		err = cl.Call(ctx, r)
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
 		var wg sync.WaitGroup
 		wg.Add(concurrentRequests)
@@ -76,7 +76,7 @@ func TestMetrics(t *testing.T) {
 					httpclient.Timeout(time.Second),
 				)
 				err := cl.Call(ctx, r)
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			}()
 		}
 		wg.Wait()
@@ -102,7 +102,7 @@ func TestMetrics(t *testing.T) {
 					httpclient.Timeout(time.Second),
 				)
 				err := cl.Call(ctx, r)
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			}()
 		}
 
@@ -132,7 +132,7 @@ func TestMetrics(t *testing.T) {
 		sys.AddGauges(tracer)
 		go func() {
 			err := sys.Run(ctx, time.Millisecond)
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 		}()
 
 		concurrentRequests := 20
@@ -154,7 +154,7 @@ func TestMetrics(t *testing.T) {
 					httpclient.Timeout(time.Second),
 				)
 				err := cl.Call(ctx, r)
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			}()
 		}
 		wg.Wait()
@@ -179,7 +179,7 @@ func TestMetrics(t *testing.T) {
 					httpclient.Timeout(time.Second),
 				)
 				err := cl.Call(ctx, r)
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			}()
 		}
 

@@ -5,6 +5,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/testing/testcontext"
 )
@@ -17,11 +18,11 @@ func TestNew(t *testing.T) {
 	}
 
 	client, err := New(ctx, "connection-test", cfg)
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 	t.Cleanup(func() {
 		t.Run("Disconnect client", func(t *testing.T) {
 			err := client.Disconnect(ctx)
-			assert.NilError(t, err)
+			assert.Assert(t, err)
 		})
 	})
 
@@ -39,5 +40,5 @@ func TestNew_InvalidURLDoesNotLeak(t *testing.T) {
 	}
 
 	_, err := New(ctx, "connection-test", cfg)
-	assert.Error(t, err, "mongoex: failed to parse URI: net/url: invalid userinfo")
+	assert.Check(t, cmp.Error(err, "mongoex: failed to parse URI: net/url: invalid userinfo"))
 }

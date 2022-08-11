@@ -76,11 +76,11 @@ func TestTrackedListener(t *testing.T) {
 
 	// and confirm the server metrics
 	gauges := s.MetricsProducer().Gauges(ctx)
-	assert.Equal(t, gauges["total_connections"], float64(maxCons))
-	assert.Equal(t, gauges["active_connections"], float64(maxCons))
-	assert.Equal(t, gauges["number_of_remotes"], float64(1))
-	assert.Equal(t, gauges["max_connections_per_remote"], float64(maxCons))
-	assert.Equal(t, gauges["min_connections_per_remote"], float64(maxCons))
+	assert.Check(t, cmp.Equal(gauges["total_connections"], float64(maxCons)))
+	assert.Check(t, cmp.Equal(gauges["active_connections"], float64(maxCons)))
+	assert.Check(t, cmp.Equal(gauges["number_of_remotes"], float64(1)))
+	assert.Check(t, cmp.Equal(gauges["max_connections_per_remote"], float64(maxCons)))
+	assert.Check(t, cmp.Equal(gauges["min_connections_per_remote"], float64(maxCons)))
 
 	// unblock the first batch - to allow the pool connections to be reused
 	for i := 0; i < maxCons; i++ {

@@ -157,7 +157,7 @@ func clean(t testing.TB, c *s3.Client, bucket string) {
 			break
 		}
 	}
-	assert.NilError(t, err)
+	assert.Assert(t, err)
 }
 
 func emptyBucket(ctx context.Context, t testing.TB, c *s3.Client, bucket string) {

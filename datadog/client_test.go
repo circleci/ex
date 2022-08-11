@@ -74,9 +74,9 @@ func TestClient_Validate(t *testing.T) {
 			gotValid, err := c.Validate(ctx)
 
 			if len(tt.wantErr) == 0 {
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			} else {
-				assert.ErrorContains(t, err, tt.wantErr)
+				assert.Check(t, cmp.ErrorContains(err, tt.wantErr))
 			}
 
 			assert.Check(t, cmp.Equal(gotValid, tt.wantValid))
@@ -311,9 +311,9 @@ func TestClient_QueryMetrics(t *testing.T) {
 			gotResp, err := c.Query(ctx, tt.args)
 
 			if len(tt.wantErr) == 0 {
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			} else {
-				assert.ErrorContains(t, err, tt.wantErr)
+				assert.Check(t, cmp.ErrorContains(err, tt.wantErr))
 			}
 
 			assert.Check(t, cmp.DeepEqual(gotResp, tt.wantResp))

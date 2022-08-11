@@ -2,13 +2,14 @@ package releases
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/testing/testcontext"
 )
@@ -42,8 +43,8 @@ func TestDownloadLatest(t *testing.T) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	dir, err := ioutil.TempDir("", "e2e-test")
-	assert.NilError(t, err)
+	dir, err := os.MkdirTemp("", "e2e-test")
+	assert.Assert(t, err)
 
 	t.Run("internal binary", func(t *testing.T) {
 		path, err := DownloadLatest(ctx, DownloadConfig{
@@ -52,11 +53,11 @@ func TestDownloadLatest(t *testing.T) {
 			Binary:  "internal",
 			Dir:     dir,
 		})
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
-		b, err := ioutil.ReadFile(path) //nolint:gosec // it's a test file we just created
-		assert.NilError(t, err)
-		assert.Equal(t, string(b), "I am the internal thing to download")
+		b, err := os.ReadFile(path) //nolint:gosec // it's a test file we just created
+		assert.Assert(t, err)
+		assert.Check(t, cmp.Equal(string(b), "I am the internal thing to download"))
 	})
 
 	t.Run("bad pinned", func(t *testing.T) {
@@ -67,7 +68,7 @@ func TestDownloadLatest(t *testing.T) {
 			Pinned:  "not-a-ver",
 			Dir:     dir,
 		})
-		assert.ErrorContains(t, err, "resolve failed")
+		assert.Check(t, cmp.ErrorContains(err, "resolve failed"))
 	})
 
 	t.Run("good pinned", func(t *testing.T) {
@@ -78,11 +79,11 @@ func TestDownloadLatest(t *testing.T) {
 			Pinned:  "p.1.n-abc",
 			Dir:     dir,
 		})
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
-		b, err := ioutil.ReadFile(path) //nolint:gosec // it's a test file we just created
-		assert.NilError(t, err)
-		assert.Equal(t, string(b), "I am the pinned thing to download")
+		b, err := os.ReadFile(path) //nolint:gosec // it's a test file we just created
+		assert.Assert(t, err)
+		assert.Check(t, cmp.Equal(string(b), "I am the pinned thing to download"))
 	})
 
 	t.Run("good pinned", func(t *testing.T) {
@@ -92,10 +93,10 @@ func TestDownloadLatest(t *testing.T) {
 			Binary:  "public",
 			Dir:     dir,
 		})
-		assert.NilError(t, err)
+		assert.Assert(t, err)
 
-		b, err := ioutil.ReadFile(path) //nolint:gosec // it's a test file we just created
-		assert.NilError(t, err)
-		assert.Equal(t, string(b), "I am the public thing to download")
+		b, err := os.ReadFile(path) //nolint:gosec // it's a test file we just created
+		assert.Assert(t, err)
+		assert.Check(t, cmp.Equal(string(b), "I am the public thing to download"))
 	})
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
 )
@@ -78,12 +79,12 @@ func TestTxManager_WithTx_ContextCancelledWithError(t *testing.T) {
 			if tt.expectError != nil {
 				assert.Assert(t, errors.Is(err, tt.expectError), "got:%v wanted:%v", err, tt.expectError)
 			} else {
-				assert.NilError(t, err)
+				assert.Assert(t, err)
 			}
 			ttx.mu.Lock()
 			defer ttx.mu.Unlock()
-			assert.Equal(t, ttx.rollBackCount, tt.rollbacks)
-			assert.Equal(t, ttx.commitCount, tt.commits)
+			assert.Check(t, cmp.Equal(ttx.rollBackCount, tt.rollbacks))
+			assert.Check(t, cmp.Equal(ttx.commitCount, tt.commits))
 		})
 	}
 }

@@ -46,7 +46,7 @@ func TestHandleClientCancel(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		req := hc.NewRequest("GET", "/")
-		assert.NilError(t, client.Call(ctx, req))
+		assert.Assert(t, client.Call(ctx, req))
 	})
 
 	t.Run("cancel", func(t *testing.T) {
