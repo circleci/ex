@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = "github.com/circleci/ex/grpc/internal/testgrpc";
+
+package testgrpc;
+
+service PingPong {
+  rpc Ping (PingRequest) returns (PingReply) {}
+}
+
+message PingRequest {
+  string caller = 1;
+}
+
+message PingReply {
+  string message = 1;
+}
