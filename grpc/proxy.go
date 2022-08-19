@@ -2,9 +2,12 @@ package grpc
 
 import (
 	"net/url"
+	"strings"
 
 	"golang.org/x/net/http/httpproxy"
 )
+
+const dnsSchemeNoAuthority = "dns:///"
 
 // ProxyProofTarget takes the host and if there is no proxy in place in the environment at all or
 // if there is a proxy, but we should still use it for the given url, the returned host will include
@@ -33,15 +36,22 @@ import (
 // In the 'passthrough' case because we have the full domain during dialing the client can compare this with the list
 // of domains in the NO_PROXY list. However, in the full dns scheme case we only have a list of IPs which don't match
 // anything in the NO_PROXY list - so they are duly proxied.
+// host should be the host part not including scheme, or have the dns scheme in which case the authority should not
+//be present
 func ProxyProofTarget(host string) string {
-	if goodProxySettings(host) {
-		return "dns:///" + host
+	strippedHost := strings.TrimPrefix(host, dnsSchemeNoAuthority)
+	// We only check proxy safety for hosts that have asked for dns load balancing
+	if strippedHost == host {
+		return host
 	}
-	return host
+	if goodProxySettings(strippedHost) {
+		return dnsSchemeNoAuthority + strippedHost
+	}
+	return strippedHost
 }
 
 // goodProxySettings returns true if there is no proxy in place in the environment at all or
-// if there is a proxy and we should still use it for the given url. This is needed to
+// if there is a proxy, and we should still use it for the given url. This is needed to
 // solve CIRCLE-25181.
 func goodProxySettings(host string) bool {
 	url, _ := url.Parse("https://" + host)
