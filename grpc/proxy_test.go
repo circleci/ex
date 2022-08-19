@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"os"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -15,6 +14,7 @@ func TestGoodProxySettings(t *testing.T) {
 		proxyEnvKey   = "https_proxy"
 		noProxyEnvKey = "no_proxy"
 		hostName      = "hostname.com"
+		dnsHostName   = "dns:///hostname.com"
 	)
 	// reset all the proxy related env vars (they will be restored on cleanup)
 	for _, k := range []string{
@@ -60,9 +60,18 @@ func TestGoodProxySettings(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_ = os.Setenv(proxyEnvKey, tc.proxy)
-			_ = os.Setenv(noProxyEnvKey, tc.noProxy)
+			t.Setenv(proxyEnvKey, tc.proxy)
+			t.Setenv(noProxyEnvKey, tc.noProxy)
 			assert.Check(t, cmp.Equal(tc.expected, goodProxySettings(hostName)))
+
+			target := ProxyProofTarget(dnsHostName)
+			if tc.expected {
+				assert.Check(t, cmp.Equal(target, dnsHostName))
+			} else {
+				assert.Check(t, cmp.Equal(target, hostName))
+			}
+			// confirm any hostname without the dns:/// prefix is untouched
+			assert.Check(t, cmp.Equal(ProxyProofTarget(hostName), hostName))
 		})
 	}
 }

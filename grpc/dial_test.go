@@ -28,7 +28,7 @@ func TestDial(t *testing.T) {
 	t.Run("with-timeout", func(t *testing.T) {
 		ctx := testcontext.Background()
 		con, err := Dial(ctx, Config{
-			Host:        srv.addr,
+			Host:        dnsSchemeNoAuthority + srv.addr,
 			ServiceName: "testgrpc.PingPong",
 			Timeout:     time.Millisecond * 50,
 		})

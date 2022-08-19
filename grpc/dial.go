@@ -9,7 +9,9 @@ import (
 )
 
 type Config struct {
-	// Host is the grpc host URL typically in this form: "dns:///service.domain.:80"
+	// Host is the grpc host URL typically in this form: "dns:///service.domain.:80" if load balancing is desired
+	// otherwise the raw host should be provided without the dns:/// prefix.
+	// If the dns:// load balancing scheme is indicated - authority is not accepted and should be empty
 	Host string
 	// ServiceName should be as it is defined in the service's .proto file
 	// (e.g. "package.ServiceName").
