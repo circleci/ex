@@ -113,6 +113,16 @@ commands:
           name: Install devtools
           command: ./do install-devtools
       - run:
+          name: install protobuf binaries
+          command: |
+            mkdir -p /tmp/protoc
+            cd /tmp/protoc
+
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v3.19.4/protoc-3.19.4-linux-x86_64.zip
+            unzip protoc*.zip
+            sudo mv bin/protoc /usr/local/bin/
+            sudo mv include/google /usr/local/include
+      - run:
           name: Make test-reports dir
           command: mkdir -p test-reports
       - run:

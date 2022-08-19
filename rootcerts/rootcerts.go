@@ -1,7 +1,7 @@
 package rootcerts
 
 // Generated using github.com/gwatts/rootcerts/gencert
-// Generated on Tue, 19 Jul 2022 11:50:39 +0100
+// Generated on Fri, 19 Aug 2022 10:34:55 +0100
 // Input file SHA1: 2423a64d575d4237df639722a1436e23d398ad42
 
 import (

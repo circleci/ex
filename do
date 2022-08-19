@@ -31,6 +31,22 @@ check-rootcerts() {
 help_generate="generate any generated code"
 generate() {
     go generate -x ./...
+
+    if ! command -v protoc; then
+        echo "missing protoc: install protobuf package version v3.3.0 or similar"
+        exit 1
+    fi
+
+    local protoc_version
+    protoc_version=$(grep google.golang.org/protobuf go.mod | tr -s \  | cut -f2 -d\ )
+    install-go-bin \
+        "google.golang.org/protobuf/cmd/protoc-gen-go@${protoc_version}" \
+        "google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1"
+    export PATH="./bin:$PATH"
+
+    set -x
+    protoc -I . --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative grpc/internal/testgrpc/*.proto
+
     run-goimports ./rootcerts
 }
 
