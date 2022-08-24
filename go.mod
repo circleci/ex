@@ -16,7 +16,7 @@ require (
 	github.com/google/go-cmp v0.5.8
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hellofresh/health-go/v4 v4.6.0
-	github.com/honeycombio/beeline-go v1.9.0
+	github.com/honeycombio/beeline-go v1.10.0
 	github.com/honeycombio/dynsampler-go v0.2.1
 	github.com/honeycombio/libhoney-go v1.16.0
 	github.com/jackc/pgconn v1.13.0
@@ -30,7 +30,7 @@ require (
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.mongodb.org/mongo-driver v1.10.1
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gotest.tools/v3 v3.3.0
