@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -577,6 +578,36 @@ func TestClient_Proxies(t *testing.T) {
 			assert.Check(t, cmp.Equal(proxy.ProxiedURL, ""))
 		})
 	})
+}
+
+func TestClient_HTTPTracing(t *testing.T) {
+	ctx := context.Background()
+
+	var counter int64
+
+	r := ginrouter.Default(ctx, "httptracing")
+	r.GET("/", func(c *gin.Context) { c.Status(200) })
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+
+	tracer := &httptrace.ClientTrace{
+		GetConn: func(_ string) {
+			atomic.AddInt64(&counter, 1)
+		},
+	}
+
+	client := httpclient.New(httpclient.Config{
+		Name:       "HTTPTracing",
+		BaseURL:    server.URL,
+		HTTPTracer: tracer,
+	})
+
+	req := httpclient.NewRequest("GET", "/")
+
+	err := client.Call(ctx, req)
+
+	assert.NilError(t, err)
+	assert.Equal(t, atomic.LoadInt64(&counter), int64(1))
 }
 
 type dialFunc func(ctx context.Context, network, addr string) (net.Conn, error)

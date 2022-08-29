@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"sync"
@@ -63,6 +64,8 @@ type Config struct {
 	Tracer tracer
 	// DialContext allows a dial context to be injected into the HTTP transport.
 	DialContext func(ctx context.Context, network string, addr string) (net.Conn, error)
+	// HTTPTracer allows use of the httptrace library for indepth HTTP logging and debugging
+	HTTPTracer *httptrace.ClientTrace
 }
 
 // Client is the o11y instrumented http client.
@@ -76,6 +79,7 @@ type Client struct {
 	acceptType            string
 	additionalHeaders     map[string]string
 	tracer                tracer
+	httptracer            *httptrace.ClientTrace
 
 	mu      sync.RWMutex
 	last429 time.Time
@@ -121,8 +125,9 @@ func New(cfg Config) *Client {
 		httpClient: &http.Client{
 			Transport: roundTripper,
 		},
-		tracer: cfg.Tracer,
-		now:    time.Now,
+		tracer:     cfg.Tracer,
+		httptracer: cfg.HTTPTracer,
+		now:        time.Now,
 	}
 }
 
@@ -430,6 +435,10 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		}
 
 		req = req.WithContext(ctx)
+
+		if c.httptracer != nil {
+			req = req.WithContext(httptrace.WithClientTrace(req.Context(), c.httptracer))
+		}
 		if r.propagation {
 			req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
 		}
