@@ -81,7 +81,6 @@ linters:
   enable:
     - gochecknoinits
     - bodyclose
-    - deadcode
     - depguard
     - errcheck
     - errorlint
@@ -99,10 +98,8 @@ linters:
     - nakedret
     - prealloc
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck

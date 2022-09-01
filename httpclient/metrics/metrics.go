@@ -106,7 +106,7 @@ func (m *Metrics) Gauges(_ context.Context) map[string][]system.TaggedValue {
 }
 
 // WithTracer adds the tracer onto the context for this request.
-//nolint:funlen
+// nolint:funlen
 func (m *Metrics) WithTracer(ctx context.Context, route string) context.Context {
 	r := &request{
 		m:   m,

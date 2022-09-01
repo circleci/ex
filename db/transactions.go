@@ -35,6 +35,7 @@ type queryFn func(context.Context, Querier) error
 // ErrBadConn errors.
 // The length here is due to the internalised func, which we want to encapsulate
 // to avoid reuse, since it is highly coupled to the retry behaviour.
+//
 //nolint:funlen
 func (t *TxManager) WithTx(ctx context.Context, f queryFn) (err error) {
 	// Set up the main transaction function that we will retry on ErrBadCon
