@@ -169,10 +169,11 @@ type Request struct {
 // (when parts of the url may contain many varying values).
 //
 // Example:
-//   req := httpclient.NewRequest("POST", "/api/person/%s",
-//     httpclient.RouteParams("person-id"),
-//     httpclient.Timeout(time.Second),
-//   )
+//
+//	req := httpclient.NewRequest("POST", "/api/person/%s",
+//	  httpclient.RouteParams("person-id"),
+//	  httpclient.Timeout(time.Second),
+//	)
 func NewRequest(method, route string, opts ...func(*Request)) Request {
 	r := Request{
 		method:      method,
@@ -200,9 +201,10 @@ func RouteParams(routeParams ...interface{}) func(*Request) {
 // Note this will modify the original Request.
 //
 // Example:
-//   err := client.Call(ctx, httpclient.NewRequest("POST", "/bad",
-//     httpclient.Decoder(http.StatusBadRequest, httpclient.NewStringDecoder(&s)),
-//   ))
+//
+//	err := client.Call(ctx, httpclient.NewRequest("POST", "/bad",
+//	  httpclient.Decoder(http.StatusBadRequest, httpclient.NewStringDecoder(&s)),
+//	))
 func Decoder(status int, decoder decoder) func(*Request) {
 	return func(r *Request) {
 		r.decoders[status] = decoder
@@ -319,13 +321,15 @@ func Propagation(propagation bool) func(*Request) {
 // details of result of the call.
 //
 // Example:
-//   err := client.Call(ctx, httpclient.NewRequest("POST", "/api/fruit/%s",
-//     httpclient.RouteParams("apple"),
-//     httpclient.Timeout(time.Second),
-//   ))
-//   if err != nil {
-//     panic(err)
-//   }
+//
+//	err := client.Call(ctx, httpclient.NewRequest("POST", "/api/fruit/%s",
+//	  httpclient.RouteParams("apple"),
+//	  httpclient.Timeout(time.Second),
+//	))
+//	if err != nil {
+//	  panic(err)
+//	}
+//
 // nolint:funlen
 func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	if r.rawBody != nil && r.body != nil {

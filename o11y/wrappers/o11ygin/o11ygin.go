@@ -17,6 +17,7 @@ import (
 )
 
 // Middleware for Gin router
+//
 //nolint:funlen
 func Middleware(provider o11y.Provider, serverName string, queryParams map[string]struct{}) gin.HandlerFunc {
 	m := provider.MetricsProvider()

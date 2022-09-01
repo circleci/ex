@@ -87,7 +87,7 @@ func (d *Downloader) Remove(rawURL string) error {
 	}
 	err = os.Remove(d.targetPath(u))
 	e := &os.PathError{}
-	if errors.As(e, &err) {
+	if errors.As(err, &e) {
 		return nil
 	}
 	return err
