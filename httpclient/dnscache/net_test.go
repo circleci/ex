@@ -28,7 +28,7 @@ func TestDial(t *testing.T) {
 	var lookupCount int64
 
 	resolver := New(Config{
-		lookupFunc: func(ctx context.Context, host string) ([]net.IP, error) {
+		lookupFunc: func(ctx context.Context, r *net.Resolver, host string) ([]net.IP, error) {
 			t.Logf("Got lookup for %q", host)
 			atomic.AddInt64(&lookupCount, 1)
 			if host == "example.com" {

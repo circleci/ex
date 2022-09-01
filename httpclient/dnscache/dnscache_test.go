@@ -52,7 +52,7 @@ func TestResolver_Resolve_CheckCached(t *testing.T) {
 
 	var lookupCount int64
 	resolver := New(Config{
-		lookupFunc: func(ctx context.Context, host string) ([]net.IP, error) {
+		lookupFunc: func(ctx context.Context, r *net.Resolver, host string) ([]net.IP, error) {
 			atomic.AddInt64(&lookupCount, 1)
 			t.Logf("Got lookup for %q", host)
 			for i, h := range hosts {

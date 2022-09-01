@@ -17,8 +17,8 @@ const (
 	defaultTTL       = 5 * time.Second
 )
 
-func defaultLookupFunc(ctx context.Context, host string) ([]net.IP, error) {
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+func defaultLookupFunc(ctx context.Context, r *net.Resolver, host string) ([]net.IP, error) {
+	addrs, err := r.LookupIPAddr(ctx, host)
 	if err != nil {
 		return nil, err
 	}
@@ -40,9 +40,13 @@ type Resolver struct {
 }
 
 type Config struct {
-	CacheSize  int
-	TTL        time.Duration
-	lookupFunc func(ctx context.Context, host string) ([]net.IP, error)
+	CacheSize int
+	TTL       time.Duration
+
+	// Resolver optionally allows specifying a custom resolver
+	Resolver *net.Resolver
+
+	lookupFunc func(ctx context.Context, r *net.Resolver, host string) ([]net.IP, error)
 }
 
 func New(c Config) *Resolver {
@@ -52,6 +56,10 @@ func New(c Config) *Resolver {
 
 	if c.TTL == 0 {
 		c.TTL = defaultTTL
+	}
+
+	if c.Resolver == nil {
+		c.Resolver = net.DefaultResolver
 	}
 
 	if c.lookupFunc == nil {
@@ -70,7 +78,7 @@ func (r *Resolver) Resolve(ctx context.Context, addr string) ([]net.IP, error) {
 		return v.([]net.IP), nil
 	}
 
-	ips, err := r.config.lookupFunc(ctx, addr)
+	ips, err := r.config.lookupFunc(ctx, r.config.Resolver, addr)
 	if err != nil {
 		return nil, err
 	}
