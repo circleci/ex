@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/circleci/ex/testing/download"
+	"github.com/circleci/ex/download"
 )
 
 // DownloadConfig is the configuration for the DownloadLatest helper
