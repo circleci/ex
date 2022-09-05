@@ -1,3 +1,6 @@
+/*
+Package download helps download releases of binaries.
+*/
 package download
 
 import (
