@@ -400,9 +400,12 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 
 // retryRequest will make the Request and only call the decoder when a 2XX has been received.
 // Any response body in non 2XX cases is discarded.
-// nolint: funlen
+// nolint: funlen, gocyclo
 func (c *Client) retryRequest(ctx context.Context, name string, r Request, newReq func() (*http.Request, error)) error {
 	attemptCounter := 0
+	// requestClose is used in an attempt to patch over some strange behaviour where the connection used in
+	// a request that timed out is kept active in the pool and reused, timing out again.
+	requestClose := false
 	attempt := func() (err error) {
 		ctx, span := o11y.StartSpan(ctx, name)
 		defer o11y.End(span, &err)
@@ -437,6 +440,17 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		if r.propagation {
 			req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
 		}
+		if requestClose {
+			// In the case where we see a timed out connection being reused it if usually the case that
+			// the same connection is used in this retry loop, so this will hopefully cause it to close.
+			// (If we see this not having an impact - we may still need to force all the pool to reconnect.)
+			// TODO - this may only cause the server to drop the connection (and the client only respond to the
+			// server side close. In the case of the reused bad connection it is possible the server is not even
+			// getting the request and the close header. It remains to be seen how the client behaves in this case)
+			// In the case where the client is correctly closing the connection on a timeout, this may cause an
+			// extra connection close, which should be safe enough.
+			req.Header.Set("Connection", "close")
+		}
 
 		span.AddRawField("http.client_name", c.name)
 		span.AddRawField("http.route", r.route)
@@ -445,6 +459,9 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 
 		res, err := c.httpClient.Do(req)
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				requestClose = true
+			}
 			// url errors repeat the method and url which clutters metrics and logging
 			e := &url.Error{}
 			if errors.As(err, &e) {
