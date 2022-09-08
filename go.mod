@@ -25,7 +25,7 @@ require (
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/klauspost/compress v1.15.9
 	github.com/makasim/amqpextra v0.17.0
-	github.com/rabbitmq/amqp091-go v1.4.0
+	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/rollbar/rollbar-go v1.4.4
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.mongodb.org/mongo-driver v1.10.1
