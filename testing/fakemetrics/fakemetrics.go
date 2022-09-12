@@ -42,6 +42,14 @@ func (f *Provider) Calls() []MetricCall {
 	return calls
 }
 
+func (f *Provider) Histogram(name string, value float64, tags []string, rate float64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.calls = append(f.calls, MetricCall{Metric: "histogram", Name: name, Value: value, Tags: tags, Rate: rate})
+	return nil
+}
+
 func (f *Provider) TimeInMilliseconds(name string, value float64, tags []string, rate float64) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
