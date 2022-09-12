@@ -144,6 +144,10 @@ func Count(name string, valueField string, fixedTag *Tag, tagFields ...string) M
 }
 
 type MetricsProvider interface {
+	// Histogram aggregates values agent side for a period of time.
+	// This is similar to TimeInMilliseconds, but not limited to timing data
+	Histogram(name string, value float64, tags []string, rate float64) error
+	// TimeInMilliseconds measures timing data only. For example, how long a network call takes
 	TimeInMilliseconds(name string, value float64, tags []string, rate float64) error
 	// Gauge measures the value of a metric at a particular time.
 	Gauge(name string, value float64, tags []string, rate float64) error
