@@ -12,6 +12,7 @@ import (
 
 	"github.com/honeycombio/beeline-go"
 	"github.com/honeycombio/beeline-go/client"
+	"github.com/honeycombio/beeline-go/propagation"
 	"github.com/honeycombio/beeline-go/trace"
 	"github.com/honeycombio/dynsampler-go"
 	"github.com/honeycombio/libhoney-go"
@@ -306,6 +307,42 @@ func (h *honeycomb) MetricsProvider() o11y.MetricsProvider {
 	return h.metricsProvider
 }
 
+func (h *honeycomb) Helpers() o11y.Helpers {
+	return helpers{}
+}
+
+type helpers struct{}
+
+func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext {
+	s := trace.GetSpanFromContext(ctx)
+	if s == nil {
+		return o11y.PropagationContext{}
+	}
+	parent := s.SerializeHeaders()
+	return o11y.PropagationContext{
+		Parent:  parent,
+		Headers: map[string]string{propagation.TracePropagationHTTPHeader: parent},
+	}
+}
+
+func (h helpers) InjectPropagation(ctx context.Context, p o11y.PropagationContext) (context.Context, o11y.Span) {
+	field := p.Parent
+	if field == "" {
+		field = p.Headers[propagation.TracePropagationHTTPHeader]
+	}
+	prop, _ := propagation.UnmarshalHoneycombTraceContext(field)
+	ctx, tr := trace.NewTrace(ctx, prop)
+	return ctx, WrapSpan(tr.GetRootSpan())
+}
+
+func (h helpers) TraceIDs(ctx context.Context) (traceID, parentID string) {
+	t := trace.GetTraceFromContext(ctx)
+	if t == nil {
+		return "", ""
+	}
+	return t.GetTraceID(), t.GetParentID()
+}
+
 func WrapSpan(s *trace.Span) o11y.Span {
 	if s == nil {
 		return nil
@@ -342,10 +379,6 @@ func (s *span) RecordMetric(metric o11y.Metric) {
 
 func (s *span) End() {
 	s.span.Send()
-}
-
-func (s *span) SerializeHeaders() string {
-	return s.span.SerializeHeaders()
 }
 
 func mustValidateKey(key string) {

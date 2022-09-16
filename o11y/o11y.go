@@ -56,6 +56,42 @@ type Provider interface {
 
 	// MetricsProvider grants lower control over the metrics that o11y sends, allowing skipping spans.
 	MetricsProvider() MetricsProvider
+
+	// Helpers returns some specific helper functions
+	Helpers() Helpers
+}
+
+// PropagationContext contains trace context values that are propagated from service to service.
+// Typically, the Parent field is also present as a value in the Headers map.
+// This seeming DRY breakage is so the special value for the field name of the Parent trace ID is not
+// leaked, and accidentally depended upon.
+type PropagationContext struct {
+	// Parent contains single string serialisation of just the trace parent fields
+	Parent string
+	// Headers contains the map of all context propagation headers
+	Headers map[string]string
+}
+
+// PropagationContextFromHeader is a helper constructs a PropagationContext from h. It is not filtered
+// to the headers needed for propagation. It is expected to be used as the input to InjectPropagation.
+func PropagationContextFromHeader(h http.Header) PropagationContext {
+	p := PropagationContext{
+		Headers: map[string]string{},
+	}
+	for k := range h {
+		p.Headers[k] = h.Get(k)
+	}
+	return p
+}
+
+type Helpers interface {
+	// ExtractPropagation pulls propagation information out of the context
+	ExtractPropagation(ctx context.Context) PropagationContext
+	// InjectPropagation adds propagation header fields into the returned root span returning
+	// the context carrying that span
+	InjectPropagation(context.Context, PropagationContext) (context.Context, Span)
+	// TraceIDs return standard o11y ids
+	TraceIDs(ctx context.Context) (traceID, parentID string)
 }
 
 type Span interface {
@@ -76,11 +112,9 @@ type Span interface {
 	// RecordMetric tells the provider to emit a metric to its metric backend when the span ends
 	RecordMetric(metric Metric)
 
-	// End sets the duration of the span and tells the related provider that the span is complete
-	// so it can do it's appropriate processing. The span should not be used after End is called.
+	// End sets the duration of the span and tells the related provider that the span is complete,
+	// so it can do its appropriate processing. The span should not be used after End is called.
 	End()
-
-	SerializeHeaders() string
 }
 
 type MetricType string
@@ -308,11 +342,25 @@ func (c *noopProvider) MetricsProvider() MetricsProvider {
 	return &statsd.NoOpClient{}
 }
 
-type noopSpan struct{}
-
-func (s *noopSpan) SerializeHeaders() string {
-	return ""
+func (c *noopProvider) Helpers() Helpers {
+	return noopHelpers{}
 }
+
+type noopHelpers struct{}
+
+func (n noopHelpers) ExtractPropagation(_ context.Context) PropagationContext {
+	return PropagationContext{}
+}
+
+func (n noopHelpers) InjectPropagation(ctx context.Context, _ PropagationContext) (context.Context, Span) {
+	return ctx, &noopSpan{}
+}
+
+func (n noopHelpers) TraceIDs(_ context.Context) (traceID, parentID string) {
+	return "", ""
+}
+
+type noopSpan struct{}
 
 func (s *noopSpan) AddField(key string, val interface{}) {}
 

@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,7 +18,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/honeycombio/beeline-go/propagation"
 	"golang.org/x/net/http/httpproxy"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
@@ -37,16 +35,14 @@ import (
 
 func TestClient_Call_Propagates(t *testing.T) {
 	ctx := testcontext.Background()
-	re := regexp.MustCompile(`trace_id=([A-z0-9]+)`)
-
 	traceIDChan := make(chan string, 1)
 	defer close(traceIDChan)
 
-	rec := httprecorder.New()
+	helpers := o11y.FromContext(ctx).Helpers()
+
 	okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, span := o11y.StartSpan(ctx, "test server span")
-		traceIDChan <- re.FindStringSubmatch(span.SerializeHeaders())[1]
-		_ = rec.Record(r)
+		traceID, _ := helpers.TraceIDs(r.Context())
+		traceIDChan <- traceID
 	})
 
 	server := httptest.NewServer(o11ynethttp.Middleware(o11y.FromContext(ctx), "name", okHandler))
@@ -62,14 +58,18 @@ func TestClient_Call_Propagates(t *testing.T) {
 	assert.Check(t, err)
 	span.End()
 
-	h := rec.LastRequest().Header
-	assert.Check(t, cmp.Contains(h.Get(propagation.TracePropagationHTTPHeader), "trace_id="))
+	httpClientTraceID, _ := helpers.TraceIDs(ctx)
 
-	httpClientSpanID := re.FindStringSubmatch(span.SerializeHeaders())[1]
-	t.Logf("httpClientSpanID: %q", httpClientSpanID)
-	httpServerSpanID := re.FindStringSubmatch(h.Get(propagation.TracePropagationHTTPHeader))[1]
-	assert.Check(t, cmp.Equal(httpClientSpanID, httpServerSpanID))
-	assert.Check(t, cmp.Equal(httpClientSpanID, <-traceIDChan))
+	t.Logf("httpClientTraceID: %q", httpClientTraceID)
+	assert.Check(t, cmp.Equal(httpClientTraceID, <-traceIDChan))
+
+	t.Run("no-propagation", func(t *testing.T) {
+		err := client.Call(ctx, httpclient.NewRequest("POST", "/", httpclient.Propagation(false)))
+		assert.Check(t, err)
+
+		// assert a new traceID was created in the server
+		assert.Check(t, httpClientTraceID != <-traceIDChan)
+	})
 }
 
 func TestClient_Call_Decodes(t *testing.T) {
@@ -380,10 +380,10 @@ func TestClient_Call_SetQuery(t *testing.T) {
 		Method: "POST",
 		URL:    url.URL{Path: "/", RawQuery: "foo=bar"},
 		Header: http.Header{
-			"Accept-Encoding":                      {"gzip"},
-			"Content-Length":                       {"0"},
-			"User-Agent":                           {"Foo"},
-			propagation.TracePropagationHTTPHeader: {""},
+			"Accept-Encoding": {"gzip"},
+			"Content-Length":  {"0"},
+			"User-Agent":      {"Foo"},
+			// since there is no o11y provider on the context there should be no propagation headers
 		},
 		Body: []uint8{},
 	}))
