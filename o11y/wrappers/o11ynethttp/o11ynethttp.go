@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/honeycombio/beeline-go/wrappers/common"
-
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/wrappers/baggage"
 )
@@ -25,9 +23,8 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		before := time.Now()
 
-		// TODO: stop using honeycomb's built-in request parsing, use our own that follows otel naming specs
-		ctx, span := common.StartSpanOrTraceFromHTTP(r)
-		defer span.Send()
+		ctx, span := startSpanOrTraceFromHTTP(r, provider, name)
+		defer span.End()
 
 		provider.AddFieldToTrace(ctx, "server_name", name)
 		routeRecorder := NewRouteRecorder()
@@ -113,4 +110,22 @@ func (w *statusWriter) WriteHeader(status int) {
 		w.status = status
 	})
 	w.ResponseWriter.WriteHeader(status)
+}
+
+func startSpanOrTraceFromHTTP(req *http.Request, p o11y.Provider, serverName string) (context.Context, o11y.Span) {
+	ctx := req.Context()
+	span := p.GetSpan(ctx)
+	// We default to using the Path as the name and route - which could be high cardinality
+	// We expect consumers to override these fields if they have something better
+	name := fmt.Sprintf("http-server %s: %s %s", serverName, req.Method, req.URL.Path)
+	if span == nil {
+		// there is no trace yet. We should make one! and use the root span.
+		ctx, span := p.Helpers().InjectPropagation(ctx, o11y.PropagationContextFromHeader(req.Header))
+		span.AddRawField("name", name)
+		return ctx, span
+	} else {
+		// we had a parent! let's make a new child for this handler
+		ctx, span = o11y.StartSpan(ctx, name)
+	}
+	return ctx, span
 }

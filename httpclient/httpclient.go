@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/honeycombio/beeline-go/propagation"
 
 	"github.com/circleci/ex/o11y"
 )
@@ -438,7 +437,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 
 		req = req.WithContext(ctx)
 		if r.propagation {
-			req.Header.Add(propagation.TracePropagationHTTPHeader, span.SerializeHeaders())
+			c.addPropagationHeader(ctx, req)
 		}
 		if requestClose {
 			// In the case where we see a timed out connection being reused it if usually the case that
@@ -528,6 +527,17 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	bo.InitialInterval = time.Millisecond * 50
 	bo.MaxElapsedTime = c.backOffMaxElapsedTime
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
+}
+
+func (c *Client) addPropagationHeader(ctx context.Context, req *http.Request) {
+	p := o11y.FromContext(ctx)
+	if p == nil {
+		return
+	}
+	propagation := p.Helpers().ExtractPropagation(ctx)
+	for k, v := range propagation.Headers {
+		req.Header.Set(k, v)
+	}
 }
 
 func (r Request) decodeBody(resp *http.Response, success bool, attemptCounter int) error {
