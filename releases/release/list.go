@@ -27,9 +27,9 @@ var (
 )
 
 type Requirements struct {
-	Version  string `json:"version"`
-	Platform string `json:"os"`
-	Arch     string `json:"arch"`
+	Version  string `json:"version" form:"version"`
+	Platform string `json:"os" form:"os"`
+	Arch     string `json:"arch" form:"arch"`
 }
 
 var downloadVersionRegexp = regexp.MustCompile(`^\d+\.\d+\.\d+-(canary-|dev-)?[0-9a-f]+$`)

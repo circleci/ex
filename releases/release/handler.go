@@ -29,20 +29,8 @@ func Handler(cfg HandlerConfig) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		var req Requirements
-		err := c.BindJSON(&req)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"message": fmt.Sprintf("bad request: %s", err),
-			})
-			return
-		}
 
-		if err = req.Validate(); err != nil {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"message": fmt.Sprintf("bad request: %s", err),
-			})
-			return
-		}
+		bindAndValidate(c, &req)
 
 		// if list is nil, client should never proceed to download
 		if cfg.List == nil {
@@ -80,5 +68,29 @@ func Handler(cfg HandlerConfig) func(c *gin.Context) {
 		default:
 			c.JSON(http.StatusOK, rel)
 		}
+	}
+}
+
+func bindAndValidate(c *gin.Context, req *Requirements) {
+	// To support a migration path from JSON body to query params we check the content length header. This can be
+	// removed when RT-724 is done
+	var err error
+	if c.Request.ContentLength != 0 {
+		err = c.BindJSON(&req)
+	} else {
+		err = c.BindQuery(&req)
+	}
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("bad request: %s", err),
+		})
+		return
+	}
+
+	if err = req.Validate(); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"message": fmt.Sprintf("bad request: %s", err),
+		})
+		return
 	}
 }

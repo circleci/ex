@@ -158,6 +158,11 @@ type Request struct {
 	retry    bool
 	query    url.Values
 
+	// We want to prevent HTTP GETs with body or rawBody due to incompatibilities with CloudFront WAF which API Infra
+	// are introducing. In order to facilitate a migration for runner we need to be able to override this. This can be
+	// removed once RT-724 is completed.
+	allowGETWithBody bool
+
 	propagation bool
 
 	url string
@@ -193,6 +198,14 @@ func NewRequest(method, route string, opts ...func(*Request)) Request {
 func RouteParams(routeParams ...interface{}) func(*Request) {
 	return func(r *Request) {
 		r.url = fmt.Sprintf(r.route, routeParams...)
+	}
+}
+
+// AllowGETWithBody will allow the client to send a GET request with a body, which we error on by default. We should
+// remove this once RT-724 is completed.
+func AllowGETWithBody() func(*Request) {
+	return func(r *Request) {
+		r.allowGETWithBody = true
 	}
 }
 
@@ -741,24 +754,37 @@ func doneRetrying(err error) error {
 	return err
 }
 
-func (r Request) validate() (err error) {
+func (r Request) validate() error {
 	// We do not allow GET requests with Body as they are not supported by CloudFront WAF, which requests are routed
 	// through. - https://circleci.slack.com/archives/C03M4P0Q4GH/p1659566842825159
-	if r.getWithBody() {
+	// This can be overridden with httpclient.AllowGETWithBody() if required for legacy or third-party compatibility
+	if !r.validateGetWithBody() {
 		return errors.New("cannot have GET request with body or raw body")
 	}
 
-	if r.hasRawBodyAndBody() {
+	if !r.validateOnlyRawBodyOrBody() {
 		return errors.New("cannot have both body and raw body be set")
 	}
 
 	return nil
 }
 
-func (r Request) hasRawBodyAndBody() bool {
-	return r.rawBody != nil && r.body != nil
+func (r Request) validateOnlyRawBodyOrBody() bool {
+	if r.rawBody != nil && r.body != nil {
+		return false
+	}
+
+	return true
 }
 
-func (r Request) getWithBody() bool {
-	return r.method == "GET" && (r.body != nil || r.rawBody != nil)
+func (r Request) validateGetWithBody() bool {
+	if !r.allowGETWithBody && (r.method == "GET" && r.hasBody()) {
+		return false
+	}
+
+	return true
+}
+
+func (r Request) hasBody() bool {
+	return r.body != nil || r.rawBody != nil
 }
