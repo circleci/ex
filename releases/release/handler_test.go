@@ -19,14 +19,14 @@ import (
 	"github.com/circleci/ex/testing/testcontext"
 )
 
-func TestHandler(t *testing.T) {
+func TestHandler_WithBody(t *testing.T) {
 	ctx := testcontext.Background()
 
 	t.Run("Test success", func(t *testing.T) {
 		fix := startAPI(ctx, t)
 
 		t.Run("Can get a release", func(t *testing.T) {
-			agent, err := fix.Download(ctx, release.Requirements{
+			agent, err := fix.DownloadWithBody(ctx, release.Requirements{
 				Platform: "linux",
 				Arch:     "amd64",
 			})
@@ -44,7 +44,7 @@ func TestHandler(t *testing.T) {
 		fix := startAPI(ctx, t)
 
 		t.Run("Release not found", func(t *testing.T) {
-			_, err := fix.Download(ctx, release.Requirements{
+			_, err := fix.DownloadWithBody(ctx, release.Requirements{
 				Platform: "linux",
 				Arch:     "enemy",
 			})
@@ -59,7 +59,7 @@ func TestHandler(t *testing.T) {
 		fix := startAPI(ctx, t)
 
 		t.Run("No platform", func(t *testing.T) {
-			_, err := fix.Download(ctx, release.Requirements{
+			_, err := fix.DownloadWithBody(ctx, release.Requirements{
 				Arch: "enemy",
 			})
 			assert.Check(t, httpclient.HasStatusCode(err, http.StatusBadRequest))
@@ -68,7 +68,7 @@ func TestHandler(t *testing.T) {
 			))
 		})
 		t.Run("No arch", func(t *testing.T) {
-			_, err := fix.Download(ctx, release.Requirements{
+			_, err := fix.DownloadWithBody(ctx, release.Requirements{
 				Platform: "linux",
 			})
 			assert.Check(t, httpclient.HasStatusCode(err, http.StatusBadRequest))
@@ -82,7 +82,7 @@ func TestHandler(t *testing.T) {
 		fix := startAPIWithDownloads(ctx, t, false)
 
 		t.Run("Should give 410", func(t *testing.T) {
-			_, err := fix.Download(ctx, release.Requirements{
+			_, err := fix.DownloadWithBody(ctx, release.Requirements{
 				Platform: "linux",
 				Arch:     "amd64",
 			})
@@ -94,7 +94,94 @@ func TestHandler(t *testing.T) {
 	})
 }
 
-func (f *fixture) Download(ctx context.Context, requirements release.Requirements) (*release.Release, error) {
+func TestHandler_WithQuery(t *testing.T) {
+	ctx := testcontext.Background()
+
+	t.Run("Test success", func(t *testing.T) {
+		fix := startAPI(ctx, t)
+
+		t.Run("Can get a release", func(t *testing.T) {
+			agent, err := fix.DownloadWithQuery(ctx, release.Requirements{
+				Platform: "linux",
+				Arch:     "amd64",
+			})
+
+			assert.Assert(t, err)
+			assert.Check(t, cmp.DeepEqual(agent, &release.Release{
+				URL:      fix.S3URL + "/1.1.1-abcdef01/linux/amd64/circleci-agent",
+				Checksum: "4a62f09b64873a20386cdbfaca87cc10d8352fab014ef0018f1abcce08a3d027",
+				Version:  "1.1.1-abcdef01",
+			}))
+		})
+	})
+
+	t.Run("Test for unknown arch", func(t *testing.T) {
+		fix := startAPI(ctx, t)
+
+		t.Run("Release not found", func(t *testing.T) {
+			_, err := fix.DownloadWithQuery(ctx, release.Requirements{
+				Platform: "linux",
+				Arch:     "enemy",
+			})
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusNotFound))
+			assert.Check(t, cmp.ErrorContains(err,
+				`404 (Not Found) (1 attempts): no download found for version="1.1.1-abcdef01" os="linux" arch="enemy"`,
+			))
+		})
+	})
+
+	t.Run("Test invalid requests", func(t *testing.T) {
+		fix := startAPI(ctx, t)
+
+		t.Run("No platform", func(t *testing.T) {
+			_, err := fix.DownloadWithQuery(ctx, release.Requirements{
+				Arch: "enemy",
+			})
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusBadRequest))
+			assert.Check(t, cmp.ErrorContains(err,
+				`400 (Bad Request) (1 attempts): bad request: platform is required`,
+			))
+		})
+		t.Run("No arch", func(t *testing.T) {
+			_, err := fix.DownloadWithQuery(ctx, release.Requirements{
+				Platform: "linux",
+			})
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusBadRequest))
+			assert.Check(t, cmp.ErrorContains(err,
+				`400 (Bad Request) (1 attempts): bad request: arch is required`,
+			))
+		})
+	})
+
+	t.Run("Test no DownloadWithQuerys", func(t *testing.T) {
+		fix := startAPIWithDownloads(ctx, t, false)
+
+		t.Run("Should give 410", func(t *testing.T) {
+			_, err := fix.DownloadWithQuery(ctx, release.Requirements{
+				Platform: "linux",
+				Arch:     "amd64",
+			})
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusGone))
+			assert.Check(t, cmp.ErrorContains(err,
+				`410 (Gone) (1 attempts): no more downloads possible`,
+			))
+		})
+	})
+}
+
+func (f *fixture) DownloadWithBody(ctx context.Context, requirements release.Requirements) (*release.Release, error) {
+	return f.download(ctx, httpclient.Body(requirements), httpclient.AllowGETWithBody())
+}
+
+func (f *fixture) DownloadWithQuery(ctx context.Context, requirements release.Requirements) (*release.Release, error) {
+	return f.download(ctx, httpclient.QueryParams(map[string]string{
+		"arch":    requirements.Arch,
+		"os":      requirements.Platform,
+		"version": requirements.Version,
+	}))
+}
+
+func (f *fixture) download(ctx context.Context, requirements ...func(*httpclient.Request)) (*release.Release, error) {
 	var resp release.Release
 
 	type errorMessage struct {
@@ -102,14 +189,16 @@ func (f *fixture) Download(ctx context.Context, requirements release.Requirement
 	}
 	var errorResp errorMessage
 
-	err := f.Client.Call(ctx, httpclient.NewRequest("GET", "/downloads",
-		httpclient.Body(requirements),
+	options := []func(*httpclient.Request){
 		httpclient.JSONDecoder(&resp),
 		httpclient.Decoder(http.StatusBadRequest, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.Decoder(http.StatusNotFound, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.Decoder(http.StatusGone, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.NoRetry(),
-	))
+	}
+	options = append(options, requirements...)
+
+	err := f.Client.Call(ctx, httpclient.NewRequest("GET", "/downloads", options...))
 	switch {
 	case httpclient.HasStatusCode(err, http.StatusBadRequest),
 		httpclient.HasStatusCode(err, http.StatusNotFound),

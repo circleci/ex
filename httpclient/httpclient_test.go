@@ -699,3 +699,52 @@ func TestClient_Connection_Close(t *testing.T) {
 		assert.Check(t, cmp.Equal(closeHeader, tracer.callCount-1))
 	})
 }
+
+func TestClient_BodyAndRawBody(t *testing.T) {
+	ctx := context.Background()
+	r := ginrouter.Default(ctx, "body and raw body")
+	r.POST("/", func(c *gin.Context) {
+		bs, err := io.ReadAll(c.Request.Body)
+		assert.Assert(t, err)
+		c.Data(200, "application/octet-stream", bs)
+	})
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+
+	client := httpclient.New(httpclient.Config{
+		Name:    "body and raw body",
+		BaseURL: server.URL,
+	})
+
+	bs := []byte("madoka")
+	var resp []byte
+
+	req := httpclient.NewRequest("POST", "/", httpclient.RawBody(bs), httpclient.Body([]byte("test")),
+		httpclient.BytesDecoder(&resp))
+	err := client.Call(ctx, req)
+	assert.Check(t, cmp.Error(err, "cannot have both body and raw body be set"))
+}
+
+func TestClient_GETWithBody(t *testing.T) {
+	ctx := context.Background()
+	r := ginrouter.Default(ctx, "get with body")
+	r.POST("/", func(c *gin.Context) {
+		bs, err := io.ReadAll(c.Request.Body)
+		assert.Assert(t, err)
+		c.Data(200, "application/octet-stream", bs)
+	})
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+
+	client := httpclient.New(httpclient.Config{
+		Name:    "get with body",
+		BaseURL: server.URL,
+	})
+
+	var resp []byte
+
+	req := httpclient.NewRequest("GET", "/", httpclient.Body([]byte("test")),
+		httpclient.BytesDecoder(&resp))
+	err := client.Call(ctx, req)
+	assert.Check(t, cmp.Error(err, "cannot have GET request with body or raw body"))
+}
