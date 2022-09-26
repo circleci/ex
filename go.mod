@@ -23,7 +23,7 @@ require (
 	github.com/jackc/pgx/v4 v4.17.2
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
-	github.com/klauspost/compress v1.15.9
+	github.com/klauspost/compress v1.15.11
 	github.com/makasim/amqpextra v0.17.0
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/rollbar/rollbar-go v1.4.4
