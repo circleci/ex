@@ -331,8 +331,8 @@ func Propagation(propagation bool) func(*Request) {
 //
 // nolint:funlen
 func (c *Client) Call(ctx context.Context, r Request) (err error) {
-	if r.rawBody != nil && r.body != nil {
-		return errors.New("cannot have both body and raw body be set")
+	if err := r.validate(); err != nil {
+		return err
 	}
 	spanName := fmt.Sprintf("httpclient: %s %s", c.name, r.route)
 	// most clients should use NewRequest, but if they created a Request directly
@@ -739,4 +739,26 @@ func doneRetrying(err error) error {
 		return e
 	}
 	return err
+}
+
+func (r Request) validate() (err error) {
+	// We do not allow GET requests with Body as they are not supported by CloudFront WAF, which requests are routed
+	// through. - https://circleci.slack.com/archives/C03M4P0Q4GH/p1659566842825159
+	if r.getWithBody() {
+		return errors.New("cannot have GET request with body or raw body")
+	}
+
+	if r.hasRawBodyAndBody() {
+		return errors.New("cannot have both body and raw body be set")
+	}
+
+	return nil
+}
+
+func (r Request) hasRawBodyAndBody() bool {
+	return r.rawBody != nil && r.body != nil
+}
+
+func (r Request) getWithBody() bool {
+	return r.method == "GET" && (r.body != nil || r.rawBody != nil)
 }
