@@ -2,6 +2,7 @@ package o11ygin
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -92,6 +93,15 @@ func Recovery() func(c *gin.Context) {
 		c.AbortWithStatus(http.StatusInternalServerError)
 		ctx := c.Request.Context()
 		span := o11y.FromContext(ctx).GetSpan(ctx)
+
+		// Most likely caused by one side of the proxy disappearing. Not really a panic
+		// https://github.com/golang/go/issues/28239
+		if origErr, ok := err.(error); ok && errors.Is(origErr, http.ErrAbortHandler) {
+			// prevent reporting to rollbar for this expected error, report as an error instead
+			o11y.AddResultToSpan(span, origErr)
+			return
+		}
+
 		_ = o11y.HandlePanic(ctx, span, err, c.Request)
 	})
 }

@@ -95,6 +95,17 @@ func TestMiddleware(t *testing.T) {
 					},
 					Rate: 1,
 				},
+				{
+					Metric: "timer",
+					Name:   "handler",
+					Tags: []string{
+						"http.server_name:test-server",
+						"http.method:POST",
+						"http.route:/api/:id",
+						"http.status_code:500",
+					},
+					Rate: 1,
+				},
 			},
 			m.Calls(), fakemetrics.CMPMetrics, cmpopts.IgnoreFields(fakemetrics.MetricCall{}, "Value", "ValueInt")),
 		)
@@ -116,6 +127,8 @@ func TestMiddleware(t *testing.T) {
 			c.String(http.StatusOK, id)
 		case "panic":
 			panic("oh noes!")
+		case "httppanic":
+			panic(http.ErrAbortHandler)
 		default:
 			c.Status(http.StatusNotFound)
 		}
@@ -157,6 +170,13 @@ func TestMiddleware(t *testing.T) {
 
 	t.Run("Hit an ID that panics", func(t *testing.T) {
 		resp, err := http.Post("http://"+srv.Addr()+"/api/panic", "", nil)
+		assert.Assert(t, err)
+		_ = resp.Body.Close()
+		assert.Check(t, cmp.Equal(resp.StatusCode, http.StatusInternalServerError))
+	})
+
+	t.Run("Hit an ID that panics but does not rollbar", func(t *testing.T) {
+		resp, err := http.Post("http://"+srv.Addr()+"/api/httppanic", "", nil)
 		assert.Assert(t, err)
 		_ = resp.Body.Close()
 		assert.Check(t, cmp.Equal(resp.StatusCode, http.StatusInternalServerError))
