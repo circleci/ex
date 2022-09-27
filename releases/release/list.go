@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"sync"
 	"time"
@@ -45,6 +46,30 @@ func (d *Requirements) Validate() error {
 		return errors.New("arch is required")
 	}
 	return nil
+}
+
+// QueryParams builds a map[string]string of query params which correspond to the
+// required query params for the release handler.
+func (d *Requirements) QueryParams() (params map[string]string) {
+	params = make(map[string]string)
+
+	// Reflect on the Type of Requirements so that we can get the StructTags
+	st := reflect.TypeOf(d).Elem()
+	// Get the Value of Requirements so that we can get the values dynamically
+	sv := reflect.ValueOf(d).Elem()
+
+	// Loop through each of the fields in Requirements
+	for i := 0; i < st.NumField(); i++ {
+		field := st.Field(i)
+
+		// Get the struct tag `form` from the field and populate the map with the fields value
+		// if one is available
+		if alias, ok := field.Tag.Lookup("form"); ok && alias != "" {
+			params[alias] = sv.FieldByName(field.Name).String()
+		}
+	}
+
+	return params
 }
 
 const (
