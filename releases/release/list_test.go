@@ -324,3 +324,18 @@ func checksumsFile(checksum []byte) string {
 %[1]s *windows/amd64/agent.exe
 `, hex.EncodeToString(checksum))
 }
+
+func TestRequirements_QueryParams(t *testing.T) {
+	req := &Requirements{
+		Version:  "foo",
+		Platform: "bar",
+		Arch:     "baz",
+	}
+	params := req.QueryParams()
+
+	assert.Check(t, cmp.DeepEqual(params, map[string]string{
+		"version": "foo",
+		"os":      "bar",
+		"arch":    "baz",
+	}))
+}
