@@ -109,6 +109,7 @@ func New(cfg Config) *Client {
 	if cfg.Tracer != nil {
 		roundTripper = cfg.Tracer.Wrap(cfg.Name, roundTripper)
 	}
+
 	return &Client{
 		name:                  cfg.Name,
 		baseURL:               cfg.BaseURL,
@@ -163,7 +164,8 @@ type Request struct {
 	// removed once RT-724 is completed.
 	allowGETWithBody bool
 
-	propagation bool
+	followRedirects bool
+	propagation     bool
 
 	url string
 }
@@ -327,6 +329,15 @@ func Propagation(propagation bool) func(*Request) {
 	}
 }
 
+// FollowRedirects allows the body to be copied to a new request to the Location
+// returned by a redirect response, or to fully retry an HTTP/2 GOAWAY frame with no
+// associated stream error.
+func FollowRedirects(follow bool) func(*Request) {
+	return func(r *Request) {
+		r.followRedirects = follow
+	}
+}
+
 // Call makes the Request call. It will trace out a top level span and a span for any retry attempts.
 // Retries will be attempted on any 5XX responses.
 // If the http call completed with a non 2XX status code then an HTTPError will be returned containing
@@ -387,19 +398,14 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 			req.Header.Set("Accept", c.acceptType)
 		}
 
-		if r.body != nil {
-			req.Header.Set("Content-Type", JSON)
-			b := &bytes.Buffer{}
-			err = json.NewEncoder(b).Encode(r.body)
-			if err != nil {
-				return nil, fmt.Errorf("could not json encode Request: %w", err)
-			}
-			req.Body = io.NopCloser(b)
+		err = handleBody(&r, req)
+		if err != nil {
+			return nil, err
 		}
 
-		if r.rawBody != nil {
-			b := bytes.NewReader(r.rawBody)
-			req.Body = io.NopCloser(b)
+		err = handleRawBody(&r, req)
+		if err != nil {
+			return nil, err
 		}
 
 		return req, nil
@@ -408,6 +414,55 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	err = c.retryRequest(ctx, spanName, r, newRequestFn)
 	// remove the special retry status to resume normal error/warning behaviour
 	return doneRetrying(err)
+}
+
+func handleBody(r *Request, req *http.Request) (err error) {
+	if r.body != nil {
+		req.Header.Set("Content-Type", JSON)
+		req.Body, err = getJSONBodyReadCloser(r)
+		if err != nil {
+			return err
+		}
+
+		if r.followRedirects {
+			req.GetBody = func() (io.ReadCloser, error) {
+				return getJSONBodyReadCloser(r)
+			}
+		}
+	}
+
+	return nil
+}
+
+func getJSONBodyReadCloser(r *Request) (io.ReadCloser, error) {
+	b := &bytes.Buffer{}
+	err := json.NewEncoder(b).Encode(r.body)
+	if err != nil {
+		return nil, fmt.Errorf("could not json encode Request: %w", err)
+	}
+	return io.NopCloser(b), nil
+}
+
+func handleRawBody(r *Request, req *http.Request) (err error) {
+	if r.rawBody != nil {
+		req.Body, err = getRawBodyReadCloser(r)
+		if err != nil {
+			return err
+		}
+
+		if r.followRedirects {
+			req.GetBody = func() (io.ReadCloser, error) {
+				return getRawBodyReadCloser(r)
+			}
+		}
+	}
+
+	return nil
+}
+
+func getRawBodyReadCloser(r *Request) (io.ReadCloser, error) {
+	b := bytes.NewReader(r.rawBody)
+	return io.NopCloser(b), nil
 }
 
 // retryRequest will make the Request and only call the decoder when a 2XX has been received.

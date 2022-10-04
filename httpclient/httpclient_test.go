@@ -1,8 +1,11 @@
 package httpclient_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -323,6 +326,92 @@ func TestClient_Call_Retry500(t *testing.T) {
 	assert.Check(t, httpclient.HasStatusCode(err, http.StatusInternalServerError), err)
 	// confirm that it is now not a warning
 	assert.Check(t, !o11y.IsWarning(err))
+}
+
+func TestClient_Call_FollowRedirect_WithBody(t *testing.T) {
+	ctx := context.Background()
+	// language=json
+	const body = `{"a": "value-a", "b": "value-b"}`
+	bodyBytes := &bytes.Buffer{}
+	err := json.NewEncoder(bodyBytes).Encode(body)
+	assert.Check(t, err)
+
+	recorder := httprecorder.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = recorder.Record(r)
+		if strings.Contains(r.RequestURI, "redirect") {
+			w.WriteHeader(200)
+		} else {
+			w.Header().Set("Location", "redirect")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+		}
+	}))
+	defer server.Close()
+
+	client := httpclient.New(httpclient.Config{
+		Name:      "redirect",
+		BaseURL:   server.URL,
+		Timeout:   10 * time.Second,
+		UserAgent: "Foo",
+	})
+	err = client.Call(ctx, httpclient.NewRequest("POST", "/",
+		httpclient.FollowRedirects(true),
+		httpclient.Body(body)))
+	assert.Check(t, err)
+
+	assert.Check(t, cmp.Equal(len(recorder.AllRequests()), 2))
+	assert.Check(t, cmp.DeepEqual(recorder.LastRequest(), &httprecorder.Request{
+		Method: "POST",
+		URL:    url.URL{Path: "/redirect"},
+		Header: http.Header{
+			"Accept-Encoding": {"gzip"},
+			"Content-Type":    {"application/json; charset=utf-8"},
+			"Referer":         {fmt.Sprintf("%s/", server.URL)},
+			"User-Agent":      {"Foo"},
+		},
+		Body: bodyBytes.Bytes(),
+	}))
+}
+
+func TestClient_Call_FollowRedirect_WithRawBody(t *testing.T) {
+	ctx := context.Background()
+	// language=json
+	const body = "bodybodybody"
+
+	recorder := httprecorder.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = recorder.Record(r)
+		if strings.Contains(r.RequestURI, "redirect") {
+			w.WriteHeader(200)
+		} else {
+			w.Header().Set("Location", "redirect")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+		}
+	}))
+	defer server.Close()
+
+	client := httpclient.New(httpclient.Config{
+		Name:      "redirect",
+		BaseURL:   server.URL,
+		Timeout:   10 * time.Second,
+		UserAgent: "Foo",
+	})
+	err := client.Call(ctx, httpclient.NewRequest("POST", "/",
+		httpclient.FollowRedirects(true),
+		httpclient.RawBody([]byte(body))))
+	assert.Check(t, err)
+
+	assert.Check(t, cmp.Equal(len(recorder.AllRequests()), 2))
+	assert.Check(t, cmp.DeepEqual(recorder.LastRequest(), &httprecorder.Request{
+		Method: "POST",
+		URL:    url.URL{Path: "/redirect"},
+		Header: http.Header{
+			"Accept-Encoding": {"gzip"},
+			"Referer":         {fmt.Sprintf("%s/", server.URL)},
+			"User-Agent":      {"Foo"},
+		},
+		Body: []byte(body),
+	}))
 }
 
 func TestClient_Call_ContextCancel(t *testing.T) {
