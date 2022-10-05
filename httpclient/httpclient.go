@@ -6,6 +6,7 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,6 +63,8 @@ type Config struct {
 	Tracer tracer
 	// DialContext allows a dial context to be injected into the HTTP transport.
 	DialContext func(ctx context.Context, network string, addr string) (net.Conn, error)
+	// DisableHTTP2 is used to force a client to use HTTP/1.1 regardless of the server-side support
+	DisableHTTP2 bool
 }
 
 // Client is the o11y instrumented http client.
@@ -109,6 +112,14 @@ func New(cfg Config) *Client {
 	if cfg.Tracer != nil {
 		roundTripper = cfg.Tracer.Wrap(cfg.Name, roundTripper)
 	}
+
+	if cfg.DisableHTTP2 {
+		if rt, ok := roundTripper.(*http.Transport); ok {
+			// disable HTTP/2
+			rt.TLSNextProto = map[string]func(authority string, c *tls.Conn) http.RoundTripper{}
+		}
+	}
+
 	return &Client{
 		name:                  cfg.Name,
 		baseURL:               cfg.BaseURL,
