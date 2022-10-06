@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -331,17 +330,4 @@ func TestClient_ExplicitBackoff(t *testing.T) {
 		err = client.Call(context.Background(), req)
 		assert.Assert(t, err)
 	})
-}
-
-func TestClient_DisabledHTTP2(t *testing.T) {
-	client := New(Config{
-		Name:         "test",
-		BaseURL:      "https://circleci.com",
-		Timeout:      time.Second,
-		DisableHTTP2: true,
-	})
-
-	assert.Check(t, cmp.DeepEqual(
-		client.httpClient.Transport.(*http.Transport).TLSNextProto,
-		map[string]func(authority string, c *tls.Conn) http.RoundTripper{}))
 }
