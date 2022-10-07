@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.11
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/gin-gonic/gin v1.8.1
-	github.com/go-redis/redis/v9 v9.0.0-beta.2
+	github.com/go-redis/redis/v9 v9.0.0-beta.3
 	github.com/golangci/golangci-lint v1.50.0
 	github.com/google/go-cmp v0.5.9
 	github.com/gwatts/rootcerts v0.0.0-20220901182826-c03bd437059e
