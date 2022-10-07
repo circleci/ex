@@ -55,8 +55,6 @@ generate() {
 # shellcheck disable=SC2034
 help_run_goimports="Run goimports for package"
 run-goimports () {
-  command -v ./bin/gosimports > /dev/null || install-go-bin "github.com/rinchsan/gosimports/cmd/gosimports@v0.1.5"
-
   local files
   files=$(find . \( -name '*.go' -not -path "./example/*" \))
   ./bin/gosimports -local "github.com/circleci/ex" -w $files
@@ -109,67 +107,21 @@ go-mod-tidy() {
     go mod tidy -v
 }
 
-# Attempt to download go binary tools from github correctly
-# go binary releases are somewhat consistent thanks to goreleaser
-# however they're not actually that consistent, so this is a pain
-# if this is causing more problems than it solves, throw it away
-install-github-binary() {
-    local org=$1 # github org
-    local repo=$2 # github repo == binary name
-    local vs=$3 # version separator in tarball filename
-    local winext=$4 # archive extension on windows
-    local version=$5 # desired version number
-
-    if ./bin/$repo --version | grep "$version" > /dev/null; then
-        return
-    fi
-
-    local os=$(go env GOHOSTOS)
-    local arch=$(go env GOARCH)
-
-    local ext='.tar.gz'
-    if [[ "$os" = "windows" ]]; then
-        local ext="$winext"
-    fi
-
-    local unpack='tar xvzf'
-    if [[ "$ext" = ".zip" ]]; then
-        local unpack='unzip'
-    fi
-
-    local tmp=$(mktemp -d ${TMPDIR:-/tmp/}do-install-github-binary.XXXXXX)
-    trap "{ rm -rf $tmp; }" EXIT
-
-    set -x
-    mkdir -p ./bin
-
-    curl --fail --location --output "$tmp/download" \
-        "https://github.com/$org/$repo/releases/download/v${version}/${repo}${vs}${version}${vs}${os}${vs}${arch}${ext}"
-
-    pushd "$tmp"
-    $unpack "$tmp/download"
-    popd
-
-    local binary=$(find "$tmp" -name "$repo*" -type f)
-    chmod +x "$binary"
-    mv "$binary" ./bin/
-}
-
 install-go-bin() {
     for pkg in "${@}"; do
-        GOBIN="${PWD}/bin" go install "${pkg}" &
+        echo "${pkg}"
+        GOBIN="${PWD}/bin" go install "${pkg}"
     done
-    wait
 }
 
 help_install_devtools="Install tools that other tasks expect into ./bin"
 install-devtools() {
-    install-github-binary golangci golangci-lint '-' '.zip' 1.49.0
-    install-github-binary gotestyourself gotestsum '_' '.tar.gz' 1.8.2
+    local tools=()
+    while IFS='' read -r value; do
+        tools+=("$value")
+    done < <(grep _ tools.go | awk -F'"' '{print $2}')
 
-    install-go-bin \
-            "github.com/gwatts/rootcerts/gencerts@v0.0.0-20210602134037-977e162fa4a7" \
-            "github.com/rinchsan/gosimports/cmd/gosimports@v0.1.5"
+    install-go-bin "${tools[@]}"
 }
 
 help_create_stub_test_files="Create an empty pkg_test in all directories with no tests.

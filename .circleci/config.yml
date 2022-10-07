@@ -2,7 +2,6 @@ version: 2.1
 
 x-data:
   go_versions: &go_versions
-    - '1.17'
     - '1.18'
     - '1.19'
 
@@ -109,6 +108,9 @@ commands:
   setup:
     steps:
       - run:
+          name: Download dependencies
+          command: go mod download
+      - run:
           name: Adding GOPATH bin to PATH
           command: echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> "$BASH_ENV"
       - run:
@@ -127,9 +129,6 @@ commands:
       - run:
           name: Make test-reports dir
           command: mkdir -p test-reports
-      - run:
-          name: Download dependencies
-          command: go mod download
 
   cleanup:
     steps:
