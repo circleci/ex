@@ -3,10 +3,13 @@ package system
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
+	gocmp "github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
@@ -109,7 +112,16 @@ func TestSystem_Run(t *testing.T) {
 			Tags:   []string{"result:success"},
 			Rate:   1,
 		},
-	}, fakemetrics.CMPMetrics))
+	}, cmpMetrics))
+}
+
+var cmpMetrics = gocmp.Options{
+	cmpopts.IgnoreFields(fakemetrics.MetricCall{}, "Value"),
+	cmpopts.SortSlices(func(x, y fakemetrics.MetricCall) bool {
+		const format = "%s|%s|%s"
+		return fmt.Sprintf(format, x.Metric, x.Name, x.Tags) <
+			fmt.Sprintf(format, y.Metric, y.Name, y.Tags)
+	}),
 }
 
 type mockMetricProducer struct {
