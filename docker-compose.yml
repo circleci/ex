@@ -85,3 +85,14 @@ services:
       - '127.0.0.1:8201:8201'
     cap_add:
       - IPC_LOCK
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+      LOG_LEVEL: debug
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "4317:4317"
