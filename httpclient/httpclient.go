@@ -415,9 +415,7 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 // nolint: funlen, gocyclo
 func (c *Client) retryRequest(ctx context.Context, name string, r Request, newReq func() (*http.Request, error)) error {
 	attemptCounter := 0
-	// requestClose is used in an attempt to patch over some strange behaviour where the connection used in
-	// a request that timed out is kept active in the pool and reused, timing out again.
-	requestClose := false
+
 	attempt := func() (err error) {
 		ctx, span := o11y.StartSpan(ctx, name)
 		defer o11y.End(span, &err)
@@ -452,17 +450,6 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		if r.propagation {
 			c.addPropagationHeader(ctx, req)
 		}
-		if requestClose {
-			// In the case where we see a timed out connection being reused it if usually the case that
-			// the same connection is used in this retry loop, so this will hopefully cause it to close.
-			// (If we see this not having an impact - we may still need to force all the pool to reconnect.)
-			// TODO - this may only cause the server to drop the connection (and the client only respond to the
-			// server side close. In the case of the reused bad connection it is possible the server is not even
-			// getting the request and the close header. It remains to be seen how the client behaves in this case)
-			// In the case where the client is correctly closing the connection on a timeout, this may cause an
-			// extra connection close, which should be safe enough.
-			req.Header.Set("Connection", "close")
-		}
 
 		span.AddRawField("http.client_name", c.name)
 		span.AddRawField("http.route", r.route)
@@ -471,16 +458,12 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 
 		res, err := c.httpClient.Do(req)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				requestClose = true
-			}
 			// url errors repeat the method and url which clutters metrics and logging
 			e := &url.Error{}
 			if errors.As(err, &e) {
 				err = e.Err
 			}
-			return fmt.Errorf("call: %s %s failed with: %w after %d attempt(s)",
-				req.Method, r.route, err, attemptCounter)
+			return fmt.Errorf("httpclient do: %w", err)
 		}
 
 		defer func() {
@@ -512,9 +495,11 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 				c.setLast429()
 			}
 
-			errDecode := r.decodeBody(res, false, attemptCounter)
+			// attempt to decode a failure message if registered
+			// keep the primary http error, but add the decode error to the span
+			errDecode := r.decodeBody(res, false)
 			if errDecode != nil {
-				return errDecode
+				span.AddRawField("fail_decoder_error", errDecode)
 			}
 
 			return err
@@ -524,12 +509,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			r.headerFn(res.Header)
 		}
 
-		err = r.decodeBody(res, true, attemptCounter)
-		if err != nil {
-			return err
-		}
-
-		return nil
+		return r.decodeBody(res, true)
 	}
 
 	if !r.retry {
@@ -553,28 +533,24 @@ func (c *Client) addPropagationHeader(ctx context.Context, req *http.Request) {
 	}
 }
 
-func (r Request) decodeBody(resp *http.Response, success bool, attemptCounter int) error {
+// decodeBody uses success to decide which registered decoder to use
+func (r Request) decodeBody(resp *http.Response, success bool) error {
 	var decoder decoder
-	code := resp.StatusCode
-
 	if success {
 		if d, ok := r.decoders[successDecodeStatus]; ok {
 			decoder = d
 		}
 	}
-	if d, ok := r.decoders[code]; ok {
+	if d, ok := r.decoders[resp.StatusCode]; ok {
 		decoder = d
 	}
-
 	if decoder != nil {
 		err := decoder(resp.Body)
 		if err != nil {
 			// do not retry decoding errors
-			return backoff.Permanent(fmt.Errorf("call: %s %s decoding failed with: %w after %d attempt(s)",
-				r.method, r.route, err, attemptCounter))
+			return backoff.Permanent(fmt.Errorf("decoder: %w", err))
 		}
 	}
-
 	return nil
 }
 

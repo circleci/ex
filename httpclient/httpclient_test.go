@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httptrace"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -596,108 +595,6 @@ func localhostDialler() dialFunc {
 		}
 		return baseDial(ctx, network, net.JoinHostPort("127.0.0.1", p))
 	}
-}
-
-type countNewTracer struct {
-	mu        sync.RWMutex
-	newCon    int
-	callCount int
-}
-
-// WithTracer adds the tracer onto the context for this request.
-//
-//nolint:funlen
-func (m *countNewTracer) WithTracer(ctx context.Context, _ string) context.Context {
-	trace := &httptrace.ClientTrace{
-		ConnectDone: func(network, addr string, err error) {
-			m.mu.Lock()
-			defer m.mu.Unlock()
-
-			m.newCon++
-		},
-		GetConn: func(_ string) {
-			m.mu.Lock()
-			defer m.mu.Unlock()
-
-			m.callCount++
-		},
-	}
-	return httptrace.WithClientTrace(ctx, trace)
-}
-
-func (m *countNewTracer) Wrap(_ string, r http.RoundTripper) http.RoundTripper {
-	return r
-}
-
-func TestClient_Connection_Close(t *testing.T) {
-	ctx, cancel := context.WithCancel(testcontext.Background())
-	t.Cleanup(cancel)
-
-	t.Run("close header", func(t *testing.T) {
-		// Confirm that the Connection header does cause us not to reuse connections.
-
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-		t.Cleanup(server.Close)
-
-		tracer := &countNewTracer{}
-		client := httpclient.New(httpclient.Config{
-			Name:    "transport",
-			BaseURL: server.URL,
-			Tracer:  tracer,
-		})
-
-		const calls = 10
-		// without the header we will only create one connection
-		for n := 0; n < calls; n++ {
-			req := httpclient.NewRequest("GET", "/")
-			err := client.Call(ctx, req)
-			assert.Assert(t, err)
-		}
-		assert.Check(t, cmp.Equal(tracer.newCon, 1))
-
-		// with the header we will create new connections (reusing the one from above)
-		for n := 0; n < calls; n++ {
-			req := httpclient.NewRequest("GET", "/",
-				httpclient.Header("Connection", "close"),
-			)
-			err := client.Call(ctx, req)
-			assert.Assert(t, err)
-		}
-		assert.Check(t, cmp.Equal(tracer.newCon, calls))
-	})
-
-	t.Run("close-on-timeout", func(t *testing.T) {
-		closeHeader := 0
-		longHandler := func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Connection") == "close" {
-				closeHeader++
-			}
-			time.Sleep(time.Minute)
-			w.WriteHeader(http.StatusOK)
-		}
-
-		tracer := &countNewTracer{}
-		ctx := testcontext.Background()
-		server := httptest.NewServer(http.HandlerFunc(longHandler))
-		client := httpclient.New(httpclient.Config{
-			Name:    "tiemout-close",
-			BaseURL: server.URL,
-			Timeout: time.Millisecond * 400,
-			Tracer:  tracer,
-		})
-		err := client.Call(ctx, httpclient.NewRequest("GET", "/",
-			httpclient.Timeout(time.Millisecond*50),
-			//httpclient.Header("Connection", "close"),
-		))
-		assert.Check(t, cmp.ErrorContains(err, "deadline exceeded"))
-		// check the retries all formed a new connection
-		assert.Check(t, cmp.Equal(tracer.newCon, tracer.callCount))
-		// check we saw some Connection close headers
-		// the header is only set on the second call onwards
-		assert.Check(t, cmp.Equal(closeHeader, tracer.callCount-1))
-	})
 }
 
 func TestClient_BodyAndRawBody(t *testing.T) {
