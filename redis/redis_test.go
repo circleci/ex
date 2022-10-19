@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-redis/redis/v9"
+	"github.com/go-redis/redis/v8"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
