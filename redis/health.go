@@ -3,8 +3,11 @@ package redis
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/go-redis/redis/v8"
+
+	"github.com/circleci/ex/o11y"
 )
 
 type HealthCheck struct {
@@ -17,7 +20,17 @@ func NewHealthCheck(client redis.UniversalClient, name string) *HealthCheck {
 }
 
 func (r *HealthCheck) HealthChecks() (name string, ready, live func(ctx context.Context) error) {
-	ready = func(ctx context.Context) error {
+	ready = func(ctx context.Context) (err error) {
+		start := time.Now()
+		m := o11y.FromContext(ctx).MetricsProvider()
+
+		defer func() {
+			t := time.Since(start)
+			_ = m.TimeInMilliseconds("redis_healthcheck_duration", float64(t.Milliseconds()), []string{
+				fmt.Sprintf("%s:%t", "error", err != nil),
+			}, 1.0)
+		}()
+
 		pong, err := r.client.Ping(ctx).Result()
 		if err != nil {
 			return fmt.Errorf("redis ping failed: %w", err)
