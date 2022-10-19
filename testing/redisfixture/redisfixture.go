@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/go-redis/redis/v9"
+	"github.com/go-redis/redis/v8"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
@@ -90,9 +90,9 @@ func readDatabasesCount(ctx context.Context, t types.TestingTB, con Connection) 
 	assert.Assert(t, res.Err())
 
 	v := res.Val()
-	assert.Assert(t, cmp.Len(v, 1))
+	assert.Assert(t, cmp.Len(v, 2))
 
-	dbs, err := strconv.ParseInt(v["databases"], 10, 64)
+	dbs, err := strconv.ParseInt(v[1].(string), 10, 64)
 	assert.Assert(t, err)
 
 	databaseCount = uint32(dbs)
