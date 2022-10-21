@@ -34,6 +34,13 @@ func TestMiddleware(t *testing.T) {
 			assert.Check(t, cmp.DeepEqual(
 				[]fakemetrics.MetricCall{
 					{
+						Metric:   "count",
+						Name:     "warning",
+						ValueInt: 1,
+						Tags:     []string{"type:o11y"},
+						Rate:     1,
+					},
+					{
 						Metric: "timer",
 						Name:   "handler",
 						Value:  1,

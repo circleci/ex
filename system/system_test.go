@@ -112,6 +112,13 @@ func TestSystem_Run(t *testing.T) {
 			Tags:   []string{"result:success"},
 			Rate:   1,
 		},
+		{
+			Metric:   "count",
+			Name:     "warning",
+			ValueInt: 1,
+			Tags:     []string{"type:o11y"},
+			Rate:     1,
+		},
 	}, cmpMetrics))
 }
 
