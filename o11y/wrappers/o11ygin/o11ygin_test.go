@@ -106,6 +106,21 @@ func TestMiddleware(t *testing.T) {
 					},
 					Rate: 1,
 				},
+				{
+					Metric:   "count",
+					Name:     "error",
+					ValueInt: 1,
+					Tags:     []string{"type:o11y"},
+					Rate:     1,
+				},
+
+				{
+					Metric:   "count",
+					Name:     "warning",
+					ValueInt: 1,
+					Tags:     []string{"type:o11y"},
+					Rate:     1,
+				},
 			},
 			m.Calls(), fakemetrics.CMPMetrics, cmpopts.IgnoreFields(fakemetrics.MetricCall{}, "Value", "ValueInt")),
 		)
