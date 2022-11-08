@@ -21,6 +21,7 @@ func Default(ctx context.Context, serverName string) *gin.Engine {
 	r.Use(
 		o11ygin.Middleware(o11y.FromContext(ctx), serverName, nil),
 		o11ygin.Recovery(),
+		o11ygin.ClientCancelled(),
 	)
 
 	r.UseRawPath = true

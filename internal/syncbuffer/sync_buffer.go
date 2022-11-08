@@ -17,6 +17,13 @@ func (b *SyncBuffer) Write(p []byte) (n int, err error) {
 	return b.buf.Write(p)
 }
 
+func (b *SyncBuffer) Reset() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.buf.Reset()
+}
+
 func (b *SyncBuffer) String() string {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
