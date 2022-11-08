@@ -42,6 +42,13 @@ func (f *Provider) Calls() []MetricCall {
 	return calls
 }
 
+func (f *Provider) Reset() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.calls = nil
+}
+
 func (f *Provider) Histogram(name string, value float64, tags []string, rate float64) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
