@@ -3,7 +3,9 @@ package o11ygin
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -195,5 +197,57 @@ func TestMiddleware(t *testing.T) {
 		assert.Assert(t, err)
 		_ = resp.Body.Close()
 		assert.Check(t, cmp.Equal(resp.StatusCode, http.StatusInternalServerError))
+	})
+}
+
+func TestClientCancelled(t *testing.T) {
+	m := &fakemetrics.Provider{}
+
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: m,
+	}))
+
+	r := gin.New()
+	r.Use(
+		Middleware(o11y.FromContext(ctx), "test-server", nil),
+		Recovery(),
+	)
+	r.UseRawPath = true
+
+	r.Use(func(c *gin.Context) {
+		c.Next()
+		if c.Request.URL.Path == "/sleep" {
+			assert.Check(t, c.Writer.Status() == 499)
+		}
+	})
+	r.Use(ClientCancelled())
+
+	r.GET("/", func(c *gin.Context) {
+		c.Status(200)
+	})
+	r.GET("/sleep", func(c *gin.Context) {
+		time.Sleep(time.Second)
+		c.Status(200)
+	})
+
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+
+	client := httpclient.New(httpclient.Config{
+		Name:    "test",
+		BaseURL: server.URL,
+		Timeout: 10 * time.Millisecond,
+	})
+
+	t.Run("success", func(t *testing.T) {
+		req := httpclient.NewRequest("GET", "/")
+		assert.Assert(t, client.Call(ctx, req))
+	})
+
+	t.Run("cancel", func(t *testing.T) {
+		req := httpclient.NewRequest("GET", "/sleep", httpclient.Timeout(time.Millisecond))
+		err := client.Call(ctx, req)
+		assert.Check(t, cmp.ErrorIs(err, context.DeadlineExceeded))
 	})
 }
