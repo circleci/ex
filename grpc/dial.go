@@ -6,6 +6,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/circleci/ex/o11y"
 )
 
 type Config struct {
@@ -30,6 +32,16 @@ func Dial(ctx context.Context, conf Config) (*grpc.ClientConn, error) {
 		grpc.WithBlock(),
 		grpc.WithDefaultServiceConfig(ServiceConfig(conf.ServiceName)),
 	}
+
+	o11yInterceptor := func(ctx context.Context, method string, req, reply interface{},
+		cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+		o11y.AddField(ctx, "grpc_service", conf.ServiceName)
+		o11y.AddField(ctx, "grpc_method", method)
+		err := invoker(ctx, method, req, reply, cc, opts...)
+		o11y.AddField(ctx, "grpc_error", err)
+		return err
+	}
+
 	if conf.Timeout > 0 {
 		timeoutInterceptor := func(ctx context.Context, method string, req, reply interface{},
 			cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
@@ -38,7 +50,9 @@ func Dial(ctx context.Context, conf Config) (*grpc.ClientConn, error) {
 			defer cancel()
 			return invoker(ctx, method, req, reply, cc, opts...)
 		}
-		opts = append(opts, grpc.WithUnaryInterceptor(timeoutInterceptor))
+		opts = append(opts, grpc.WithChainUnaryInterceptor(o11yInterceptor, timeoutInterceptor))
+	} else {
+		opts = append(opts, grpc.WithUnaryInterceptor(o11yInterceptor))
 	}
 
 	return grpc.DialContext(ctx, ProxyProofTarget(conf.Host), opts...)
