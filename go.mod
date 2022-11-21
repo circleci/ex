@@ -20,7 +20,7 @@ require (
 	github.com/hellofresh/health-go/v4 v4.7.0
 	github.com/honeycombio/beeline-go v1.11.1
 	github.com/honeycombio/dynsampler-go v0.2.1
-	github.com/honeycombio/libhoney-go v1.17.1
+	github.com/honeycombio/libhoney-go v1.18.0
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgx/v4 v4.17.2
 	github.com/jmoiron/sqlx v1.3.5
