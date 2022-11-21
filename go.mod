@@ -34,7 +34,7 @@ require (
 	go.mongodb.org/mongo-driver v1.11.0
 	golang.org/x/net v0.2.0
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
-	google.golang.org/grpc v1.50.1
+	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 	gotest.tools/gotestsum v1.8.2
 	gotest.tools/v3 v3.4.0
