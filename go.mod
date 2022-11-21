@@ -31,7 +31,7 @@ require (
 	github.com/rinchsan/gosimports v0.3.4
 	github.com/rollbar/rollbar-go v1.4.5
 	github.com/vmihailenco/go-tinylfu v0.2.2
-	go.mongodb.org/mongo-driver v1.10.3
+	go.mongodb.org/mongo-driver v1.11.0
 	golang.org/x/net v0.2.0
 	golang.org/x/sync v0.0.0-20220929204114-8fcdb60fdcc0
 	google.golang.org/grpc v1.50.1
