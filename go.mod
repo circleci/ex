@@ -16,7 +16,6 @@ require (
 	github.com/golangci/golangci-lint v1.50.0
 	github.com/google/go-cmp v0.5.9
 	github.com/gwatts/rootcerts v0.0.0-20220901182826-c03bd437059e
-	github.com/hashicorp/golang-lru v0.5.4
 	github.com/hellofresh/health-go/v4 v4.7.0
 	github.com/honeycombio/beeline-go v1.11.1
 	github.com/honeycombio/dynsampler-go v0.2.1
