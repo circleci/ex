@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	lru "github.com/hashicorp/golang-lru"
+	"github.com/vmihailenco/go-tinylfu"
 
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/worker"
@@ -85,18 +85,15 @@ type List struct {
 
 	mu            sync.RWMutex
 	cachedVersion map[string]string
-	cache         *lru.Cache
 	pinnedVersion string
+
+	cacheMU sync.Mutex
+	cache   *tinylfu.T
 }
 
 func NewList(ctx context.Context, name, pinnedVersion, listBaseURL string,
 	additionalReleaseTypes ...string) (*List, error) {
-	cache, err := lru.New(cacheItemCount)
-	// Failing to init the cache is effectively a type error, not a runtime error
-	if err != nil {
-		panic(err)
-	}
-
+	cache := tinylfu.New(cacheItemCount, 100000)
 	c := &List{
 		name:          name,
 		s3List:        newS3List(listBaseURL),
@@ -109,7 +106,7 @@ func NewList(ctx context.Context, name, pinnedVersion, listBaseURL string,
 		c.cachedVersion[releaseType] = ""
 	}
 
-	err = c.storeVersions(ctx)
+	err := c.storeVersions(ctx)
 	if err != nil {
 		return c, fmt.Errorf("failed to initialise list: %w", ErrListVersionNotReady)
 	}
@@ -134,18 +131,38 @@ func (c *List) Lookup(ctx context.Context, req Requirements) (resp *Release, err
 	span.AddField("release.platform", req.Platform)
 	span.AddField("release.arch", req.Arch)
 
-	if raw, ok := c.cache.Get(req); ok {
+	if resp, ok := c.cacheGet(req); ok {
 		span.AddField("cache_hit", 1)
-		resp = raw.(*Release)
 		return resp, err
 	}
 	span.AddField("cache_hit", 0)
 
 	resp, err = c.s3List.Lookup(ctx, req)
 	if err == nil {
-		c.cache.Add(req, resp)
+		c.cacheAdd(req, resp)
 	}
 	return resp, err
+}
+
+func (c *List) cacheGet(req Requirements) (*Release, bool) {
+	c.cacheMU.Lock()
+	defer c.cacheMU.Unlock()
+
+	v, ok := c.cache.Get(makeKey(req))
+	if !ok {
+		return nil, false
+	}
+	return v.(*Release), true
+}
+
+func (c *List) cacheAdd(req Requirements, resp *Release) {
+	c.cacheMU.Lock()
+	defer c.cacheMU.Unlock()
+
+	c.cache.Set(&tinylfu.Item{
+		Key:   makeKey(req),
+		Value: resp,
+	})
 }
 
 // LatestFor returns the cached version for a given release type.
@@ -156,6 +173,10 @@ func (c *List) LatestFor(releaseType string) string {
 		return c.pinnedVersion
 	}
 	return c.cachedVersion[releaseType]
+}
+
+func makeKey(req Requirements) string {
+	return req.Version + "|" + req.Platform + "|" + req.Arch
 }
 
 // Latest returns the cached version for the default release type.
