@@ -1,0 +1,14 @@
+mode: set
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:22.13,27.16 4 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:27.16,28.13 1 0
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:32.32,38.16 4 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:54.2,55.16 2 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:59.2,60.9 2 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:67.2,67.12 1 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:38.16,40.42 2 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:44.3,49.17 2 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:40.42,42.4 1 0
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:49.17,51.4 1 0
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:55.16,57.3 1 0
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:61.27,62.8 1 1
+github.com/circleci/ex/testing/runner/internal/testservice/main.go:63.18,64.13 1 0
