@@ -26,10 +26,11 @@ func (c *compiler) Dir() string {
 }
 
 type Work struct {
-	Name        string
-	Target      string
-	Source      string
-	Environment []string
+	Name         string
+	Target       string
+	Source       string
+	WithCoverage bool
+	Environment  []string
 
 	Result *string
 }
@@ -50,12 +51,25 @@ func (c *compiler) Compile(ctx context.Context, work Work) (string, error) {
 
 	path := binaryPath(work.Name, c.baseDir, goos)
 	goBin := goPath()
-	// #nosec - this is fine
-	cmd := exec.CommandContext(ctx, goBin, "build",
-		"-ldflags="+c.ldFlags,
-		"-o", path,
-		work.Source,
-	)
+	var cmd *exec.Cmd
+	if !work.WithCoverage {
+		// #nosec - this is fine
+		cmd = exec.CommandContext(ctx, goBin, "build",
+			"-ldflags="+c.ldFlags,
+			"-o", path,
+			work.Source,
+		)
+	} else {
+		// #nosec - this is fine
+		cmd = exec.CommandContext(ctx, goBin, "test",
+			"-coverpkg=./...",
+			"-c",
+			"-tags", "testrunmain",
+			work.Source,
+			"-o", path,
+		)
+	}
+
 	cmd.Dir = cwd
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	cmd.Env = append(cmd.Env, work.Environment...)

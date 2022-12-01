@@ -2,11 +2,13 @@ package runner
 
 import (
 	"context"
+	"path"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/testing/compiler"
@@ -99,6 +101,47 @@ func TestRunner(t *testing.T) {
 
 			err = result.Ready("not-the-server-name", time.Second)
 			assert.Check(t, cmp.ErrorContains(err, "timeout hit"))
+		})
+	})
+}
+
+func TestRunner_Coverage(t *testing.T) {
+	ctx := context.Background()
+
+	binary := ""
+	c := compiler.NewParallel(1)
+	t.Cleanup(c.Cleanup)
+
+	var err error
+	c.Add(compiler.Work{
+		Name:         "my-binary",
+		Target:       ".",
+		Source:       "./internal/testservice",
+		Result:       &binary,
+		WithCoverage: true,
+	})
+
+	err = c.Run(ctx)
+	assert.Assert(t, err)
+
+	t.Run("api_and_admin", func(t *testing.T) {
+		r := New()
+
+		repDir := t.TempDir()
+		r.CoverageReportDir(repDir)
+
+		var res *Result
+		t.Run("Start service", func(t *testing.T) {
+			var err error
+			res, err = r.Run("the-server-name", binary)
+			assert.Assert(t, err)
+
+			t.Run("Check coverage report", func(t *testing.T) {
+				err := res.Stop()
+				assert.Assert(t, err)
+				repFile := path.Join(repDir, "my-binary") + ".out"
+				assert.Check(t, golden.String(string(golden.Get(t, repFile)), "coverage.txt"))
+			})
 		})
 	})
 }
