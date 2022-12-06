@@ -121,13 +121,19 @@ func New(conf Config) o11y.Provider {
 				Rates:   conf.SampleRates,
 			},
 		}
-		bc.SamplerHook = sampler.Hook
+
+		bc.SamplerHook = func(fields map[string]interface{}) (bool, int) {
+			// NB: We prepare and send metrics here in case the span is dropped
+			// due to sampling. If a span is sampled, the PresendHook is not invoked.
+			extractAndSendMetrics(conf.Metrics)(fields)
+			return sampler.Hook(fields)
+		}
 	}
 
-	if conf.Metrics != nil {
+	// in the case that we're not sampling, we will attempt to send metrics
+	// as part of the event PresendHook instead.
+	if bc.SamplerHook == nil {
 		bc.PresendHook = extractAndSendMetrics(conf.Metrics)
-	} else {
-		bc.PresendHook = stripMetrics
 	}
 
 	beeline.Init(bc)
@@ -142,6 +148,13 @@ func stripMetrics(fields map[string]interface{}) {
 }
 
 func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{}) {
+	if mp == nil {
+		// if there is no configured provider, simply strip the metrics
+		return func(fields map[string]interface{}) {
+			stripMetrics(fields)
+		}
+	}
+
 	return func(fields map[string]interface{}) {
 		standardErrorMetrics(mp, fields)
 

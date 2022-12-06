@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	gocmp "github.com/google/go-cmp/cmp"
+	"github.com/honeycombio/beeline-go/trace"
 	"github.com/klauspost/compress/zstd"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -37,6 +39,7 @@ func TestHoneycomb(t *testing.T) {
 	url := honeycombServer(t, check)
 	ctx := context.Background()
 
+	resetSamplerHook(t)
 	h := New(Config{
 		Dataset:     "test-dataset",
 		Host:        url,
@@ -60,6 +63,7 @@ func TestHoneycomb(t *testing.T) {
 }
 
 func TestHoneycomb_ValidatesKeys(t *testing.T) {
+	resetSamplerHook(t)
 	h := New(Config{
 		Dataset:     "test-dataset",
 		Host:        "invalid-url",
@@ -117,6 +121,7 @@ func TestHoneycombMetricsDoesntPolluteWhenNotConfigured(t *testing.T) {
 	})
 	ctx := context.Background()
 
+	resetSamplerHook(t)
 	h := New(Config{
 		Dataset:     "test-dataset",
 		Host:        url,
@@ -225,6 +230,108 @@ func TestHoneycombMetrics(t *testing.T) {
 	assert.Check(t, gotEvent, "expected honeycomb to receive event")
 }
 
+// TestHoneycombMetricsWithSampledSpan is a copypasta of the normal metrics test case
+// but including sampling config to ensure metrics are captured even when spans
+// are dropped due to sampling
+func TestHoneycombMetricsWithSampledSpan(t *testing.T) {
+	// set up a minimal no-op server
+	gotEvent := false
+	url := honeycombServer(t, func(e string) {
+		gotEvent = true
+		assert.Check(t, !strings.Contains(e, metricKey))
+	})
+	ctx := context.Background()
+
+	fakeMetrics := &fakemetrics.Provider{}
+	resetSamplerHook(t)
+	h := New(Config{
+		Dataset:      "test-dataset",
+		Host:         url,
+		SendTraces:   true,
+		Metrics:      fakeMetrics,
+		Key:          "a-key",
+		ServiceName:  "a-service-name",
+		SampleTraces: true,
+		SampleKeyFunc: func(fields map[string]interface{}) string {
+			return "test-span"
+		},
+		SampleRates: map[string]int{
+			"test-span": math.MaxUint32 - 1,
+		},
+	})
+	h.AddGlobalField("version", 42)
+
+	ctx, span := h.StartSpan(ctx, "test-span")
+	span.RecordMetric(o11y.Timing("test-metric-timing", "low_card_tag", "status.code"))
+	span.RecordMetric(o11y.Incr("test-metric-incr", "low_card_tag", "status.code"))
+	span.RecordMetric(o11y.Duration("test-duration-ms", "latency", "status.code"))
+	span.AddField("low_card_tag", "tag-value")
+	span.AddField("status.code", 500)
+	span.AddField("another_tag", "another-value")
+	span.AddField("latency", time.Second)
+
+	span.AddField("to_gauge", 122.87)
+	span.RecordMetric(o11y.Gauge("test_metric_gauge", "to_gauge"))
+	span.AddField("to_count", 134)
+	span.AddField("to_count_2", 145)
+	span.RecordMetric(o11y.Count("test_metric_count", "to_count", o11y.NewTag("type", "first")))
+	span.RecordMetric(o11y.Count("test_metric_count", "to_count_2", o11y.NewTag("type", "second")))
+	span.End()
+	h.Close(ctx)
+
+	calls := fakeMetrics.Calls()
+	assert.Assert(t, cmp.Len(fakeMetrics.Calls(), 6))
+	assert.Check(t, cmp.DeepEqual(calls[0], fakemetrics.MetricCall{
+		Metric: "timer",
+		Name:   "test-metric-timing",
+		Tags:   []string{"low_card_tag:tag-value", "status.code:500"},
+		Rate:   1,
+		Value:  10,
+	}, cmpNonZeroValue))
+
+	assert.Check(t, cmp.DeepEqual(calls[1], fakemetrics.MetricCall{
+		Metric:   "count",
+		Name:     "test-metric-incr",
+		Tags:     []string{"low_card_tag:tag-value", "status.code:500"},
+		Rate:     1,
+		ValueInt: 1,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(calls[2], fakemetrics.MetricCall{
+		Metric: "timer",
+		Name:   "test-duration-ms",
+		Tags:   []string{"status.code:500"},
+		Rate:   1,
+		Value:  1000,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(calls[3], fakemetrics.MetricCall{
+		Metric: "gauge",
+		Name:   "test_metric_gauge",
+		Tags:   []string{},
+		Rate:   1,
+		Value:  122.87,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(calls[4], fakemetrics.MetricCall{
+		Metric:   "count",
+		Name:     "test_metric_count",
+		Tags:     []string{"type:first"},
+		Rate:     1,
+		ValueInt: 134,
+	}))
+
+	assert.Check(t, cmp.DeepEqual(calls[5], fakemetrics.MetricCall{
+		Metric:   "count",
+		Name:     "test_metric_count",
+		Tags:     []string{"type:second"},
+		Rate:     1,
+		ValueInt: 145,
+	}))
+
+	assert.Check(t, gotEvent == false, "expected honeycomb to not receive event")
+}
+
 func TestHoneycombWithError(t *testing.T) {
 	// check the response for some expected data
 	gotEvent := false
@@ -239,6 +346,7 @@ func TestHoneycombWithError(t *testing.T) {
 	url := honeycombServer(t, check)
 	ctx := context.Background()
 
+	resetSamplerHook(t)
 	h := New(Config{
 		Dataset:     "error-dataset",
 		Host:        url,
@@ -271,6 +379,7 @@ func TestHoneycombWithNilError(t *testing.T) {
 	url := honeycombServer(t, check)
 	ctx := context.Background()
 
+	resetSamplerHook(t)
 	h := New(Config{
 		Dataset:     "error-dataset",
 		Host:        url,
@@ -306,6 +415,7 @@ func honeycombServer(t *testing.T, cb func(string)) string {
 		}
 		cb(string(b))
 	}))
+	t.Cleanup(ts.Close)
 	return ts.URL
 }
 
@@ -325,4 +435,13 @@ type InvertedResult struct {
 
 func (r InvertedResult) Success() bool {
 	return !r.Result.Success()
+}
+
+// resetSamplerHook clears out the Singleton config sampler hook to prevent old hooks being used
+// in subsequent tests.
+// Gross hack, but necessary due to beeline's internal state management.
+func resetSamplerHook(t *testing.T) {
+	t.Cleanup(func() {
+		trace.GlobalConfig.SamplerHook = nil
+	})
 }
