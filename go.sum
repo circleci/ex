@@ -418,8 +418,8 @@ github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUq
 github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
 github.com/honeycombio/beeline-go v1.11.1 h1:cyrfwgxM32DKzUhZFJ0KLbPkoyf5lHOyn+7GISwEVZQ=
 github.com/honeycombio/beeline-go v1.11.1/go.mod h1:VTUrnK49oSsWme20E+94XTn1qofDYR56drIJ2bRsJBo=
-github.com/honeycombio/dynsampler-go v0.2.1 h1:IbhjbdB0IbLSZn7xVYuk6jjk/ZDk/EO+DJ5OXFZliv8=
-github.com/honeycombio/dynsampler-go v0.2.1/go.mod h1:BOeTUPT6fCRH5X/+QqF6Kza3IyLp9uSq/rWgEtI4aZI=
+github.com/honeycombio/dynsampler-go v0.3.0 h1:JttJgzOgFphbPLdsXhnNhBOqOQw89iwQbTasu3ZgLlE=
+github.com/honeycombio/dynsampler-go v0.3.0/go.mod h1:cwCXnr2kvMGtZk3+HaaKbnLym+cJduB6tiukUOyotxU=
 github.com/honeycombio/libhoney-go v1.18.0 h1:OYHOP381r3Ea76BhUYeza8PUTMDp8MByoOxDn3qtEq8=
 github.com/honeycombio/libhoney-go v1.18.0/go.mod h1:KwbcXkqUbH20x3MpfSt/kdvlog3FFdEnouqYD3XKXLY=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
