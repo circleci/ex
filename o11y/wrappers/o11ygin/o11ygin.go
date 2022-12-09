@@ -88,6 +88,18 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 	}
 }
 
+func ClientCancelled() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx := c.Request.Context()
+		defer func() {
+			if errors.Is(ctx.Err(), context.Canceled) {
+				c.Status(499)
+			}
+		}()
+		c.Next()
+	}
+}
+
 func Recovery() func(c *gin.Context) {
 	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err interface{}) {
 		c.AbortWithStatus(http.StatusInternalServerError)

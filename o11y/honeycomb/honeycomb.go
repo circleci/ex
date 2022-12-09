@@ -121,13 +121,19 @@ func New(conf Config) o11y.Provider {
 				Rates:   conf.SampleRates,
 			},
 		}
-		bc.SamplerHook = sampler.Hook
+
+		bc.SamplerHook = func(fields map[string]interface{}) (bool, int) {
+			// NB: We prepare and send metrics here in case the span is dropped
+			// due to sampling. If a span is sampled, the PresendHook is not invoked.
+			extractAndSendMetrics(conf.Metrics)(fields)
+			return sampler.Hook(fields)
+		}
 	}
 
-	if conf.Metrics != nil {
+	// in the case that we're not sampling, we will attempt to send metrics
+	// as part of the event PresendHook instead.
+	if bc.SamplerHook == nil {
 		bc.PresendHook = extractAndSendMetrics(conf.Metrics)
-	} else {
-		bc.PresendHook = stripMetrics
 	}
 
 	beeline.Init(bc)
@@ -142,7 +148,16 @@ func stripMetrics(fields map[string]interface{}) {
 }
 
 func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{}) {
+	if mp == nil {
+		// if there is no configured provider, simply strip the metrics
+		return func(fields map[string]interface{}) {
+			stripMetrics(fields)
+		}
+	}
+
 	return func(fields map[string]interface{}) {
+		standardErrorMetrics(mp, fields)
+
 		metrics, ok := fields[metricKey].([]o11y.Metric)
 		if !ok {
 			return
@@ -190,6 +205,40 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func(map[string]interface{})
 			}
 		}
 	}
+}
+
+func standardErrorMetrics(mp o11y.MetricsProvider, fields map[string]interface{}) {
+	// detect and map the fail same errors and add a metric for it if found
+	failClass := addFailure(fields)
+	if failClass != "" {
+		_ = mp.Count("failure", 1, []string{fmtTag("class", failClass)}, 1)
+	}
+	// add standard metric for error and warning
+	tag := []string{fmtTag("type", "o11y")}
+	if _, ok := fields["error"]; ok {
+		_ = mp.Count("error", 1, tag, 1)
+	}
+	if _, ok := fields["warning"]; ok {
+		_ = mp.Count("warning", 1, tag, 1)
+	}
+}
+
+// addFailure finds the first field suffixed with _error and adds the prefix as the value
+// to a failure field, if there is not already a failure field, and returns the prefix.
+// The original _error field is kept to retain details of its value.
+// If found the prefix part is returned.
+func addFailure(fields map[string]interface{}) string {
+	if _, ok := fields["failure"]; ok {
+		return ""
+	}
+	for k := range fields {
+		errClass := strings.TrimSuffix(k, "_error")
+		if errClass != k {
+			fields["failure"] = errClass
+			return errClass
+		}
+	}
+	return ""
 }
 
 func extractTagsFromFields(tags []string, fields map[string]interface{}) []string {

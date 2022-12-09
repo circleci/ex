@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -20,8 +21,9 @@ import (
 )
 
 type Runner struct {
-	baseEnv    []string
-	dynamicEnv func() []string
+	baseEnv     []string
+	dynamicEnv  func() []string
+	coverageDir string
 
 	mu       sync.Mutex
 	cleanups []func() error
@@ -38,6 +40,12 @@ func NewWithDynamicEnv(baseEnv []string, dynamicEnv func() []string) *Runner {
 		baseEnv:    baseEnv,
 		dynamicEnv: dynamicEnv,
 	}
+}
+
+// CoverageReportDir tells the runner where to attempt to output a coverage report.
+// A report will be generated in the given directory using the name of the binary, and the extension .out
+func (r *Runner) CoverageReportDir(path string) {
+	r.coverageDir = path
 }
 
 // Run starts the output service and waits a few seconds to confirm it has started
@@ -67,8 +75,17 @@ func (r *Runner) Run(serverName, binary string, extraEnv ...string) (*Result, er
 // of the process.
 // The caller is responsible for calling Result.Stop and Runner.Stop.
 func (r *Runner) Start(binary string, extraEnv ...string) (*Result, error) {
+	var args []string
+	if r.coverageDir != "" {
+		args = []string{
+			"-test.run", "^TestRunMain$",
+			"-test.coverprofile", path.Join(r.coverageDir, path.Base(binary)) + ".out",
+			"--",
+		}
+	}
+
 	//#nosec:G204 // this is intentionally running a command for tests
-	cmd := exec.Command(binary)
+	cmd := exec.Command(binary, args...)
 
 	// Add base environment
 	cmd.Env = make([]string, len(r.baseEnv))

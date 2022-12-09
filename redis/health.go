@@ -26,9 +26,11 @@ func (r *HealthCheck) HealthChecks() (name string, ready, live func(ctx context.
 
 		defer func() {
 			t := time.Since(start)
-			_ = m.TimeInMilliseconds("redis_healthcheck_duration", float64(t.Milliseconds()), []string{
+			tags := []string{
 				fmt.Sprintf("%s:%t", "error", err != nil),
-			}, 1.0)
+				fmt.Sprintf("%s:%s", "name", name),
+			}
+			_ = m.TimeInMilliseconds("redis_healthcheck_duration", float64(t.Milliseconds()), tags, 1.0)
 		}()
 
 		pong, err := r.client.Ping(ctx).Result()

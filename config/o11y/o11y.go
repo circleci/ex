@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/rollbar/rollbar-go"
 
 	"github.com/circleci/ex/config/secret"
@@ -66,9 +68,14 @@ func Setup(ctx context.Context, o Config) (context.Context, func(context.Context
 			statsdOpts = append(statsdOpts, statsd.WithoutTelemetry())
 		}
 
-		stats, err := statsd.New(o.Statsd, statsdOpts...)
+		var stats *statsd.Client
+		bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30)
+		err := backoff.Retry(func() (err error) {
+			stats, err = statsd.New(o.Statsd, statsdOpts...)
+			return err
+		}, backoff.WithContext(bo, ctx))
 		if err != nil {
-			return nil, nil, err
+			return ctx, nil, err
 		}
 
 		honeyConfig.Metrics = stats
