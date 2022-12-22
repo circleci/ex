@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.45
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.6
 	github.com/cenkalti/backoff/v4 v4.2.0
-	github.com/gin-gonic/gin v1.8.1
+	github.com/gin-gonic/gin v1.8.2
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golangci/golangci-lint v1.50.1
 	github.com/google/go-cmp v0.5.9
