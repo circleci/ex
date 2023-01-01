@@ -17,3 +17,4 @@
 # Ephemeral directories
 /bin
 /test-reports
+.git/
