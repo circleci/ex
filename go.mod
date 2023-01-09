@@ -25,7 +25,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/klauspost/compress v1.15.13
-	github.com/makasim/amqpextra v0.17.0
+	github.com/makasim/amqpextra v1.1.0
 	github.com/rabbitmq/amqp091-go v1.5.0
 	github.com/rinchsan/gosimports v0.3.4
 	github.com/rollbar/rollbar-go v1.4.5
@@ -110,7 +110,6 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/golangci/check v0.0.0-20180506172741-cfe4005ccda2 // indirect
