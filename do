@@ -48,6 +48,9 @@ generate() {
     protoc -I . --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative grpc/internal/testgrpc/*.proto
 
     run-goimports ./rootcerts
+
+    # TODO: Remove this when https://github.com/gwatts/rootcerts/pull/42 is merged
+    rm -f rootcerts/rootcerts_16.go
 }
 
 
