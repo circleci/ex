@@ -111,9 +111,13 @@ go-mod-tidy() {
 }
 
 install-go-bin() {
+    local binDir="$PWD/bin"
     for pkg in "${@}"; do
         echo "${pkg}"
-        GOBIN="${PWD}/bin" go install "${pkg}"
+        (
+          cd tools
+          GOBIN="${binDir}" go install "${pkg}"
+        )
     done
 }
 
@@ -122,7 +126,7 @@ install-devtools() {
     local tools=()
     while IFS='' read -r value; do
         tools+=("$value")
-    done < <(grep _ tools.go | awk -F'"' '{print $2}')
+    done < <(grep _ tools/tools.go | awk -F'"' '{print $2}')
 
     install-go-bin "${tools[@]}"
 }
