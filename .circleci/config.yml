@@ -109,7 +109,7 @@ commands:
     steps:
       - run:
           name: Download dependencies
-          command: go mod download
+          command: go mod download && (cd tools && go mod download)
       - run:
           name: Adding GOPATH bin to PATH
           command: echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> "$BASH_ENV"

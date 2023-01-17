@@ -48,6 +48,9 @@ generate() {
     protoc -I . --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative grpc/internal/testgrpc/*.proto
 
     run-goimports ./rootcerts
+
+    # TODO: Remove this when https://github.com/gwatts/rootcerts/pull/42 is merged
+    rm -f rootcerts/rootcerts_16.go
 }
 
 
@@ -108,9 +111,13 @@ go-mod-tidy() {
 }
 
 install-go-bin() {
+    local binDir="$PWD/bin"
     for pkg in "${@}"; do
         echo "${pkg}"
-        GOBIN="${PWD}/bin" go install "${pkg}"
+        (
+          cd tools
+          GOBIN="${binDir}" go install "${pkg}"
+        )
     done
 }
 
@@ -119,7 +126,7 @@ install-devtools() {
     local tools=()
     while IFS='' read -r value; do
         tools+=("$value")
-    done < <(grep _ tools.go | awk -F'"' '{print $2}')
+    done < <(grep _ tools/tools.go | awk -F'"' '{print $2}')
 
     install-go-bin "${tools[@]}"
 }
