@@ -645,3 +645,53 @@ func TestClient_GETWithBody(t *testing.T) {
 	err := client.Call(ctx, req)
 	assert.Check(t, cmp.Error(err, "cannot have GET request with body or raw body"))
 }
+
+func TestClient_Call_429(t *testing.T) {
+	ctx := testcontext.Background()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+
+	tests := []struct {
+		name           string
+		disableBackoff bool
+	}{
+		{
+			name: "with backoff",
+		},
+		{
+			name:           "without backoff",
+			disableBackoff: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := httpclient.New(httpclient.Config{
+				BaseURL:            server.URL,
+				Timeout:            5 * time.Second,
+				NoRateLimitBackoff: tt.disableBackoff,
+			})
+			err := client.Call(ctx, httpclient.NewRequest("POST", "/",
+				httpclient.Timeout(5*time.Second),
+			))
+			// confirm we get an http 429 error on first call
+			assert.Check(t, httpclient.HasStatusCode(err, http.StatusTooManyRequests), err)
+			// confirm that it is now not a warning
+			assert.Check(t, !o11y.IsWarning(err))
+
+			err = client.Call(ctx, httpclient.NewRequest("POST", "/",
+				httpclient.Timeout(5*time.Second),
+			))
+			if tt.disableBackoff {
+				// confirm we still get an http 429 error after receiving the first 429
+				assert.Check(t, httpclient.HasStatusCode(err, http.StatusTooManyRequests), err)
+			} else {
+				// confirm we get a backoff error once the circuit breaker has tripped
+				assert.Check(t, errors.Is(err, httpclient.ErrServerBackoff))
+			}
+			// confirm that it is now not a warning
+			assert.Check(t, !o11y.IsWarning(err))
+		})
+	}
+}

@@ -62,6 +62,11 @@ type Config struct {
 	Tracer tracer
 	// DialContext allows a dial context to be injected into the HTTP transport.
 	DialContext func(ctx context.Context, network string, addr string) (net.Conn, error)
+	// NoRateLimitBackoff disables the circuit breaker behaviour when the client receives a 429
+	// response. This is useful if the server rate-limits more granularly than requests-per-client
+	// (e.g. if it uses specific query params or headers when bucketing requests) but should be enabled
+	// with care as it can lead to thrashing the server if not used appropriately.
+	NoRateLimitBackoff bool
 }
 
 // Client is the o11y instrumented http client.
@@ -75,6 +80,7 @@ type Client struct {
 	acceptType            string
 	additionalHeaders     map[string]string
 	tracer                tracer
+	noRateLimitBackoff    bool
 
 	mu      sync.RWMutex
 	last429 time.Time
@@ -120,8 +126,9 @@ func New(cfg Config) *Client {
 		httpClient: &http.Client{
 			Transport: roundTripper,
 		},
-		tracer: cfg.Tracer,
-		now:    time.Now,
+		tracer:             cfg.Tracer,
+		now:                time.Now,
+		noRateLimitBackoff: cfg.NoRateLimitBackoff,
 	}
 }
 
@@ -582,6 +589,9 @@ func addRespToSpan(span o11y.Span, res *http.Response) {
 }
 
 func (c *Client) shouldBackoff() bool {
+	if c.noRateLimitBackoff {
+		return false
+	}
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
