@@ -3,6 +3,7 @@ package miniofixture
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/rand"
 	"net"
 	"net/url"
@@ -21,47 +22,75 @@ import (
 	"github.com/circleci/ex/config/secret"
 )
 
-type Config struct {
-	Key    secret.String
-	Secret secret.String
-	URL    string
-
-	// optional
-	Bucket string
-	Region string
-}
-
+// Fixture can be used to set up fields that will be used in creating
 type Fixture struct {
-	Bucket string
-	Client *s3.Client
+	Client             *s3.Client
+	URL                string
+	Key                secret.String
+	Secret             secret.String
+	Bucket             string
+	Region             string
+	Versioned          bool // Versioned will be set true if we have managed to enable versioning
+	ForceLocal         bool // ForceLocal will fail on a local run if minio is not running
+	ForceVersioned     bool // ForceVersioned will fail if the bucket can not be set versioned
+	DisallowPublicRead bool // DisallowPublicRead will not set permissions on the bucket for direct access to links
 }
 
-func Setup(ctx context.Context, t testing.TB, cfg Config) *Fixture {
-	t.Helper()
-	skipIfNotRunning(t, cfg)
+// Default sets up and returns the default minio fixture
+func Default(ctx context.Context, t testing.TB) *Fixture {
+	fix := &Fixture{}
+	Setup(ctx, t, fix)
+	return fix
+}
 
-	if cfg.Bucket == "" {
-		cfg.Bucket = BucketName(t)
+// Setup will take the given fixture adding default values as needed and update the fields in the fixture
+// with whatever values were used.
+func Setup(ctx context.Context, t testing.TB, fix *Fixture) {
+	t.Helper()
+	setConfigDefaults(t, fix)
+	skipIfNotRunning(t, fix)
+
+	assert.Assert(t, fix.Client == nil, "fixture client is expected to be nil")
+
+	err := runSetup(ctx, fix)
+	assert.NilError(t, err)
+
+	t.Cleanup(func() {
+		fix.clean(t)
+	})
+}
+
+func runSetup(ctx context.Context, fix *Fixture) error {
+	awsConfig := newAWSConfig(fix)
+	fix.Client = s3.NewFromConfig(awsConfig)
+
+	_, err := fix.Client.CreateBucket(ctx, &s3.CreateBucketInput{
+		Bucket: aws.String(fix.Bucket),
+	})
+	if err != nil {
+		return fmt.Errorf("create bucket failed: %w", err)
 	}
 
-	awsConfig := newAWSConfig(cfg)
-	c := s3.NewFromConfig(awsConfig)
-
-	_, err := c.CreateBucket(ctx, &s3.CreateBucketInput{
-		Bucket: aws.String(cfg.Bucket),
-	})
-	assert.Assert(t, err)
-	_, err = c.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
-		Bucket: aws.String(cfg.Bucket),
+	_, err = fix.Client.PutBucketVersioning(ctx, &s3.PutBucketVersioningInput{
+		Bucket: aws.String(fix.Bucket),
 		VersioningConfiguration: &types.VersioningConfiguration{
 			Status: "Enabled",
 		},
 	})
-	assert.Assert(t, err)
 
-	_, err = c.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
-		Bucket: aws.String(cfg.Bucket),
-		Policy: aws.String(`
+	fix.Versioned = err == nil
+
+	if err != nil {
+		fix.Versioned = false
+		if fix.ForceVersioned {
+			return fmt.Errorf("forced bucket versioning failed: %w", err)
+		}
+	}
+
+	if !fix.DisallowPublicRead {
+		_, err = fix.Client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+			Bucket: aws.String(fix.Bucket),
+			Policy: aws.String(`
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -79,24 +108,43 @@ func Setup(ctx context.Context, t testing.TB, cfg Config) *Fixture {
         }
     ]
 }`)})
-	assert.Assert(t, err)
-	t.Cleanup(func() {
-		clean(t, c, cfg.Bucket)
-	})
 
-	return &Fixture{
-		Client: c,
-		Bucket: cfg.Bucket,
+		if err != nil {
+			return fmt.Errorf("could not create public read policy: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func setConfigDefaults(t testing.TB, fix *Fixture) {
+	if fix.URL == "" {
+		fix.URL = "http://localhost:9123"
+	}
+	if fix.Key == "" {
+		fix.Key = "minio"
+	}
+	if fix.Secret == "" {
+		fix.Secret = "minio123"
+	}
+	if fix.Bucket == "" {
+		fix.Bucket = BucketName(t)
+	}
+	if fix.Region == "" {
+		fix.Region = "us-east-1"
 	}
 }
 
-func skipIfNotRunning(t testing.TB, cfg Config) {
+func skipIfNotRunning(t testing.TB, fix *Fixture) {
 	t.Helper()
+	if fix.ForceLocal {
+		return
+	}
 	if strings.EqualFold("true", strings.ToLower(os.Getenv("CI"))) {
 		return
 	}
 
-	u, err := url.Parse(cfg.URL)
+	u, err := url.Parse(fix.URL)
 	assert.Assert(t, err)
 
 	timeout := 2 * time.Second
@@ -124,47 +172,51 @@ func BucketName(t testing.TB) string {
 	return prefix + "-" + strconv.Itoa(int(r))
 }
 
-func newAWSConfig(c Config) aws.Config {
-	region := c.Region
-	cred := credentials.NewStaticCredentialsProvider(c.Key.Value(), c.Secret.Value(), "")
-	//nolint:staticcheck // SA1019 the suggested EndpointResolverWithOptionsFunc doesn't work
-	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+func newAWSConfig(fix *Fixture) aws.Config {
+	resolveFn := func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
-			//PartitionID:       c.Server.Partition,
-			URL:               "http://localhost:9123",
-			SigningRegion:     region,
+			PartitionID:       "aws",
+			URL:               fix.URL,
+			SigningRegion:     fix.Region,
 			HostnameImmutable: true,
 		}, nil
-	})
+	}
+
 	return aws.Config{
-		Region:           region,
-		Credentials:      cred,
-		EndpointResolver: resolver,
-		//HTTPClient:       pooledHTTPClient(),
+		Region:                      fix.Region,
+		Credentials:                 credentials.NewStaticCredentialsProvider(fix.Key.Value(), fix.Secret.Value(), ""),
+		EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(resolveFn),
 	}
 }
 
-func clean(t testing.TB, c *s3.Client, bucket string) {
+func (f *Fixture) clean(t testing.TB) {
+	t.Helper()
 	ctx := context.Background()
 
 	var err error
 	for i := 0; i < 5; i++ {
-		emptyBucket(ctx, t, c, bucket)
-		_, err = c.DeleteBucket(ctx, &s3.DeleteBucketInput{
-			Bucket: &bucket,
+		if f.Versioned {
+			f.emptyVersionedBucket(ctx, t)
+		} else {
+			f.emptyBucket(ctx, t)
+		}
+		_, err = f.Client.DeleteBucket(ctx, &s3.DeleteBucketInput{
+			Bucket: &f.Bucket,
 		})
 		if err == nil {
 			break
 		}
+		time.Sleep(time.Second)
 	}
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 }
 
-func emptyBucket(ctx context.Context, t testing.TB, c *s3.Client, bucket string) {
-	listReq := &s3.ListObjectVersionsInput{Bucket: &bucket}
+func (f *Fixture) emptyVersionedBucket(ctx context.Context, t testing.TB) {
+	listReq := &s3.ListObjectVersionsInput{Bucket: &f.Bucket}
 	for {
-		out, err := c.ListObjectVersions(ctx, listReq)
+		out, err := f.Client.ListObjectVersions(ctx, listReq)
 		if err != nil {
+			// Check if already deleted
 			e := &types.NoSuchBucket{}
 			if errors.As(err, &e) {
 				return
@@ -173,7 +225,15 @@ func emptyBucket(ctx context.Context, t testing.TB, c *s3.Client, bucket string)
 		}
 
 		for _, ver := range out.Versions {
-			deleteS3Object(ctx, t, c, &bucket, ver)
+			f.deleteS3Object(ctx, t, ver)
+		}
+
+		// if objects have been deleted they may leave delete markers lying around
+		for _, dm := range out.DeleteMarkers {
+			f.deleteS3Object(ctx, t, types.ObjectVersion{
+				Key:       dm.Key,
+				VersionId: dm.VersionId,
+			})
 		}
 
 		if out.IsTruncated {
@@ -185,9 +245,36 @@ func emptyBucket(ctx context.Context, t testing.TB, c *s3.Client, bucket string)
 	}
 }
 
-func deleteS3Object(ctx context.Context, t testing.TB, c *s3.Client, bucket *string, ver types.ObjectVersion) {
-	_, err := c.DeleteObject(ctx, &s3.DeleteObjectInput{
-		Bucket:    bucket,
+func (f *Fixture) emptyBucket(ctx context.Context, t testing.TB) {
+	listReq := &s3.ListObjectsInput{Bucket: &f.Bucket}
+	for {
+		out, err := f.Client.ListObjects(ctx, listReq)
+		if err != nil {
+			// Check if already deleted
+			e := &types.NoSuchBucket{}
+			if errors.As(err, &e) {
+				return
+			}
+			t.Fatalf("Failed to list objects: %v", err)
+		}
+
+		for _, o := range out.Contents {
+			f.deleteS3Object(ctx, t, types.ObjectVersion{
+				Key: o.Key,
+			})
+		}
+
+		if out.IsTruncated {
+			listReq.Marker = out.NextMarker
+		} else {
+			break
+		}
+	}
+}
+
+func (f *Fixture) deleteS3Object(ctx context.Context, t testing.TB, ver types.ObjectVersion) {
+	_, err := f.Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket:    aws.String(f.Bucket),
 		Key:       ver.Key,
 		VersionId: ver.VersionId,
 	})

@@ -136,7 +136,7 @@ func TestList_Latest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(testcontext.Background(), 300*time.Millisecond)
+			ctx, cancel := context.WithTimeout(testcontext.Background(), time.Second)
 			defer cancel()
 
 			bucketURL := fixture(ctx, t)
@@ -261,11 +261,7 @@ func TestList_Lookup(t *testing.T) {
 }
 
 func fixture(ctx context.Context, t *testing.T) string {
-	fix := miniofixture.Setup(ctx, t, miniofixture.Config{
-		Key:    "minio",
-		Secret: "minio123",
-		URL:    "http://localhost:9123",
-	})
+	fix := miniofixture.Default(ctx, t)
 	bu := buckerUploader{
 		bucket:   fix.Bucket,
 		uploader: manager.NewUploader(fix.Client),
@@ -302,7 +298,8 @@ func fixture(ctx context.Context, t *testing.T) string {
 	_, err = bu.upload(ctx, "agent/2.2.2-fedcba12/windows/amd64/agent.exe", strings.NewReader(agentFileContent))
 	assert.Assert(t, err)
 
-	return "http://localhost:9123/" + fix.Bucket
+	burl := fix.URL + "/" + fix.Bucket
+	return burl
 }
 
 type buckerUploader struct {

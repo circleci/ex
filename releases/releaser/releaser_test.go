@@ -27,11 +27,7 @@ import (
 func TestReleaser_Publish(t *testing.T) {
 	ctx := context.Background()
 
-	fix := miniofixture.Setup(ctx, t, miniofixture.Config{
-		Key:    "minio",
-		Secret: "minio123",
-		URL:    "http://localhost:9123",
-	})
+	fix := miniofixture.Default(ctx, t)
 
 	r := NewWithClient(fix.Client)
 
@@ -153,11 +149,7 @@ func TestReleaser_Publish(t *testing.T) {
 func TestReleaser_Release(t *testing.T) {
 	ctx := context.Background()
 
-	fix := miniofixture.Setup(ctx, t, miniofixture.Config{
-		Key:    "minio",
-		Secret: "minio123",
-		URL:    "http://localhost:9123",
-	})
+	fix := miniofixture.Default(ctx, t)
 
 	r := NewWithClient(fix.Client)
 

@@ -75,8 +75,17 @@ jobs:
           MINIO_ROOT_PASSWORD: 'minio123'
         command: [
           'server',
-          '/data/1', '/data/2','/data/3', '/data/4',
+          '/data/1','/data/2','/data/3','/data/4',
           '--address', ':9123',
+        ]
+      - image: minio/minio
+        environment:
+          MINIO_ROOT_USER: 'minio-nv'
+          MINIO_ROOT_PASSWORD: 'minio-nv-123'
+        command: [
+          'server',
+          '/datanv',
+          '--address', ':9124',
         ]
     resource_class: large
     environment:
