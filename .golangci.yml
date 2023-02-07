@@ -43,6 +43,12 @@ issues:
     # Duplicated errcheck checks
     - linters: [staticcheck]
       text: SA5001
+    - linters: [staticcheck]
+      test: SA1019
+      path: _test\.go
+    - linters: [staticcheck]
+      test: SA1019
+      path: testing
     # We don't require comments on everything
     - linters: [golint]
       text: should have( a package)? comment

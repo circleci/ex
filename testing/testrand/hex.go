@@ -10,7 +10,8 @@ import (
 // characters that can appear in a hex encoding.
 func Hex(n int) string {
 	b := make([]byte, n/2+1)
-	_, err := rand.Read(b) //#nosec:G404 // this is just for test IDs
+	//#nosec:G404 // this is just for test IDs
+	_, err := rand.Read(b)
 	if err != nil {
 		panic(err)
 	}

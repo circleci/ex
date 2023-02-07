@@ -3,6 +3,8 @@ package runner
 import (
 	"context"
 	"path"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -140,7 +142,13 @@ func TestRunner_Coverage(t *testing.T) {
 				err := res.Stop()
 				assert.Assert(t, err)
 				repFile := path.Join(repDir, "my-binary") + ".out"
-				assert.Check(t, golden.String(string(golden.Get(t, repFile)), "coverage.txt"))
+
+				s := string(golden.Get(t, repFile))
+				split := strings.Split(s, "\n")
+				sort.StringSlice(split[1:]).Sort()
+				s = strings.Join(split, "\n")
+
+				assert.Check(t, golden.String(s, "coverage.txt"))
 			})
 		})
 	})

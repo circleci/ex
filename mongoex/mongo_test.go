@@ -19,12 +19,12 @@ func TestNew(t *testing.T) {
 
 	client, err := New(ctx, "connection-test", cfg)
 	assert.Assert(t, err)
-	t.Cleanup(func() {
+	defer func() {
 		t.Run("Disconnect client", func(t *testing.T) {
 			err := client.Disconnect(ctx)
 			assert.Assert(t, err)
 		})
-	})
+	}()
 
 	t.Run("Ping the database", func(t *testing.T) {
 		err = client.Ping(ctx, readpref.SecondaryPreferred())
