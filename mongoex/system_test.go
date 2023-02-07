@@ -20,16 +20,17 @@ func TestLoad(t *testing.T) {
 	}
 
 	sys := system.New()
-	defer sys.Cleanup(ctx)
 
 	client, err := Load(ctx, "connection-test", cfg, sys)
 	assert.Assert(t, err)
-	t.Cleanup(func() {
+	defer func() {
 		t.Run("Check client is already disconnected", func(t *testing.T) {
 			err := client.Disconnect(ctx)
 			assert.Check(t, errors.Is(err, mongo.ErrClientDisconnected))
 		})
-	})
+	}()
+
+	defer sys.Cleanup(ctx)
 
 	t.Run("Ping the database", func(t *testing.T) {
 		err = client.Ping(ctx, readpref.SecondaryPreferred())

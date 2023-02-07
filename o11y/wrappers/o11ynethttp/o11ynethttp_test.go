@@ -27,7 +27,7 @@ func TestMiddleware(t *testing.T) {
 		Metrics: m,
 	}))
 	provider := o11y.FromContext(ctx)
-	t.Cleanup(func() {
+	defer func() {
 		provider.Close(ctx)
 		t.Run("Check metrics", func(t *testing.T) {
 
@@ -94,7 +94,7 @@ func TestMiddleware(t *testing.T) {
 				m.Calls(), fakemetrics.CMPMetrics, cmpopts.IgnoreFields(fakemetrics.MetricCall{}, "Value", "ValueInt")),
 			)
 		})
-	})
+	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -160,7 +160,7 @@ func TestMiddleware_with_sampling(t *testing.T) {
 		},
 	}))
 	provider := o11y.FromContext(ctx)
-	t.Cleanup(func() {
+	defer func() {
 		provider.Close(ctx)
 		t.Run("Check metrics", func(t *testing.T) {
 
@@ -227,7 +227,7 @@ func TestMiddleware_with_sampling(t *testing.T) {
 				m.Calls(), fakemetrics.CMPMetrics, cmpopts.IgnoreFields(fakemetrics.MetricCall{}, "Value", "ValueInt")),
 			)
 		})
-	})
+	}()
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
