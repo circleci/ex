@@ -6,7 +6,7 @@ require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
 	github.com/alecthomas/kong v0.7.1
 	github.com/aws/aws-sdk-go-v2 v1.17.4
-	github.com/aws/aws-sdk-go-v2/config v1.18.12
+	github.com/aws/aws-sdk-go-v2/config v1.18.13
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.13
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.52
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.30.3
