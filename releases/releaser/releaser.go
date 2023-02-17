@@ -172,7 +172,7 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 
 		fileName := strings.TrimPrefix(path, params.Path)
 		fileName = strings.TrimPrefix(fileName, string(os.PathSeparator))
-		_, err = fmt.Fprintf(&checksums, "%x *%s\n", h.Sum(nil), fileName)
+		_, err = fmt.Fprintf(&checksums, "%x *%s\n", h.Sum(nil), filepath.ToSlash(fileName))
 		return err
 	})
 	if err != nil {
@@ -217,7 +217,7 @@ func (r *Releaser) walkFiles(basePath string, includeFn func(path string, info o
 }
 
 func fileKey(app, version, file string) string {
-	return filepath.Join(app, version, file)
+	return filepath.ToSlash(filepath.Join(app, version, file))
 }
 
 func encodeTags(tags map[string]string) *string {
