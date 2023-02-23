@@ -72,6 +72,7 @@ func (c *compiler) Compile(ctx context.Context, work Work) (string, error) {
 		}
 	}()
 
+	// nolint gosec we constructed the args ourselves, they are not injected
 	cmd := exec.CommandContext(ctx, goBin, args...)
 	cmd.Dir = cwd
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
