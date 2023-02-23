@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -81,7 +82,7 @@ type List struct {
 	name   string
 	s3List *s3List
 
-	ready atomicBool
+	ready atomic.Bool
 
 	mu            sync.RWMutex
 	cachedVersion map[string]string
@@ -92,7 +93,8 @@ type List struct {
 }
 
 func NewList(ctx context.Context, name, pinnedVersion, listBaseURL string,
-	additionalReleaseTypes ...string) (*List, error) {
+	additionalReleaseTypes ...string,
+) (*List, error) {
 	cache := tinylfu.New(cacheItemCount, 100000)
 	c := &List{
 		name:          name,
@@ -117,7 +119,7 @@ func NewList(ctx context.Context, name, pinnedVersion, listBaseURL string,
 func (c *List) HealthChecks() (_ string, ready, live func(ctx context.Context) error) {
 	return "version-list-" + c.name,
 		func(ctx context.Context) error {
-			if !c.ready.Get() {
+			if !c.ready.Load() {
 				return ErrListVersionNotReady
 			}
 			return nil
@@ -238,6 +240,6 @@ func (c *List) storeVersions(ctx context.Context) (err error) {
 		}
 	}
 
-	c.ready.Set(true)
+	c.ready.Store(true)
 	return nil
 }

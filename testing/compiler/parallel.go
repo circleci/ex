@@ -31,16 +31,11 @@ func (t *Parallel) Dir() string {
 }
 
 func (t *Parallel) Cleanup() {
-	t.compiler.Cleanup()
 	_ = os.RemoveAll(t.compiler.Dir())
 }
 
 type Work = compiler.Work
 
-func (t *Parallel) Add(work Work) {
-	t.compiler.Add(work)
-}
-
-func (t *Parallel) Run(ctx context.Context) error {
-	return t.compiler.Run(ctx)
+func (t *Parallel) Run(ctx context.Context, work ...Work) error {
+	return t.compiler.Run(ctx, work...)
 }

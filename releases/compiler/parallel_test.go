@@ -19,30 +19,30 @@ func TestParallel_Compile(t *testing.T) {
 	})
 
 	var binary1, binary2 string
-	t.Cleanup(func() {
-		c.Cleanup()
-	})
 
 	assert.Assert(t, t.Run("Compile binaries", func(t *testing.T) {
-		c.Add(Work{
-			Result:      &binary1,
-			Name:        "binary1",
-			Target:      "../..",
-			Source:      "./testing/compiler/internal/cmd",
-			Environment: []string{"FOO=foo1", "BAR=bar1"},
-		})
-		c.Add(Work{
-			Result:      &binary2,
-			Name:        "binary2",
-			Target:      "../..",
-			Source:      "./testing/compiler/internal/cmd2",
-			Environment: []string{"FOO=foo2", "BAR=bar2"},
-		})
-
-		err := c.Run(context.Background())
+		err := c.Run(
+			context.Background(),
+			Work{
+				Result:      &binary1,
+				Name:        "binary1",
+				Target:      "../..",
+				Source:      "./testing/compiler/internal/cmd",
+				Environment: []string{"FOO=foo1", "BAR=bar1"},
+			},
+			Work{
+				Result:      &binary2,
+				Name:        "binary2",
+				Target:      "../..",
+				Source:      "./testing/compiler/internal/cmd2",
+				Environment: []string{"FOO=foo2", "BAR=bar2"},
+			},
+		)
 		assert.Check(t, err)
+
 		_, err = os.Stat(binary1)
 		assert.Check(t, err)
+
 		_, err = os.Stat(binary2)
 		assert.Check(t, err)
 	}))

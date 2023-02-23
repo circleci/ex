@@ -25,25 +25,27 @@ func TestParallel_Compile(t *testing.T) {
 	})
 
 	assert.Assert(t, t.Run("Compile binaries", func(t *testing.T) {
-		c.Add(Work{
+		w1 := Work{
 			Result:      &binary1,
 			Name:        "binary1",
 			Target:      "../..",
 			Source:      "./testing/compiler/internal/cmd",
 			Environment: []string{"FOO=foo1", "BAR=bar1"},
-		})
-		c.Add(Work{
+		}
+		w2 := Work{
 			Result:      &binary2,
 			Name:        "binary2",
 			Target:      "../..",
 			Source:      "./testing/compiler/internal/cmd2",
 			Environment: []string{"FOO=foo2", "BAR=bar2"},
-		})
+		}
 
-		err := c.Run(context.Background())
+		err := c.Run(context.Background(), w1, w2)
 		assert.Check(t, err)
+
 		_, err = os.Stat(binary1)
 		assert.Check(t, err)
+
 		_, err = os.Stat(binary2)
 		assert.Check(t, err)
 	}))
@@ -75,23 +77,23 @@ func TestParallel_Compile_WithCoverage(t *testing.T) {
 	})
 
 	assert.Assert(t, t.Run("Compile binaries", func(t *testing.T) {
-		c.Add(Work{
+		w1 := Work{
 			Result:       &binary1,
 			Name:         "binary1",
 			Target:       "../..",
 			Source:       "./testing/compiler/internal/cmd",
 			WithCoverage: true,
 			Environment:  []string{"FOO=foo1", "BAR=bar1"},
-		})
-		c.Add(Work{
+		}
+		w2 := Work{
 			Result:      &binary2,
 			Name:        "binary2",
 			Target:      "../..",
 			Source:      "./testing/compiler/internal/cmd2",
 			Environment: []string{"FOO=foo2", "BAR=bar2"},
-		})
+		}
 
-		err := c.Run(context.Background())
+		err := c.Run(context.Background(), w1, w2)
 		assert.Check(t, err)
 		_, err = os.Stat(binary1)
 		assert.Check(t, err)

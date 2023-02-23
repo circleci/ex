@@ -26,7 +26,7 @@ func NewDownloader(timeout time.Duration, dir string) (*Downloader, error) {
 		return nil, fmt.Errorf("could not absolutify downloader dir: %w", err)
 	}
 
-	err = os.MkdirAll(dir, 0755) // #nosec - the downloads are intentionally world-readable
+	err = os.MkdirAll(dir, 0o755) // #nosec - the downloads are intentionally world-readable
 	if err != nil {
 		return nil, fmt.Errorf("could not create e2e-test dir: %w", err)
 	}
@@ -48,34 +48,20 @@ func (d *Downloader) Download(ctx context.Context, rawURL string, perm os.FileMo
 	}
 
 	target := d.targetPath(u)
-	tmp := target + ".tmp"
-
-	defer func() {
-		cleanup := func() {
-			defer os.Remove(target) // nolint: errcheck
-			defer os.Remove(tmp)    // nolint: errcheck
-		}
-
-		// Don't leave half-downloaded or invalid downloads hanging around
-		if p := recover(); p != nil {
-			cleanup()
-			panic(p)
-		} else if err != nil {
-			cleanup()
-		}
-	}()
-
 	if isCached(target) {
 		return target, nil
 	}
 
-	err = d.downloadFile(ctx, u.String(), tmp, perm)
-	if err != nil {
+	tmp := target + ".tmp"
+	defer func() {
+		_ = os.Remove(tmp) // nolint: errcheck
+	}()
+
+	if err := d.downloadFile(ctx, u.String(), tmp, perm); err != nil {
 		return "", err
 	}
 
-	err = os.Rename(tmp, target)
-	if err != nil {
+	if err := os.Rename(tmp, target); err != nil {
 		return "", err
 	}
 
@@ -88,12 +74,13 @@ func (d *Downloader) Remove(rawURL string) error {
 	if err != nil {
 		return fmt.Errorf("cannot parse URL: %w", err)
 	}
-	err = os.Remove(d.targetPath(u))
-	e := &os.PathError{}
-	if errors.As(err, &e) {
-		return nil
+	if err := os.Remove(d.targetPath(u)); err != nil {
+		if pathErr := new(os.PathError); errors.As(err, &pathErr) {
+			return nil
+		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (d *Downloader) targetPath(u *url.URL) string {
@@ -108,19 +95,21 @@ func isCached(target string) bool {
 	return !info.IsDir()
 }
 
-func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm os.FileMode) error {
-	err := os.MkdirAll(filepath.Dir(target), 0755) // #nosec - the downloads are intentionally world-readable
-	if err != nil {
+func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm os.FileMode) (err error) {
+	// #nosec - the downloads are intentionally world-readable
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return fmt.Errorf("could not create directory: %w", err)
 	}
 
 	// #nosec - this is an executable binary, these permissions are needed.
-	out, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
+	f, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return fmt.Errorf("could not create file: %w", err)
 	}
 	defer func() {
-		err = out.Close()
+		if closeErr := f.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
 	}()
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -138,9 +127,9 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 		return fmt.Errorf("unexpected status: %s", res.Status)
 	}
 
-	_, err = io.Copy(out, res.Body)
-	if err != nil {
+	if _, err := io.Copy(f, res.Body); err != nil {
 		return fmt.Errorf("could not write file %q: %w", target, err)
 	}
+
 	return nil
 }

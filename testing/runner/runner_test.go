@@ -24,14 +24,12 @@ func TestRunner(t *testing.T) {
 	t.Cleanup(c.Cleanup)
 
 	var err error
-	c.Add(compiler.Work{
+	err = c.Run(ctx, compiler.Work{
 		Name:   "my-binary",
 		Target: ".",
 		Source: "./internal/testservice",
 		Result: &binary,
 	})
-
-	err = c.Run(ctx)
 	assert.Assert(t, err)
 
 	t.Run("api_and_admin", func(t *testing.T) {
@@ -114,16 +112,13 @@ func TestRunner_Coverage(t *testing.T) {
 	c := compiler.NewParallel(1)
 	t.Cleanup(c.Cleanup)
 
-	var err error
-	c.Add(compiler.Work{
+	err := c.Run(ctx, compiler.Work{
 		Name:         "my-binary",
 		Target:       ".",
 		Source:       "./internal/testservice",
 		Result:       &binary,
 		WithCoverage: true,
 	})
-
-	err = c.Run(ctx)
 	assert.Assert(t, err)
 
 	t.Run("api_and_admin", func(t *testing.T) {
