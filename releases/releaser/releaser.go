@@ -18,7 +18,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -62,13 +61,11 @@ type PublishParameters struct {
 }
 
 func (r *Releaser) Publish(ctx context.Context, params PublishParameters) error {
-	err := r.uploadBinaries(ctx, params)
-	if err != nil {
+	if err := r.uploadBinaries(ctx, params); err != nil {
 		return err
 	}
 
-	err = r.uploadChecksums(ctx, params)
-	if err != nil {
+	if err := r.uploadChecksums(ctx, params); err != nil {
 		return err
 	}
 
@@ -110,44 +107,35 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 		fmt.Printf("Uploading: %q\n", key)
 
 		//#nosec:G304 // Intentionally uploading file from disk
-		in, err := os.Open(path)
+		binaryFile, err := os.Open(path)
 		if err != nil {
 			return err
 		}
-		defer closer(in, &err)
-
-		g, _ := errgroup.WithContext(ctx)
-		defer func() {
-			ferr := g.Wait()
-			if ferr != nil {
-				err = ferr
-			}
-		}()
+		defer closer(binaryFile, &err)
 
 		pr, pw := io.Pipe()
 		defer closer(pw, &err)
 
-		g.Go(func() error {
-			_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
-				Bucket:          &params.Bucket,
-				Body:            pr,
-				Key:             &key,
-				ContentEncoding: &contentEncodingGZIP,
-				ContentType:     &contentTypeOctetStream,
-
-				Tagging: encodeTags(params.Tags),
-			})
-			if err != nil {
-				_ = pw.CloseWithError(err)
-				return err
+		go func() {
+			gz := gzip.NewWriter(pw)
+			if _, err := io.Copy(gz, binaryFile); err != nil {
+				pw.CloseWithError(err)
+				return
 			}
-			return nil
-		})
+			pw.CloseWithError(gz.Close())
+		}()
 
-		gz := gzip.NewWriter(pw)
-		defer closer(gz, &err)
+		putObjectInput := &s3.PutObjectInput{
+			Bucket:          &params.Bucket,
+			Body:            pr,
+			Key:             &key,
+			ContentEncoding: &contentEncodingGZIP,
+			ContentType:     &contentTypeOctetStream,
 
-		_, err = io.Copy(gz, in)
+			Tagging: encodeTags(params.Tags),
+		}
+
+		_, err = r.uploader.Upload(ctx, putObjectInput)
 		return err
 	})
 }
@@ -161,9 +149,7 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 		if err != nil {
 			return err
 		}
-		defer func() {
-			_ = f.Close()
-		}()
+		defer closer(f, &err)
 
 		h := sha256.New()
 		if _, err := io.Copy(h, f); err != nil {
@@ -172,6 +158,7 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 
 		fileName := strings.TrimPrefix(path, params.Path)
 		fileName = strings.TrimPrefix(fileName, string(os.PathSeparator))
+
 		_, err = fmt.Fprintf(&checksums, "%x *%s\n", h.Sum(nil), filepath.ToSlash(fileName))
 		return err
 	})
@@ -181,9 +168,9 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 
 	checksumsFile := filepath.Join(params.Path, "checksums.txt")
 	fmt.Printf("Writing: %q\n", checksumsFile)
+
 	//#nosec:G306 // These permissions are intentional
-	err = os.WriteFile(checksumsFile, checksums.Bytes(), 0644)
-	if err != nil {
+	if err := os.WriteFile(checksumsFile, checksums.Bytes(), 0o644); err != nil {
 		return err
 	}
 
@@ -198,7 +185,8 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 }
 
 func (r *Releaser) walkFiles(basePath string, includeFn func(path string, info os.FileInfo) bool,
-	observerFn func(path string, info os.FileInfo) error) error {
+	observerFn func(path string, info os.FileInfo) error,
+) error {
 	return filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
