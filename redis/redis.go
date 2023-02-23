@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 
 	"github.com/circleci/ex/config/secret"
 )
@@ -67,7 +67,7 @@ type Options struct {
 	MinIdleConns int
 	// Connection age at which client retires (closes) the connection.
 	// Default is to not close aged connections.
-	MaxConnAge time.Duration
+	ConnMaxLifetime time.Duration
 	// Amount of time client waits for connection if all connections
 	// are busy before returning an error.
 	// Default is ReadTimeout + 1 second.
@@ -75,12 +75,7 @@ type Options struct {
 	// Amount of time after which client closes idle connections.
 	// Should be less than server's timeout.
 	// Default is 5 minutes. -1 disables idle timeout check.
-	IdleTimeout time.Duration
-	// Frequency of idle checks made by idle connections reaper.
-	// Default is 1 minute. -1 disables idle connections reaper,
-	// but idle connections are still discarded by the client
-	// if IdleTimeout is set.
-	IdleCheckFrequency time.Duration
+	ConnMaxIdleTime time.Duration
 
 	TLS    bool
 	CAFunc func() *x509.CertPool
@@ -95,19 +90,18 @@ func New(o Options) *redis.Client {
 		Password: o.Password.Value(),
 		DB:       o.DB,
 
-		MaxRetries:         o.MaxRetries,
-		MinRetryBackoff:    o.MinRetryBackoff,
-		MaxRetryBackoff:    o.MaxRetryBackoff,
-		DialTimeout:        o.DialTimeout,
-		ReadTimeout:        o.ReadTimeout,
-		WriteTimeout:       o.WriteTimeout,
-		PoolFIFO:           o.PoolFIFO,
-		PoolSize:           o.PoolSize,
-		MinIdleConns:       o.MinIdleConns,
-		MaxConnAge:         o.MaxConnAge,
-		PoolTimeout:        o.PoolTimeout,
-		IdleTimeout:        o.IdleTimeout,
-		IdleCheckFrequency: o.IdleCheckFrequency,
+		MaxRetries:      o.MaxRetries,
+		MinRetryBackoff: o.MinRetryBackoff,
+		MaxRetryBackoff: o.MaxRetryBackoff,
+		DialTimeout:     o.DialTimeout,
+		ReadTimeout:     o.ReadTimeout,
+		WriteTimeout:    o.WriteTimeout,
+		PoolFIFO:        o.PoolFIFO,
+		PoolSize:        o.PoolSize,
+		MinIdleConns:    o.MinIdleConns,
+		ConnMaxLifetime: o.ConnMaxLifetime,
+		PoolTimeout:     o.PoolTimeout,
+		ConnMaxIdleTime: o.ConnMaxIdleTime,
 	}
 	if o.TLS {
 		var rootCAs *x509.CertPool
