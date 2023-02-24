@@ -21,6 +21,7 @@ import (
 	"gotest.tools/v3/fs"
 	"gotest.tools/v3/golden"
 
+	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/testing/miniofixture"
 )
 
@@ -57,7 +58,7 @@ func TestReleaser_Publish(t *testing.T) {
 			Key:    aws.String("app/0.0.1-dev/checksums.txt"),
 		})
 		assert.Assert(t, err)
-		defer resp.Body.Close()
+		defer closer.ErrorHandler(resp.Body, &err)
 
 		b, err := io.ReadAll(resp.Body)
 		assert.Assert(t, err)
@@ -118,7 +119,7 @@ func TestReleaser_Publish(t *testing.T) {
 						Key:    key,
 					})
 					assert.Assert(t, err)
-					defer resp.Body.Close()
+					defer closer.ErrorHandler(resp.Body, &err)
 
 					gz, err := gzip.NewReader(resp.Body)
 					assert.Assert(t, err)
@@ -193,7 +194,7 @@ func TestReleaser_Release(t *testing.T) {
 					Key:    aws.String(key),
 				})
 				assert.Assert(t, err)
-				defer resp.Body.Close()
+				defer closer.ErrorHandler(resp.Body, &err)
 
 				b, err := io.ReadAll(resp.Body)
 				assert.Assert(t, err)

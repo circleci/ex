@@ -17,6 +17,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/testing/fakemetrics"
 )
@@ -407,7 +408,7 @@ func honeycombServer(t *testing.T, cb func(string)) string {
 			t.Fatal("could not create zip reader", err)
 		}
 		defer reader.Close()
-		defer r.Body.Close()
+		defer closer.ErrorHandler(r.Body, &err)
 
 		b, err := io.ReadAll(reader)
 		if err != nil {

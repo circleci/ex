@@ -13,6 +13,8 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
+	"github.com/circleci/ex/closer"
 )
 
 func TestDial(t *testing.T) {
@@ -48,9 +50,10 @@ func TestDial(t *testing.T) {
 					},
 				}
 
+				//nolint:bodyclose // handled by closer
 				resp, err := c.Get("http://example.com:" + u.Port())
 				assert.Assert(t, err)
-				defer resp.Body.Close()
+				defer closer.ErrorHandler(resp.Body, &err)
 
 				b, err := io.ReadAll(resp.Body)
 				assert.Assert(t, err)

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/circleci/ex/closer"
 )
 
 type fwdProxy struct {
@@ -35,12 +37,13 @@ func (p *fwdProxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	t.DialContext = localhostDialler()
 	t.Proxy = nil
 
+	//nolint:bodyclose // handled by closer
 	resp, err := t.RoundTrip(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	defer resp.Body.Close()
+	defer closer.ErrorHandler(resp.Body, &err)
 	for k, vv := range w.Header() {
 		for _, v := range vv {
 			resp.Header.Add(k, v)

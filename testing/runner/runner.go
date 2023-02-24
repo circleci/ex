@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/internal/syncbuffer"
 )
 
@@ -270,12 +271,13 @@ func getPort(lines []string, serverName, ignore string) string {
 	return ""
 }
 
-func getReady(port int) error {
+func getReady(port int) (err error) {
+	//nolint:bodyclose // handled by closer
 	r, err := http.Get(fmt.Sprintf("http://localhost:%d/ready", port))
 	if err != nil {
 		return err
 	}
-	defer r.Body.Close() // not concerned about an error here
+	defer closer.ErrorHandler(r.Body, &err)
 	if r.StatusCode != 200 {
 		b, _ := io.ReadAll(r.Body)
 		return fmt.Errorf("got non 200 response: %d: %s", r.StatusCode, b)
