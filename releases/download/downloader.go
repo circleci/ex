@@ -13,6 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/circleci/ex/closer"
 )
 
 type Downloader struct {
@@ -108,31 +110,31 @@ func isCached(target string) bool {
 	return !info.IsDir()
 }
 
-func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm os.FileMode) error {
-	err := os.MkdirAll(filepath.Dir(target), 0755) // #nosec - the downloads are intentionally world-readable
+func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm os.FileMode) (err error) {
+	err = os.MkdirAll(filepath.Dir(target), 0755) // #nosec - the downloads are intentionally world-readable
 	if err != nil {
 		return fmt.Errorf("could not create directory: %w", err)
 	}
 
-	// #nosec - this is an executable binary, these permissions are needed.
+	//#nosec:G304 // this is an executable binary, these permissions are needed.
+	//nolint:bodyclose // handled by closer
 	out, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
 	if err != nil {
 		return fmt.Errorf("could not create file: %w", err)
 	}
-	defer func() {
-		err = out.Close()
-	}()
+	defer closer.ErrorHandler(out, &err)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("cannot create HTTP request: %w", err)
 	}
 
+	//nolint:bodyclose // handled by closer
 	res, err := d.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("could not get URL %q: %w", url, err)
 	}
-	defer res.Body.Close()
+	defer closer.ErrorHandler(res.Body, &err)
 
 	if res.StatusCode >= 300 {
 		return fmt.Errorf("unexpected status: %s", res.Status)
@@ -142,5 +144,6 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 	if err != nil {
 		return fmt.Errorf("could not write file %q: %w", target, err)
 	}
+
 	return nil
 }

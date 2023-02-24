@@ -12,6 +12,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
+	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/testing/testcontext"
 )
 
@@ -59,12 +60,13 @@ func TestTrackedListener(t *testing.T) {
 
 	// fire off all the requests - knowing that the
 	for i := 0; i < concurrency; i++ {
-		g.Go(func() error {
+		g.Go(func() (err error) {
+			//nolint:bodyclose // handled by closer
 			r, err := cl.Get(fmt.Sprintf("http://%s", s.Addr()))
 			if err != nil {
 				return err
 			}
-			defer r.Body.Close()
+			defer closer.ErrorHandler(r.Body, &err)
 			return nil
 		})
 	}

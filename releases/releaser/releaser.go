@@ -19,6 +19,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/circleci/ex/closer"
 )
 
 var (
@@ -114,7 +116,7 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 		if err != nil {
 			return err
 		}
-		defer closer(in, &err)
+		defer closer.ErrorHandler(in, &err)
 
 		g, _ := errgroup.WithContext(ctx)
 		defer func() {
@@ -125,7 +127,7 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 		}()
 
 		pr, pw := io.Pipe()
-		defer closer(pw, &err)
+		defer closer.ErrorHandler(pw, &err)
 
 		g.Go(func() error {
 			_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
@@ -145,7 +147,7 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 		})
 
 		gz := gzip.NewWriter(pw)
-		defer closer(gz, &err)
+		defer closer.ErrorHandler(gz, &err)
 
 		_, err = io.Copy(gz, in)
 		return err
@@ -230,11 +232,4 @@ func encodeTags(tags map[string]string) *string {
 	}
 	encoded := params.Encode()
 	return &encoded
-}
-
-func closer(r io.Closer, in *error) {
-	ferr := r.Close()
-	if *in == nil {
-		*in = ferr
-	}
 }

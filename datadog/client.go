@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/circleci/ex/closer"
 )
 
 type Client struct {
@@ -201,11 +203,12 @@ func (c *Client) doRequest(req *http.Request, value interface{}, meta *ResponseM
 		req.Header.Set("DD-APPLICATION-KEY", c.AppKey)
 	}
 
+	//nolint:bodyclose // handled by closer
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to execute HTTP request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer closer.ErrorHandler(resp.Body, &err)
 
 	if meta != nil {
 		err = meta.RateLimit.LoadFromHeader(&resp.Header)
