@@ -99,3 +99,5 @@ require (
 	gopkg.in/alexcesaro/statsd.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/rollbar/rollbar-go v1.4.5 => github.com/DominicLavery/rollbar-go v0.0.0-20230301112728-27c4b6bcb1e2
