@@ -18,7 +18,7 @@ require (
 	github.com/honeycombio/dynsampler-go v0.3.0
 	github.com/honeycombio/libhoney-go v1.18.0
 	github.com/jackc/pgconn v1.14.0
-	github.com/jackc/pgx/v4 v4.18.0
+	github.com/jackc/pgx/v4 v4.18.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/klauspost/compress v1.16.0
