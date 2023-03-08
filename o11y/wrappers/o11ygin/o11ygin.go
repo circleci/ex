@@ -88,12 +88,22 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 	}
 }
 
+// ClientCancelled is a gin middleware that will trap a request context cancellation
+// and return a 499 (a.la. nginx).
+// If the response has already been written to, for example setting a status code, then
+// that code will be honoured.
 func ClientCancelled() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		defer func() {
 			if errors.Is(ctx.Err(), context.Canceled) {
 				c.Status(499)
+				return
+			}
+			// check whether there were any errors within the gin handling, for instance
+			// during rendering, and make a not on any active span
+			if len(c.Errors) > 0 {
+				o11y.AddField(ctx, "gin_internal_error", c.Errors)
 			}
 		}()
 		c.Next()

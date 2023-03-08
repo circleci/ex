@@ -1,7 +1,10 @@
 package o11ygin
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,6 +21,7 @@ import (
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/testing/fakemetrics"
+	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestMiddleware(t *testing.T) {
@@ -251,3 +255,125 @@ func TestClientCancelled(t *testing.T) {
 		assert.Check(t, cmp.ErrorIs(err, context.DeadlineExceeded))
 	})
 }
+
+func TestClientContextCancelled(t *testing.T) {
+	m := &fakemetrics.Provider{}
+
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: m,
+	}))
+
+	serverCtx, cancel := context.WithCancel(testcontext.Background())
+	defer cancel()
+
+	testContextCancel := func(t *testing.T, code int) {
+		r := gin.New()
+		r.Use(
+			// We need to be able to cancel the request context separately from the call context
+			// since if we cancelled the context in the call we would not see the response code.
+			func(c *gin.Context) {
+				c.Request = c.Request.Clone(serverCtx)
+				c.Next()
+			},
+			Middleware(o11y.FromContext(ctx), "test-server", nil),
+			Recovery(),
+			ClientCancelled(),
+		)
+		r.UseRawPath = true
+
+		continueCall := make(chan struct{})
+		inCall := make(chan struct{})
+		r.GET("/500", func(c *gin.Context) {
+			close(inCall)
+			<-continueCall
+			c.JSON(code, gin.H{"message": "ise"})
+		})
+		r.GET("/499", func(c *gin.Context) {
+			close(inCall)
+			<-continueCall
+			// note - no explicit response - to allow ClientCancelled middleware to set the status code.
+		})
+
+		server := httptest.NewServer(r)
+		t.Cleanup(server.Close)
+
+		client := httpclient.New(httpclient.Config{
+			Name:    "test",
+			BaseURL: server.URL,
+			Timeout: 10 * time.Millisecond,
+		})
+
+		req := httpclient.NewRequest("GET", fmt.Sprintf("/%d", code))
+		callCh := make(chan error)
+		defer func() { close(callCh) }()
+
+		go func() {
+			callCh <- client.Call(ctx, req)
+		}()
+		<-inCall
+		cancel()
+		close(continueCall)
+
+		select {
+		case err := <-callCh:
+			assert.Check(t, httpclient.HasStatusCode(err, code), err)
+		case <-time.After(time.Second):
+			t.Errorf("something is not quite right, got a 1s timeout for - %d", code)
+		}
+	}
+
+	t.Run("explicit-response", func(t *testing.T) {
+		testContextCancel(t, 500)
+	})
+
+	t.Run("no-response", func(t *testing.T) {
+		testContextCancel(t, 499)
+	})
+}
+
+func TestRenderError(t *testing.T) {
+	m := &fakemetrics.Provider{}
+
+	buf := bytes.Buffer{}
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: m,
+		Writer:  &buf,
+	}))
+
+	r := gin.New()
+	r.Use(
+		Middleware(o11y.FromContext(ctx), "test-server", nil),
+		ClientCancelled(),
+	)
+	r.UseRawPath = true
+
+	r.GET("/", func(c *gin.Context) {
+		c.Render(200, errorRenderer{})
+	})
+
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+
+	client := httpclient.New(httpclient.Config{
+		Name:    "test",
+		BaseURL: server.URL,
+		Timeout: 10 * time.Millisecond,
+	})
+
+	req := httpclient.NewRequest("GET", "/")
+	assert.Check(t, client.Call(ctx, req))
+
+	// check that the middleware added an error field
+	assert.Check(t, cmp.Contains(buf.String(), "writer failure"))
+	assert.Check(t, cmp.Contains(buf.String(), "app.gin_internal_error"))
+}
+
+type errorRenderer struct{}
+
+func (e errorRenderer) Render(_ http.ResponseWriter) error {
+	return errors.New("writer failure")
+}
+
+func (e errorRenderer) WriteContentType(_ http.ResponseWriter) {}
