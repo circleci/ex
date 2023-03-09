@@ -128,6 +128,7 @@ func (r Releaser) build(ctx context.Context, source, workingDir string) (func(),
 				Source: source,
 				Target: workingDir,
 				Environment: []string{
+					"CGO_ENABLED=0",
 					"GOOS=" + os,
 					"GOARCH=" + arch,
 				},
