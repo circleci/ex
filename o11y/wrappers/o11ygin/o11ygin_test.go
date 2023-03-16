@@ -5,8 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,9 +18,11 @@ import (
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/httpserver"
+	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/testing/fakemetrics"
@@ -207,36 +212,39 @@ func TestMiddleware(t *testing.T) {
 func TestClientCancelled(t *testing.T) {
 	m := &fakemetrics.Provider{}
 
+	var b syncbuffer.SyncBuffer
+	w := io.MultiWriter(os.Stdout, &b)
 	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
 		Format:  "color",
 		Metrics: m,
+		Writer:  w,
 	}))
 
 	r := gin.New()
 	r.Use(
 		Middleware(o11y.FromContext(ctx), "test-server", nil),
 		Recovery(),
+		ClientCancelled(),
 	)
 	r.UseRawPath = true
-
-	r.Use(func(c *gin.Context) {
-		c.Next()
-		if c.Request.URL.Path == "/sleep" {
-			assert.Check(t, c.Writer.Status() == 499)
-		}
-	})
-	r.Use(ClientCancelled())
 
 	r.GET("/", func(c *gin.Context) {
 		c.Status(200)
 	})
 	r.GET("/sleep", func(c *gin.Context) {
-		time.Sleep(time.Second)
-		c.Status(200)
+		ctx := c.Request.Context()
+		t := time.NewTimer(10 * time.Second)
+		defer t.Stop()
+		select {
+		case <-t.C:
+			c.Status(200)
+		case <-ctx.Done():
+			c.JSON(500, gin.H{})
+		}
 	})
 
 	server := httptest.NewServer(r)
-	t.Cleanup(server.Close)
+	defer server.Close()
 
 	client := httpclient.New(httpclient.Config{
 		Name:    "test",
@@ -245,14 +253,28 @@ func TestClientCancelled(t *testing.T) {
 	})
 
 	t.Run("success", func(t *testing.T) {
+		b.Reset()
 		req := httpclient.NewRequest("GET", "/")
 		assert.Assert(t, client.Call(ctx, req))
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if !strings.Contains(b.String(), "http.status_code=200") {
+				return poll.Continue("expected status not found")
+			}
+			return poll.Success()
+		})
 	})
 
 	t.Run("cancel", func(t *testing.T) {
-		req := httpclient.NewRequest("GET", "/sleep", httpclient.Timeout(time.Millisecond))
+		b.Reset()
+		req := httpclient.NewRequest("GET", "/sleep", httpclient.Timeout(100*time.Millisecond))
 		err := client.Call(ctx, req)
 		assert.Check(t, cmp.ErrorIs(err, context.DeadlineExceeded))
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if !strings.Contains(b.String(), "http.status_code=499") {
+				return poll.Continue("expected status not found")
+			}
+			return poll.Success()
+		})
 	})
 }
 
