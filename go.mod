@@ -27,7 +27,7 @@ require (
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rollbar/rollbar-go v1.4.5
 	github.com/vmihailenco/go-tinylfu v0.2.2
-	go.mongodb.org/mongo-driver v1.11.2
+	go.mongodb.org/mongo-driver v1.11.3
 	golang.org/x/net v0.8.0
 	golang.org/x/sync v0.1.0
 	google.golang.org/grpc v1.53.0
