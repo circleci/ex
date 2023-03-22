@@ -94,7 +94,7 @@ func (r *Releaser) Release(ctx context.Context, params ReleaseParameters) error 
 		params.Environment = "release"
 	}
 
-	key := filepath.Join(params.App, params.Environment+".txt")
+	key := filepath.ToSlash(filepath.Join(params.App, params.Environment+".txt"))
 	fmt.Printf("Releasing: %q - %s\n", key, params.Version)
 	_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &params.Bucket,
