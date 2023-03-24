@@ -3,6 +3,7 @@ package redisfixture
 import (
 	"context"
 	"hash/fnv"
+	"math/rand"
 	"strconv"
 	"sync"
 
@@ -101,5 +102,7 @@ func readDatabasesCount(ctx context.Context, t types.TestingTB, con Connection) 
 func hash(s string, databaseCount uint32) int {
 	h := fnv.New32()
 	_, _ = h.Write([]byte(s))
-	return int(h.Sum32() % databaseCount)
+	//#nosec:G404 // this is fixture
+	r := rand.Uint32()
+	return int((h.Sum32()+r)%(databaseCount-1)) + 1
 }
