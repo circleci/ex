@@ -23,8 +23,12 @@ services:
       MONGO_INITDB_DATABASE: dbname
 
   redis:
-    image: circleci/redis:5.0.6-alpine
-    command: ["--databases", "1000000"]
+    image: cimg/redis:7.0
+    command: [
+      "redis-server",
+      "--protected-mode", "no",
+      "--databases", "1000000",
+    ]
     ports:
       - '127.0.0.1:6379:6379'
 
