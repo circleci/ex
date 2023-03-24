@@ -15,7 +15,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/hellofresh/health-go/v4 v4.7.0
 	github.com/honeycombio/beeline-go v1.11.1
-	github.com/honeycombio/dynsampler-go v0.3.0
+	github.com/honeycombio/dynsampler-go v0.4.0
 	github.com/honeycombio/libhoney-go v1.18.0
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.1
