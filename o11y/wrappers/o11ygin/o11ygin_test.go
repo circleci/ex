@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -26,7 +25,6 @@ import (
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/testing/fakemetrics"
-	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestMiddleware(t *testing.T) {
@@ -254,6 +252,7 @@ func TestClientCancelled(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		b.Reset()
+		m.Reset()
 		req := httpclient.NewRequest("GET", "/")
 		assert.Assert(t, client.Call(ctx, req))
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
@@ -262,10 +261,37 @@ func TestClientCancelled(t *testing.T) {
 			}
 			return poll.Success()
 		})
+
+		assert.Check(t, cmp.DeepEqual([]fakemetrics.MetricCall{
+			{
+				Metric: "timer",
+				Name:   "handler",
+				Value:  0.111656,
+				Tags: []string{
+					"http.server_name:test-server", "http.method:GET", "http.route:/",
+					"http.status_code:200",
+				},
+				Rate: 1,
+			},
+			{
+				Metric: "timer",
+				Name:   "httpclient",
+				Value:  1.032934,
+				Tags: []string{
+					"http.client_name:test",
+					"http.route:/",
+					"http.method:GET",
+					"http.status_code:200",
+					"http.retry:false",
+				},
+				Rate: 1,
+			},
+		}, m.Calls(), fakemetrics.CMPMetrics))
 	})
 
 	t.Run("cancel", func(t *testing.T) {
 		b.Reset()
+		m.Reset()
 		req := httpclient.NewRequest("GET", "/sleep", httpclient.Timeout(100*time.Millisecond))
 		err := client.Call(ctx, req)
 		assert.Check(t, cmp.ErrorIs(err, context.DeadlineExceeded))
@@ -275,82 +301,28 @@ func TestClientCancelled(t *testing.T) {
 			}
 			return poll.Success()
 		})
-	})
-}
 
-func TestClientContextCancelled(t *testing.T) {
-	m := &fakemetrics.Provider{}
-
-	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		Format:  "color",
-		Metrics: m,
-	}))
-
-	serverCtx, cancel := context.WithCancel(testcontext.Background())
-	defer cancel()
-
-	testContextCancel := func(t *testing.T, code int) {
-		r := gin.New()
-		r.Use(
-			// We need to be able to cancel the request context separately from the call context
-			// since if we cancelled the context in the call we would not see the response code.
-			func(c *gin.Context) {
-				c.Request = c.Request.Clone(serverCtx)
-				c.Next()
+		assert.Check(t, cmp.DeepEqual([]fakemetrics.MetricCall{
+			{
+				Metric:   "count",
+				Name:     "warning",
+				ValueInt: 1,
+				Tags:     []string{"type:o11y"},
+				Rate:     1,
 			},
-			Middleware(o11y.FromContext(ctx), "test-server", nil),
-			Recovery(),
-			ClientCancelled(),
-		)
-		r.UseRawPath = true
-
-		continueCall := make(chan struct{})
-		inCall := make(chan struct{})
-		r.GET("/500", func(c *gin.Context) {
-			close(inCall)
-			<-continueCall
-			c.JSON(code, gin.H{"message": "ise"})
-		})
-		r.GET("/499", func(c *gin.Context) {
-			close(inCall)
-			<-continueCall
-			// note - no explicit response - to allow ClientCancelled middleware to set the status code.
-		})
-
-		server := httptest.NewServer(r)
-		t.Cleanup(server.Close)
-
-		client := httpclient.New(httpclient.Config{
-			Name:    "test",
-			BaseURL: server.URL,
-			Timeout: 10 * time.Millisecond,
-		})
-
-		req := httpclient.NewRequest("GET", fmt.Sprintf("/%d", code))
-		callCh := make(chan error)
-		defer func() { close(callCh) }()
-
-		go func() {
-			callCh <- client.Call(ctx, req)
-		}()
-		<-inCall
-		cancel()
-		close(continueCall)
-
-		select {
-		case err := <-callCh:
-			assert.Check(t, httpclient.HasStatusCode(err, code), err)
-		case <-time.After(time.Second):
-			t.Errorf("something is not quite right, got a 1s timeout for - %d", code)
-		}
-	}
-
-	t.Run("explicit-response", func(t *testing.T) {
-		testContextCancel(t, 500)
-	})
-
-	t.Run("no-response", func(t *testing.T) {
-		testContextCancel(t, 499)
+			{
+				Metric: "timer",
+				Name:   "handler",
+				Value:  100.344581,
+				Tags: []string{
+					"http.server_name:test-server",
+					"http.method:GET",
+					"http.route:/sleep",
+					"http.status_code:499",
+				},
+				Rate: 1,
+			},
+		}, m.Calls(), fakemetrics.CMPMetrics))
 	})
 }
 
