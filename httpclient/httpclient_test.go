@@ -388,6 +388,39 @@ func TestClient_Call_SetQuery(t *testing.T) {
 	}))
 }
 
+func TestClient_Call_SetRawQuery(t *testing.T) {
+	ctx := context.Background()
+	recorder := httprecorder.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = recorder.Record(r)
+		w.WriteHeader(200)
+	}))
+
+	client := httpclient.New(httpclient.Config{
+		Name:      "context-cancel",
+		BaseURL:   server.URL,
+		Timeout:   10 * time.Second,
+		UserAgent: "Foo",
+	})
+	err := client.Call(ctx, httpclient.NewRequest("POST", "/",
+		httpclient.QueryParam("foo", "banana"),
+		httpclient.QueryParam("extra", "value"),
+		httpclient.RawQuery("foo=bar"),
+	))
+	assert.Check(t, err)
+	assert.Check(t, cmp.DeepEqual(recorder.LastRequest(), &httprecorder.Request{
+		Method: "POST",
+		URL:    url.URL{Path: "/", RawQuery: "foo=bar"},
+		Header: http.Header{
+			"Accept-Encoding": {"gzip"},
+			"Content-Length":  {"0"},
+			"User-Agent":      {"Foo"},
+			// since there is no o11y provider on the context there should be no propagation headers
+		},
+		Body: []uint8{},
+	}))
+}
+
 func TestClient_ConnectionPool(t *testing.T) {
 	ctx, cancel := context.WithCancel(testcontext.Background())
 
