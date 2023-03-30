@@ -164,6 +164,7 @@ type Request struct {
 	timeout  time.Duration // The individual per call timeout
 	retry    bool
 	query    url.Values
+	rawquery string
 
 	// We want to prevent HTTP GETs with body or rawBody due to incompatibilities with CloudFront WAF which API Infra
 	// are introducing. In order to facilitate a migration for runner we need to be able to override this. This can be
@@ -293,6 +294,13 @@ func Headers(headers map[string]string) func(*Request) {
 	}
 }
 
+// RawQuery sets the unmodified raw query
+func RawQuery(rawquery string) func(*Request) {
+	return func(r *Request) {
+		r.rawquery = rawquery
+	}
+}
+
 // QueryParam sets one query param for the request
 func QueryParam(key, value string) func(*Request) {
 	return func(r *Request) {
@@ -364,7 +372,11 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	if err != nil {
 		return err
 	}
-	u.RawQuery = r.query.Encode() // returns "" if query is nil
+	if r.rawquery == "" {
+		u.RawQuery = r.query.Encode() // returns "" if query is nil
+	} else {
+		u.RawQuery = r.rawquery
+	}
 
 	newRequestFn := func() (*http.Request, error) {
 		req, err := http.NewRequest(r.method, u.String(), nil)
