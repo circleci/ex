@@ -3,6 +3,7 @@ package o11y
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -37,6 +38,7 @@ type Config struct {
 	Debug                   bool
 	RollbarDisabled         bool
 	StatsdTelemetryDisabled bool
+	Writer                  io.Writer
 }
 
 // Setup is the primary entrypoint to initialise the o11y system.
@@ -140,6 +142,7 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 		SampleRates:   o.SampleRates,
 		ServiceName:   o.Service,
 		Debug:         o.Debug,
+		Writer:        o.Writer,
 	}
 	return conf, conf.Validate()
 }

@@ -105,3 +105,17 @@ func TestSetup_Wiring(t *testing.T) {
 		assert.Check(t, cmp.Contains(metric.Tags, "mytag:myvalue"))
 	})
 }
+
+func TestSetup_WithWriter(t *testing.T) {
+	buf := bytes.Buffer{}
+	ctx := context.Background()
+	ctx, cleanup, err := Setup(ctx, Config{
+		Writer: &buf,
+	})
+	assert.Assert(t, err)
+	defer cleanup(ctx)
+
+	o11y.Log(ctx, "some log output")
+
+	assert.Check(t, cmp.Contains(buf.String(), "some log output"))
+}
