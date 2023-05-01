@@ -90,6 +90,33 @@ VALUES (:id,:name,:height,:dob,:password,:raw);
 			assert.DeepEqual(t, p, person1)
 		})
 
+		t.Run("insert named returning", func(t *testing.T) {
+			person3 := person{
+				ID:       "id3",
+				Name:     "ben",
+				Height:   185,
+				DOB:      time.Date(1998, 7, 5, 0, 0, 0, 0, time.UTC),
+				Password: "correct horse battery staple",
+				Raw:      json.RawMessage(`{"help": "me"}`), // note the space
+			}
+
+			p := person{}
+			const sql = `
+INSERT INTO peeps 
+(id,name,height,dob,password,raw) 
+VALUES (:id,:name,:height,:dob,:password,:raw)
+RETURNING id,name;
+`
+			err := fix.TX.WithTx(ctx, func(ctx context.Context, q db.Querier) error {
+				return q.NamedGetContext(ctx, &p, sql, person3)
+			})
+			assert.Assert(t, err)
+			assert.DeepEqual(t, p, person{
+				ID:   "id3",
+				Name: "ben",
+			})
+		})
+
 		t.Run("get named db", func(t *testing.T) {
 			p := person{}
 			pars := struct{ ID string }{ID: "id1"}
