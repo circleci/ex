@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -54,6 +55,9 @@ func TestDownloadLatest(t *testing.T) {
 			Dir:     dir,
 		})
 		assert.Assert(t, err)
+
+		// Check that we don't double up the which path
+		assert.Check(t, !strings.Contains(path, "my-app/my-app"))
 
 		b, err := os.ReadFile(path) //nolint:gosec // it's a test file we just created
 		assert.Assert(t, err)
