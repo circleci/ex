@@ -3,7 +3,6 @@ package releases
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -62,7 +61,7 @@ func DownloadLatest(ctx context.Context, conf DownloadConfig) (string, error) {
 		conf.Dir = "../bin"
 	}
 
-	dl, err := download.NewDownloader(time.Minute, filepath.Join(conf.Dir, conf.Which))
+	dl, err := download.NewDownloader(time.Minute, conf.Dir)
 	if err != nil {
 		return "", fmt.Errorf("download failed: %w", err)
 	}
