@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/circleci/ex/releases/download"
@@ -69,8 +70,9 @@ func DownloadLatest(ctx context.Context, conf DownloadConfig) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("download (%s) problem: %w", testBinURL, err)
 	}
-	if runtime.GOOS == "windows" {
-		path += ".exe"
+	const winExeExtension = ".exe"
+	if runtime.GOOS == "windows" && !strings.HasSuffix(path, winExeExtension) {
+		path += winExeExtension
 	}
 	return path, nil
 }
