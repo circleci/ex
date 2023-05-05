@@ -29,7 +29,7 @@ require (
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.mongodb.org/mongo-driver v1.11.6
 	golang.org/x/net v0.9.0
-	golang.org/x/sync v0.1.0
+	golang.org/x/sync v0.2.0
 	google.golang.org/grpc v1.54.0
 	google.golang.org/protobuf v1.30.0
 	gotest.tools/v3 v3.4.0
