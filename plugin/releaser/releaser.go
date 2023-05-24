@@ -114,6 +114,7 @@ func (r Releaser) Run(ctx context.Context, opts Opts) error {
 func (r Releaser) build(ctx context.Context, source, workingDir string) (func(), error) {
 	comp := compiler.New(compiler.Config{
 		BaseDir: r.buildDir,
+		LDFlags: "-s -w", // remove debug information from released binaries
 	})
 
 	cleanup := func() {
