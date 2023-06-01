@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-go/statsd"
 	"github.com/makasim/amqpextra"
 	"github.com/makasim/amqpextra/consumer"
 	"github.com/makasim/amqpextra/publisher"
@@ -20,14 +21,14 @@ import (
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
+	"github.com/circleci/ex/testing/fakestatsd"
 	"github.com/circleci/ex/testing/rabbitfixture"
-	"github.com/circleci/ex/testing/testcontext"
 )
 
 const queueName = "queue-name"
 
 func TestPublisherPool_PublishJSON(t *testing.T) {
-	ctx := testcontext.Background()
+	ctx, metricsFixture := newMetricsFixture(t)
 
 	u := rabbitfixture.New(ctx, t)
 	consumerDialer := createQueueAndListener(ctx, t, u)
@@ -65,6 +66,57 @@ func TestPublisherPool_PublishJSON(t *testing.T) {
 			return true
 		})
 		assert.Check(t, cmp.DeepEqual(`{"a":"value-of-a","b":1234}`, got))
+	})
+
+	t.Run("Check metrics", func(t *testing.T) {
+		gotMetric := metricsFixture.waitForMetric(t)
+		expectedTags := []string{"exchange:", "key:queue-name", "content_type:application/json; charset=utf-8"}
+		assert.Check(t, cmp.DeepEqual(expectedTags, gotMetric.Tags))
+	})
+}
+
+func TestPublisherPool_Publish(t *testing.T) {
+	ctx, metricsFixture := newMetricsFixture(t)
+
+	u := rabbitfixture.New(ctx, t)
+	consumerDialer := createQueueAndListener(ctx, t, u)
+
+	var received sync.Map
+	setupConsumer(ctx, t, consumerDialer, &received)
+	pool := createPool(ctx, t, u)
+
+	t.Run("Send JSON message", func(t *testing.T) {
+		err := pool.Publish(ctx, publisher.Message{
+			Key: queueName,
+			Publishing: amqp.Publishing{
+				ContentType: "text/plain",
+				Body:        []byte("hello rabbit"),
+			},
+		})
+		assert.Check(t, err)
+	})
+
+	t.Run("Check message was received", func(t *testing.T) {
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			size := syncMapLen(&received)
+			if size != 1 {
+				return poll.Continue("not enough messages received: %d", size)
+			}
+			return poll.Success()
+		})
+
+		got := ""
+		received.Range(func(k, _ interface{}) bool {
+			got = k.(string)
+			return true
+		})
+		assert.Check(t, cmp.DeepEqual("hello rabbit", got))
+	})
+
+	t.Run("Check metrics", func(t *testing.T) {
+		gotMetric := metricsFixture.waitForMetric(t)
+		expectedTags := []string{"exchange:", "key:queue-name", "content_type:text/plain"}
+		assert.Check(t, cmp.DeepEqual(expectedTags, gotMetric.Tags))
 	})
 }
 
@@ -221,4 +273,35 @@ func syncMapLen(received *sync.Map) int {
 		return true
 	})
 	return receivedCount
+}
+
+type metricsFixture struct {
+	s *fakestatsd.FakeStatsd
+}
+
+func newMetricsFixture(t *testing.T) (context.Context, metricsFixture) {
+	m := metricsFixture{
+		s: fakestatsd.New(t),
+	}
+	stats, err := statsd.New(m.s.Addr())
+	assert.Assert(t, err)
+
+	return o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: stats,
+	})), m
+}
+
+func (m *metricsFixture) waitForMetric(t *testing.T) fakestatsd.Metric {
+	var metric fakestatsd.Metric
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		for _, m := range m.s.Metrics() {
+			if m.Name == "pool.publish" {
+				metric = m
+				return poll.Success()
+			}
+		}
+		return poll.Continue("no pool.publish metric found yet")
+	}, poll.WithTimeout(time.Second))
+	return metric
 }

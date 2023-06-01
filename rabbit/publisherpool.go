@@ -69,6 +69,8 @@ func (p *PublisherPool) Publish(ctx context.Context, msg publisher.Message) (err
 	span.AddField("key", msg.Key)
 	span.AddField("content_type", msg.Publishing.ContentType)
 
+	span.RecordMetric(o11y.Timing("pool.publish", "exchange", "key", "content_type"))
+
 	return p.publish(ctx, msg)
 }
 
@@ -80,6 +82,8 @@ func (p *PublisherPool) PublishJSON(ctx context.Context, msg publisher.Message, 
 	span.AddField("exchange", msg.Exchange)
 	span.AddField("key", msg.Key)
 	span.AddField("content_type", JSON)
+
+	span.RecordMetric(o11y.Timing("pool.publish", "exchange", "key", "content_type"))
 
 	msg.Publishing.ContentType = JSON
 	msg.Publishing.Body, err = json.Marshal(v)
