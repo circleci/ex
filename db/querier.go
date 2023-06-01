@@ -36,4 +36,6 @@ type Querier interface {
 	// (If you expect (or want) a single row in the response use GetContext instead.)
 	// This method never returns sql.ErrNoRows, instead the dest slice will be empty.
 	SelectContext(ctx context.Context, dest interface{}, query string, args ...interface{}) error
+
+	NamedSelectContext(ctx context.Context, dest interface{}, query string, arg interface{}) error
 }

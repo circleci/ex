@@ -31,15 +31,17 @@ func TestDB(t *testing.T) {
 	ADD CONSTRAINT birbs_fk FOREIGN KEY (peep_id) REFERENCES peeps(id);`
 	fix := dbfixture.SetupDB(ctx, t, schema, conn)
 
+	type person struct {
+		ID       string
+		Name     string
+		Height   int
+		DOB      time.Time
+		Password secret.String
+		Raw      json.RawMessage
+	}
+
 	t.Run("statements", func(t *testing.T) {
-		type person struct {
-			ID       string
-			Name     string
-			Height   int
-			DOB      time.Time
-			Password secret.String
-			Raw      json.RawMessage
-		}
+
 		// add a person
 		person1 := person{
 			ID:       "id1",
@@ -50,7 +52,6 @@ func TestDB(t *testing.T) {
 			Raw:      json.RawMessage(`{"help": "me"}`), // note the space
 		}
 		err := fix.TX.WithTx(ctx, func(ctx context.Context, q db.Querier) error {
-
 			const sql = `
 INSERT INTO peeps 
 (id,name,height,dob,password,raw) 
@@ -78,6 +79,42 @@ VALUES (:id,:name,:height,:dob,:password,:raw);
 			err = fix.TX.NoTx().SelectContext(ctx, &ps, q, []string{"id1", "id2"})
 			assert.Assert(t, err)
 			assert.DeepEqual(t, p, ps[0])
+		})
+
+		t.Run("insert returning", func(t *testing.T) {
+			peepsToInsert := []person{
+				{
+					ID:       "id2",
+					Name:     "ben",
+					Height:   187,
+					DOB:      time.Date(1998, 7, 5, 0, 0, 0, 0, time.UTC),
+					Password: "correct horse battery staple",
+					Raw:      json.RawMessage(`{"help": "us"}`),
+				},
+				{
+					ID:       "id3",
+					Name:     "bill",
+					Height:   187,
+					DOB:      time.Date(1998, 7, 6, 0, 0, 0, 0, time.UTC),
+					Password: "pa55w0rd",
+					Raw:      json.RawMessage(`{"help": "you"}`),
+				},
+			}
+
+			var ps []person
+			const sql = `
+INSERT INTO peeps 
+(id,name,height,dob,password,raw) 
+VALUES (:id,:name,:height,:dob,:password,:raw)
+RETURNING id,name;
+`
+			err = fix.TX.WithTx(ctx, func(ctx context.Context, q db.Querier) error {
+				return q.NamedSelectContext(ctx, &ps, sql, peepsToInsert)
+			})
+			assert.Assert(t, err)
+			assert.Assert(t, cmp.Equal(2, len(ps)))
+			assert.Check(t, cmp.Equal(ps[0].ID, "id2"))
+			assert.Check(t, cmp.Equal(ps[1].ID, "id3"))
 		})
 
 		t.Run("get named", func(t *testing.T) {
@@ -143,6 +180,7 @@ RETURNING id,name;
 			Name:   "bob",
 			PeepID: "not-exist",
 		}
+
 		t.Run("fk violation", func(t *testing.T) {
 			const sql = "INSERT INTO birbs (id,name, peep_id) VALUES (:id,:name,:peepid);"
 			_, err := fix.TX.NoTx().NamedExecContext(ctx, sql, birb1)

@@ -41,6 +41,15 @@ func (u unifiedQuerier) NamedExecContext(ctx context.Context, query string, arg 
 	return result, mapExecErrors(err, result)
 }
 
+func (u unifiedQuerier) NamedSelectContext(ctx context.Context, dest interface{}, query string, arg interface{}) error {
+	err := u.q.NamedSelectContext(ctx, dest, query, arg)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNop
+	}
+	_, err = mapError(err)
+	return err
+}
+
 func (u unifiedQuerier) SelectContext(ctx context.Context,
 	dest interface{}, query string, args ...interface{}) error {
 
