@@ -9,6 +9,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/cenkalti/backoff/v4"
+	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/rollbar/rollbar-go"
 
 	"github.com/circleci/ex/config/secret"
@@ -39,9 +40,15 @@ type Config struct {
 	RollbarDisabled         bool
 	StatsdTelemetryDisabled bool
 	Writer                  io.Writer
+	// Sender allows setting a custom honeycomb sender, Typically the build-in one is preferred.
+	Sender transmission.Sender
+	// Metrics allows setting a custom metrics client. Typically setting Statsd/StatsNamespace is preferred
+	Metrics o11y.ClosableMetricsProvider
 }
 
-// Setup is the primary entrypoint to initialise the o11y system.
+// Setup is the primary entrypoint to initialize the o11y system.
+//
+//nolint:funlen
 func Setup(ctx context.Context, o Config) (context.Context, func(context.Context), error) {
 	honeyConfig, err := honeyComb(o)
 	if err != nil {
@@ -50,7 +57,9 @@ func Setup(ctx context.Context, o Config) (context.Context, func(context.Context
 
 	hostname, _ := os.Hostname()
 
-	if o.Statsd == "" {
+	if o.Metrics != nil {
+		honeyConfig.Metrics = o.Metrics
+	} else if o.Statsd == "" {
 		honeyConfig.Metrics = &statsd.NoOpClient{}
 	} else {
 		tags := []string{
@@ -143,6 +152,7 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 		ServiceName:   o.Service,
 		Debug:         o.Debug,
 		Writer:        o.Writer,
+		Sender:        o.Sender,
 	}
 	return conf, conf.Validate()
 }
