@@ -72,6 +72,9 @@ issues:
     # We don't require package docs
     - linters: [stylecheck]
       text: ST1000
+    # This one seems a bit enthusiastic
+    - linters: [depguard]
+      text: is not allowed from list 'Main'
     # Unparam is allowed in tests
     - linters: [unparam]
       path: _test\.go

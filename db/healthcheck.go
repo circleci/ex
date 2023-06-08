@@ -38,25 +38,26 @@ func (h *HealthCheck) Gauges(_ context.Context) map[string]float64 {
 // - doing the ping command
 // - selecting postgres version
 func newPGHealthCheck(db *sqlx.DB) func(ctx context.Context) error {
-	return func(ctx context.Context) (checkErr error) {
-		err := db.PingContext(ctx)
+	return func(ctx context.Context) (err error) {
+		err = db.PingContext(ctx)
 		if err != nil {
-			checkErr = fmt.Errorf("postgreSQL health check failed on ping: %w", err)
-			return
+			return fmt.Errorf("postgreSQL health check failed on ping: %w", err)
 		}
 
 		rows, err := db.QueryContext(ctx, `SELECT VERSION()`)
 		if err != nil {
-			checkErr = fmt.Errorf("postgreSQL health check failed on select: %w", err)
-			return
+			return fmt.Errorf("postgreSQL health check failed on select: %w", err)
 		}
 		defer func() {
 			// override checkErr only if there were no other errors
-			if err = rows.Close(); err != nil && checkErr == nil {
-				checkErr = fmt.Errorf("postgreSQL health check failed on rows closing: %w", err)
+			if err = rows.Close(); err != nil {
+				checkErr := fmt.Errorf("postgreSQL health check failed on rows closing: %w", err)
+				if err == nil {
+					err = checkErr
+				}
 			}
 		}()
 
-		return
+		return nil
 	}
 }

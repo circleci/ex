@@ -25,6 +25,6 @@ func WithNewTimeout(parent context.Context, timeout time.Duration) (context.Cont
 	return context.WithTimeout(&valueOnlyContext{parent}, timeout)
 }
 
-func (valueOnlyContext) Deadline() (deadline time.Time, ok bool) { return }
+func (valueOnlyContext) Deadline() (deadline time.Time, ok bool) { return time.Time{}, false }
 func (valueOnlyContext) Done() <-chan struct{}                   { return nil }
 func (valueOnlyContext) Err() error                              { return nil }
