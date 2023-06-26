@@ -128,8 +128,8 @@ github.com/hellofresh/health-go/v4 v4.7.0/go.mod h1:XyFAB5J9wAUq7PGN3om2g68bNyWI
 github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUqJM=
 github.com/honeycombio/beeline-go v1.12.0 h1:vtSNcLSKS6OvWwzxwf9Prco6b/UoQPaN7poVJJ6CVXg=
 github.com/honeycombio/beeline-go v1.12.0/go.mod h1:MOd7EB9co2+AcCf5M5a88Xz8HtxHAr5qOzI4jejnPWs=
-github.com/honeycombio/dynsampler-go v0.5.0 h1:wBeUz0PPdp6FayDuO8X5VJLCNJqTE4KA4gCbNNkWi1Y=
-github.com/honeycombio/dynsampler-go v0.5.0/go.mod h1:pJqWFeoMN3syX74PEvlusieyGBbtIBjmTVjLc3thmK4=
+github.com/honeycombio/dynsampler-go v0.5.1 h1:rwOsxLaSlE8RiriiCgBo/LoZjiLEe24CuXPABOGXV+k=
+github.com/honeycombio/dynsampler-go v0.5.1/go.mod h1:pJqWFeoMN3syX74PEvlusieyGBbtIBjmTVjLc3thmK4=
 github.com/honeycombio/libhoney-go v1.19.0 h1:yRcPwqp8erSxvVAF/UfmedZtoT32Ow4tr6dYp2EInjs=
 github.com/honeycombio/libhoney-go v1.19.0/go.mod h1:JMJbsBUXN5EdGuPo6yKn+NZ7cTyct/fm6tmyNsG98iU=
 github.com/jackc/chunkreader v1.0.0/go.mod h1:RT6O25fNZIuasFJRyZ4R/Y2BbhasbmZXF9QQ7T3kePo=
