@@ -43,7 +43,8 @@ type Config struct {
 }
 
 func (c *Config) Validate() error {
-	if c.SendTraces && c.Key == "" {
+	// The key is only needed when sending traces is on and when using the default Sender
+	if c.SendTraces && c.Key == "" && c.Sender == nil {
 		return errors.New("honeycomb_key key required for honeycomb")
 	}
 	return nil
@@ -65,7 +66,7 @@ func (c *Config) sender() transmission.Sender {
 				BatchTimeout:         libhoney.DefaultBatchTimeout,
 				MaxConcurrentBatches: libhoney.DefaultMaxConcurrentBatches,
 				PendingWorkCapacity:  libhoney.DefaultPendingWorkCapacity,
-				UserAgentAddition:    libhoney.UserAgentAddition,
+				UserAgentAddition:    c.ServiceName,
 			})
 		} else {
 			s.Senders = append(s.Senders, c.Sender)
