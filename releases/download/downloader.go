@@ -4,23 +4,22 @@ Package download helps download releases of binaries.
 package download
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/circleci/ex/closer"
-	"github.com/circleci/ex/httpclient"
 )
 
 type Downloader struct {
 	dir    string
-	client *httpclient.Client
+	client http.Client
 }
 
 func NewDownloader(timeout time.Duration, dir string) (*Downloader, error) {
@@ -36,9 +35,9 @@ func NewDownloader(timeout time.Duration, dir string) (*Downloader, error) {
 
 	return &Downloader{
 		dir: dir,
-		client: httpclient.New(httpclient.Config{
+		client: http.Client{
 			Timeout: timeout,
-		}),
+		},
 	}, nil
 }
 
@@ -125,13 +124,23 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 	}
 	defer closer.ErrorHandler(out, &err)
 
-	var resp []byte
-	err = d.client.Call(ctx, httpclient.NewRequest("GET", url, httpclient.BytesDecoder(&resp)))
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("cannot create HTTP request: %w", err)
+	}
+
+	//nolint:bodyclose // handled by closer
+	res, err := d.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("could not get URL %q: %w", url, err)
 	}
+	defer closer.ErrorHandler(res.Body, &err)
 
-	_, err = io.Copy(out, bytes.NewBuffer(resp))
+	if res.StatusCode >= 300 {
+		return fmt.Errorf("unexpected status: %s", res.Status)
+	}
+
+	_, err = io.Copy(out, res.Body)
 	if err != nil {
 		return fmt.Errorf("could not write file %q: %w", target, err)
 	}
