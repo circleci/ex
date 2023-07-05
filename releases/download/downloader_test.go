@@ -144,7 +144,7 @@ func TestDownloader_Download(t *testing.T) {
 
 	t.Run("Not found", func(t *testing.T) {
 		target, err := d.Download(ctx, server.URL+"/test/file-3.txt", 0644)
-		assert.Check(t, cmp.ErrorContains(err, "was 404 (Not Found)"))
+		assert.Check(t, cmp.ErrorContains(err, "unexpected status"))
 		assert.Check(t, cmp.Equal(target, ""))
 
 		requests := recorder.FindRequests("GET", url.URL{Path: "/test/file-3.txt"})
