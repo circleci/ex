@@ -21,7 +21,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
-	github.com/klauspost/compress v1.16.6
+	github.com/klauspost/compress v1.16.7
 	github.com/makasim/amqpextra v1.2.1
 	github.com/rabbitmq/amqp091-go v1.8.1
 	github.com/redis/go-redis/v9 v9.0.5
