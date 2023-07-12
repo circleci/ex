@@ -126,7 +126,9 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 	defer closer.ErrorHandler(out, &err)
 
 	var resp []byte
-	err = d.client.Call(ctx, httpclient.NewRequest("GET", url, httpclient.BytesDecoder(&resp)))
+	err = d.client.Call(ctx, httpclient.NewRequest("GET", url,
+		httpclient.Timeout(30*time.Second),
+		httpclient.BytesDecoder(&resp)))
 
 	if err != nil {
 		return fmt.Errorf("could not get URL %q: %w", url, err)
