@@ -2,7 +2,6 @@ package download
 
 import (
 	"compress/gzip"
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,10 +13,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/testing/httprecorder"
+	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestDownloader_Download(t *testing.T) {
@@ -51,7 +52,7 @@ func TestDownloader_Download(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ctx := context.Background()
+	ctx := testcontext.Background()
 
 	dir, err := os.MkdirTemp("", "e2e-test")
 	assert.Assert(t, err)
@@ -79,7 +80,7 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}})
+		}}, ignoreHoneyCombHeader)
 	})
 
 	url2 := server.URL + "/test/file-2.txt"
@@ -100,7 +101,7 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}})
+		}}, ignoreHoneyCombHeader)
 	})
 
 	t.Run("Cached download", func(t *testing.T) {
@@ -112,7 +113,7 @@ func TestDownloader_Download(t *testing.T) {
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
 		assertFileContents(t, target, "Second compressed file")
 
-		assert.DeepEqual(t, recorder.AllRequests(), originalRequests)
+		assert.DeepEqual(t, recorder.AllRequests(), originalRequests, ignoreHoneyCombHeader)
 	})
 
 	t.Run("Remove cached and re-download", func(t *testing.T) {
@@ -139,12 +140,12 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}})
+		}}, ignoreHoneyCombHeader)
 	})
 
 	t.Run("Not found", func(t *testing.T) {
 		target, err := d.Download(ctx, server.URL+"/test/file-3.txt", 0644)
-		assert.Check(t, cmp.ErrorContains(err, "unexpected status"))
+		assert.Check(t, cmp.ErrorContains(err, "was 404 (Not Found)"))
 		assert.Check(t, cmp.Equal(target, ""))
 
 		requests := recorder.FindRequests("GET", url.URL{Path: "/test/file-3.txt"})
@@ -156,7 +157,23 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}})
+		}}, ignoreHoneyCombHeader)
+	})
+
+	t.Run("remote downloads", func(t *testing.T) {
+		urls := []string{
+			"https://circleci-binary-releases.s3.amazonaws.com/distributor/1.0.121921-7112fcb8/darwin/amd64/execution.e2e.test",
+			"https://circleci-binary-releases.s3.amazonaws.com/output/1.0.17772-56764d3/linux/amd64/receiver",
+		}
+		for _, remoteURL := range urls {
+			target, err := d.Download(ctx, remoteURL, 0644)
+			assert.NilError(t, err)
+
+			fi, err := os.Stat(target)
+			assert.NilError(t, err)
+
+			assert.Check(t, fi.Size() > 0)
+		}
 	})
 }
 
@@ -176,3 +193,7 @@ func assertFileContents(t *testing.T, path, contents string) {
 
 	assert.Check(t, cmp.Equal(string(b), contents))
 }
+
+var ignoreHoneyCombHeader = cmpopts.IgnoreMapEntries(func(key string, values []string) bool {
+	return key == "X-Honeycomb-Trace"
+})
