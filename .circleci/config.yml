@@ -107,6 +107,9 @@ jobs:
     docker:
       - image: cimg/base:stable
     steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "37:76:a1:31:2e:07:5d:fe:5e:ba:7b:c8:60:ef:17:cd"
       - checkout
       - run:
           name: Configure Git
