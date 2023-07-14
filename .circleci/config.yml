@@ -109,7 +109,7 @@ jobs:
     steps:
       - add_ssh_keys:
           fingerprints:
-            - "b2:0e:9a:ce:46:f6:d2:4b:d9:b9:a2:bb:87:b0:98:80"
+            - "a6:dd:31:aa:6b:45:d2:ce:c5:9f:c9:bf:88:0b:5f:52"
       - checkout
       - run:
           name: Configure Git
