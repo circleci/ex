@@ -158,6 +158,26 @@ func TestPublisherPool_MandatoryRouting(t *testing.T) {
 		assert.Check(t, cmp.Contains(s, "result=error"))
 	})
 }
+func TestPublisherPool_OptionalRouting(t *testing.T) {
+	var buf syncbuffer.SyncBuffer
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format: "text",
+		Writer: &buf,
+	}))
+
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	t.Cleanup(cancel)
+
+	u := rabbitfixture.New(ctx, t)
+	pool := createPool(ctx, t, u)
+
+	t.Run("Check sending does not fail", func(t *testing.T) {
+		err := pool.PublishOptional(ctx,
+			publisher.Message{Key: "does not exist"},
+		)
+		assert.Equal(t, err, nil)
+	})
+}
 
 func TestPublisherPool_Publish_LoadTest(t *testing.T) {
 	// Use non-o11y context to keep test logs clear
