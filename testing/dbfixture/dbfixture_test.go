@@ -16,6 +16,9 @@ var (
 	//go:embed testdata/schema.sql
 	schema string
 
+	//go:embed testdata/appUserSchema.sql
+	appUserSchema string
+
 	conn = Connection{
 		Host:     "localhost:5432",
 		User:     "user",
@@ -79,4 +82,36 @@ func TestReset(t *testing.T) {
 		err := fix.TX.NoTx().SelectContext(ctx, &ids, `SELECT id FROM test_table;`)
 		assert.Assert(t, errors.Is(err, db.ErrNop))
 	})
+}
+
+func TestSetupDB_AppUser(t *testing.T) {
+	ctx := testcontext.Background()
+
+	fix := SetupDB(ctx, t, appUserSchema, Connection{
+		Host:     conn.Host,
+		User:     conn.User,
+		Password: conn.Password,
+
+		// Least-privilege app user values
+		AppUser:     "test_role_1",
+		AppPassword: "teehee",
+	})
+	_ = fix.Reset(ctx)
+
+	t.Run("fails to create db (no grant)", func(t *testing.T) {
+		_, err := fix.TX.NoTx().ExecContext(ctx, `CREATE DATABASE foo;`)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("fails to insert (no grant)", func(t *testing.T) {
+		_, err := fix.TX.NoTx().ExecContext(ctx, `INSERT INTO test_table (id, name) VALUES (123, 'banana');`)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("can select (nothing)", func(t *testing.T) {
+		var res []string
+		err := fix.TX.NoTx().SelectContext(ctx, &res, `SELECT name FROM test_table;`)
+		assert.ErrorIs(t, err, db.ErrNop)
+	})
+
 }
