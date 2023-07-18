@@ -1,6 +1,7 @@
 package dbfixture
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/jackc/pgx/v4"
@@ -68,7 +70,34 @@ type Connection struct {
 func SetupDB(ctx context.Context, t types.TestingTB, schema string, con Connection) (db *Fixture) {
 	t.Helper()
 	shared := SetupSystem(t, con)
-	db, err := shared.Manager().NewDB(ctx, con, t.Name(), schema)
+
+	// Inject the new user setup statement into the schema generation
+	const createRwRoleTpl = `
+DO $$
+	BEGIN
+		IF NOT EXISTS (SELECT * FROM pg_user WHERE usename = '{{ .DBName }}_app_rw') THEN
+			CREATE ROLE {{ .DBName }}_app_rw password '{{ .Password }}';
+			GRANT CONNECT ON DATABASE {{ .DBName }} TO {{ .DBName }}_app_rw;
+			ALTER ROLE {{ .DBName }}_app_rw WITH LOGIN;
+		END IF;
+	END
+$$;    
+`
+	buf := &bytes.Buffer{}
+	tpl := template.Must(template.New("rw_role").Parse(createRwRoleTpl))
+	err := tpl.Execute(buf, struct {
+		DBName   string
+		Password string
+	}{
+		DBName:   con.User,
+		Password: con.Password.Value(),
+	})
+	assert.Assert(t, err)
+	schema = schema + buf.String()
+
+	println(">>>>>>>>>>>>", schema)
+
+	db, err = shared.Manager().NewDB(ctx, con, t.Name(), schema)
 	assert.Assert(t, err)
 	t.Cleanup(func() {
 		p := o11y.FromContext(ctx)
@@ -114,8 +143,9 @@ func (m *Manager) NewDB(ctx context.Context, con Connection, dbName, schema stri
 	return m.newDB(ctx, m.db, con, s, schema)
 }
 
-func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName, schema string) (
-	_ *Fixture, err error) {
+func (m *Manager) newDB(ctx context.Context,
+	d *sqlx.DB, con Connection, dbName, schema string) (_ *Fixture, err error) {
+
 	ctx, span := o11y.StartSpan(ctx, "dbfixture: newDB")
 	defer o11y.End(span, &err)
 
@@ -270,9 +300,14 @@ type Fixture struct {
 	Host     string
 	User     string
 	Password secret.String
-	DB       *sqlx.DB
-	TX       *db.TxManager
-	Cleanup  func(ctx context.Context) error
+
+	// If AddAppUser is called these will be related to the app user, and the Admin field will be set to the
+	// original DB Admin.
+	DB *sqlx.DB
+	TX *db.TxManager
+
+	Admin   *sqlx.DB
+	Cleanup func(ctx context.Context) error
 
 	tables []table
 }
@@ -306,6 +341,43 @@ func (f *Fixture) Reset(ctx context.Context) (err error) {
 
 		return nil
 	})
+}
+
+func (f *Fixture) AddAppUser(ctx context.Context, t types.TestingTB, user string) string {
+	t.Helper()
+
+	// Inject the new user setup statement into the schema generation
+	const createRwRoleTpl = `
+DO $$
+	BEGIN
+		IF NOT EXISTS (SELECT * FROM pg_user WHERE usename = '{{ .UserName }}') THEN
+			CREATE ROLE {{ .UserName }} password '{{ .Password }}';
+			GRANT CONNECT ON DATABASE {{ .DBName }} TO {{ .UserName }};
+			ALTER ROLE {{ .UserName }} WITH LOGIN;
+		END IF;
+	END
+$$;    
+`
+	buf := &bytes.Buffer{}
+	tpl := template.Must(template.New("rw_role").Parse(createRwRoleTpl))
+	err := tpl.Execute(buf, struct {
+		DBName   string
+		UserName string
+		Password string
+	}{
+		DBName:   f.User,
+		UserName: user,
+		Password: f.Password.Value(),
+	})
+	assert.Assert(t, err)
+
+	println(">>>>>>>>>>>>", buf.String())
+
+	o11y.Log(ctx, "applying schema")
+	_, err = f.DB.ExecContext(ctx, buf.String())
+	assert.Assert(t, err)
+
+	return buf.String()
 }
 
 func squelchNopError(err error) error {
