@@ -75,3 +75,13 @@ services:
     ports:
       - '127.0.0.1:9124:9124'
       - '127.0.0.1:9001:9001'
+
+  vault:
+    image: hashicorp/vault:1.12.2
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: dummyroot
+    ports:
+      - '127.0.0.1:8200:8200'
+      - '127.0.0.1:8201:8201'
+    cap_add:
+      - IPC_LOCK
