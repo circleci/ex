@@ -150,17 +150,17 @@ func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName,
 		return nil, err
 	}
 
-	fix.adminDB, err = newDB(con, fix.DBName)
+	fix.AdminDB, err = newDB(con, fix.DBName)
 	if err != nil {
 		return nil, err
 	}
-	fix.adminTX = db.NewTxManager(fix.adminDB)
+	fix.AdminTX = db.NewTxManager(fix.AdminDB)
 
 	fix.Cleanup = func(ctx context.Context) error {
 		return m.cleanup(ctx, d, fix)
 	}
 
-	err = fix.adminDB.Ping()
+	err = fix.AdminDB.Ping()
 	if err != nil {
 		return nil, err
 	}
@@ -177,19 +177,19 @@ func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName,
 	span.AddField("app_user", fix.User)
 
 	o11y.Log(ctx, "applying schema")
-	_, err = fix.adminDB.ExecContext(ctx, schema)
+	_, err = fix.AdminDB.ExecContext(ctx, schema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to apply schema: %w", err)
 	}
 
-	err = fix.adminDB.SelectContext(ctx, &fix.tables, tableNameQuery)
+	err = fix.AdminDB.SelectContext(ctx, &fix.tables, tableNameQuery)
 	if err != nil {
 		return nil, fmt.Errorf("could not get list of tables: %w", err)
 	}
 
 	// pg_dump blanks 'search_path' for security reasons, we need to set it back
 	// https://www.postgresql.org/message-id/ace62b19-f918-3579-3633-b9e19da8b9de%40aklaver.com
-	_, err = fix.adminDB.ExecContext(ctx, "SELECT pg_catalog.set_config('search_path', 'public', false);")
+	_, err = fix.AdminDB.ExecContext(ctx, "SELECT pg_catalog.set_config('search_path', 'public', false);")
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +211,7 @@ func ensureAppCreds(ctx context.Context, fix *Fixture, conn Connection) (err err
 	if conn.AppUser == "" || conn.AppPassword == "" {
 		return nil
 	}
-	_, err = db.NewTxManager(fix.adminDB).NoTx().ExecContext(ctx, fmt.Sprintf(createAppUserQuery,
+	_, err = db.NewTxManager(fix.AdminDB).NoTx().ExecContext(ctx, fmt.Sprintf(createAppUserQuery,
 		conn.AppUser,
 		conn.AppPassword.Value(),
 		pgx.Identifier{fix.DBName}.Sanitize()),
@@ -283,7 +283,7 @@ func newDB(con Connection, name string) (db *sqlx.DB, err error) {
 
 func (m *Manager) cleanup(ctx context.Context, db *sqlx.DB, fixture *Fixture) error {
 	err := fixture.DB.Close()
-	err = multierror.Append(err, fixture.adminDB.Close()).ErrorOrNil()
+	err = multierror.Append(err, fixture.AdminDB.Close()).ErrorOrNil()
 	if err != nil {
 		o11y.LogError(ctx, "db: cleanup", err)
 	}
@@ -334,10 +334,10 @@ type Fixture struct {
 	DB       *sqlx.DB
 	TX       *db.TxManager
 	Cleanup  func(ctx context.Context) error
+	AdminDB  *sqlx.DB
+	AdminTX  *db.TxManager
 
-	adminDB *sqlx.DB
-	adminTX *db.TxManager
-	tables  []table
+	tables []table
 }
 
 type table struct {
@@ -346,7 +346,7 @@ type table struct {
 }
 
 func (f *Fixture) Reset(ctx context.Context) (err error) {
-	return f.adminTX.WithTx(ctx, func(ctx context.Context, tx db.Querier) error {
+	return f.AdminTX.WithTx(ctx, func(ctx context.Context, tx db.Querier) error {
 		_, err = tx.ExecContext(ctx, `SET session_replication_role = 'replica';`)
 
 		if squelchNopError(err) != nil {
