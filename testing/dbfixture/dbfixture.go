@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/jackc/pgx/v4"
 	"github.com/jmoiron/sqlx"
 	"gotest.tools/v3/assert"
@@ -60,9 +61,15 @@ func setupSystem(t types.TestingTB, con Connection) *SharedFixture {
 }
 
 type Connection struct {
-	Host     string
-	User     string
+	Host string
+	// User is intended as the superuser that is used to bootstrap a database instance for use
+	User string
+	// AppUser is intended as a reduced permission user that the application uses to interact with the database
+	AppUser string
+	// Password is intended as the password for the superuser that can modify db structure
 	Password secret.String
+	// AppPassword is intended as the password for the least-privileged application db user
+	AppPassword secret.String
 }
 
 func SetupDB(ctx context.Context, t types.TestingTB, schema string, con Connection) (db *Fixture) {
@@ -114,43 +121,7 @@ func (m *Manager) NewDB(ctx context.Context, con Connection, dbName, schema stri
 	return m.newDB(ctx, m.db, con, s, schema)
 }
 
-func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName, schema string) (
-	_ *Fixture, err error) {
-	ctx, span := o11y.StartSpan(ctx, "dbfixture: newDB")
-	defer o11y.End(span, &err)
-
-	fix := &Fixture{DBName: dbName, Host: con.Host, User: con.User, Password: con.Password}
-	span.AddField("dbname", fix.DBName)
-	span.AddField("host", con.Host)
-	span.AddField("user", con.User)
-	createDB := fmt.Sprintf("CREATE DATABASE %s", pgx.Identifier{fix.DBName}.Sanitize())
-	_, err = d.ExecContext(ctx, createDB)
-	if err != nil {
-		return nil, err
-	}
-
-	fix.DB, err = newDB(con, fix.DBName)
-	if err != nil {
-		return nil, err
-	}
-	fix.TX = db.NewTxManager(fix.DB)
-
-	fix.Cleanup = func(ctx context.Context) error {
-		return m.cleanup(ctx, d, fix)
-	}
-
-	err = fix.DB.Ping()
-	if err != nil {
-		return nil, err
-	}
-
-	o11y.Log(ctx, "applying schema")
-	_, err = fix.DB.ExecContext(ctx, schema)
-	if err != nil {
-		return nil, fmt.Errorf("failed to apply schema: %w", err)
-	}
-
-	err = fix.DB.SelectContext(ctx, &fix.tables, `
+const tableNameQuery = `
 SELECT
     table_name,
     table_schema
@@ -160,19 +131,108 @@ WHERE
     table_type = 'BASE TABLE'
 AND
     table_schema NOT IN ('pg_catalog', 'information_schema')
-`)
+`
+
+// nolint:funlen
+func (m *Manager) newDB(ctx context.Context, d *sqlx.DB, con Connection, dbName, schema string) (
+	_ *Fixture, err error) {
+	ctx, span := o11y.StartSpan(ctx, "dbfixture: newDB")
+	defer o11y.End(span, &err)
+
+	fix := &Fixture{DBName: dbName, Host: con.Host, User: con.User, Password: con.Password}
+	span.AddField("dbname", fix.DBName)
+	span.AddField("host", con.Host)
+	span.AddField("admin_user", con.User)
+	createDB := fmt.Sprintf("CREATE DATABASE %s", pgx.Identifier{fix.DBName}.Sanitize())
+
+	_, err = d.ExecContext(ctx, createDB)
+	if err != nil {
+		return nil, err
+	}
+
+	fix.adminDB, err = newDB(con, fix.DBName)
+	if err != nil {
+		return nil, err
+	}
+	fix.adminTX = db.NewTxManager(fix.adminDB)
+
+	fix.Cleanup = func(ctx context.Context) error {
+		return m.cleanup(ctx, d, fix)
+	}
+
+	err = fix.adminDB.Ping()
+	if err != nil {
+		return nil, err
+	}
+
+	err = ensureAppCreds(ctx, fix, con)
+	if err != nil {
+		return nil, err
+	}
+
+	err = setupAppCreds(fix, con)
+	if err != nil {
+		return nil, err
+	}
+	span.AddField("app_user", fix.User)
+
+	o11y.Log(ctx, "applying schema")
+	_, err = fix.adminDB.ExecContext(ctx, schema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply schema: %w", err)
+	}
+
+	err = fix.adminDB.SelectContext(ctx, &fix.tables, tableNameQuery)
 	if err != nil {
 		return nil, fmt.Errorf("could not get list of tables: %w", err)
 	}
 
 	// pg_dump blanks 'search_path' for security reasons, we need to set it back
 	// https://www.postgresql.org/message-id/ace62b19-f918-3579-3633-b9e19da8b9de%40aklaver.com
-	_, err = fix.DB.ExecContext(ctx, "SELECT pg_catalog.set_config('search_path', 'public', false);")
+	_, err = fix.adminDB.ExecContext(ctx, "SELECT pg_catalog.set_config('search_path', 'public', false);")
 	if err != nil {
 		return nil, err
 	}
 
 	return fix, nil
+}
+
+// language=PostgreSQL
+const createAppUserQuery = `
+do $$ begin
+	IF NOT EXISTS (SELECT * FROM pg_user WHERE usename = '%[1]s') THEN
+		CREATE ROLE %[1]s WITH LOGIN PASSWORD '%[2]s';
+	END IF;
+	GRANT CONNECT ON DATABASE %[3]s TO %[1]s;
+end $$ ;
+`
+
+func ensureAppCreds(ctx context.Context, fix *Fixture, conn Connection) (err error) {
+	if conn.AppUser == "" || conn.AppPassword == "" {
+		return nil
+	}
+	_, err = db.NewTxManager(fix.adminDB).NoTx().ExecContext(ctx, fmt.Sprintf(createAppUserQuery,
+		conn.AppUser,
+		conn.AppPassword.Value(),
+		pgx.Identifier{fix.DBName}.Sanitize()),
+	)
+	if errors.Is(err, db.ErrNop) {
+		return nil
+	}
+	return err
+}
+
+func setupAppCreds(fix *Fixture, conn Connection) (err error) {
+	userConn := userConnection(conn)
+	fix.DB, err = newDB(userConn, fix.DBName)
+	if err != nil {
+		return err
+	}
+	fix.TX = db.NewTxManager(fix.DB)
+	fix.User = userConn.User
+	fix.Password = userConn.Password
+
+	return err
 }
 
 func (m *Manager) Close() error {
@@ -223,6 +283,7 @@ func newDB(con Connection, name string) (db *sqlx.DB, err error) {
 
 func (m *Manager) cleanup(ctx context.Context, db *sqlx.DB, fixture *Fixture) error {
 	err := fixture.DB.Close()
+	err = multierror.Append(err, fixture.adminDB.Close()).ErrorOrNil()
 	if err != nil {
 		o11y.LogError(ctx, "db: cleanup", err)
 	}
@@ -231,7 +292,7 @@ func (m *Manager) cleanup(ctx context.Context, db *sqlx.DB, fixture *Fixture) er
 		return nil
 	}
 
-	// attempt to kick out any melingering connections before dropping the database
+	// attempt to kick out any malingering connections before dropping the database
 	_, err = db.ExecContext(ctx,
 		fmt.Sprintf("REVOKE CONNECT ON DATABASE %s FROM public;", pgx.Identifier{fixture.DBName}.Sanitize()))
 	if err != nil {
@@ -274,7 +335,9 @@ type Fixture struct {
 	TX       *db.TxManager
 	Cleanup  func(ctx context.Context) error
 
-	tables []table
+	adminDB *sqlx.DB
+	adminTX *db.TxManager
+	tables  []table
 }
 
 type table struct {
@@ -283,7 +346,7 @@ type table struct {
 }
 
 func (f *Fixture) Reset(ctx context.Context) (err error) {
-	return f.TX.WithTx(ctx, func(ctx context.Context, tx db.Querier) error {
+	return f.adminTX.WithTx(ctx, func(ctx context.Context, tx db.Querier) error {
 		_, err = tx.ExecContext(ctx, `SET session_replication_role = 'replica';`)
 
 		if squelchNopError(err) != nil {
@@ -313,4 +376,20 @@ func squelchNopError(err error) error {
 		return err
 	}
 	return nil
+}
+
+func userConnection(conn Connection) Connection {
+	userConn := Connection{
+		Host:     conn.Host,
+		User:     conn.User,
+		Password: conn.Password,
+	}
+	if conn.AppUser != "" {
+		userConn.User = conn.AppUser
+	}
+	if conn.AppPassword != "" {
+		userConn.Password = conn.AppPassword
+	}
+
+	return userConn
 }
