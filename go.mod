@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.18.32
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.31
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.75
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.0
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.38.1
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/go-cmp v0.5.9
