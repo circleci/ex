@@ -175,6 +175,23 @@ func TestDownloader_Download(t *testing.T) {
 			assert.Check(t, fi.Size() > 0)
 		}
 	})
+
+	t.Run("Download except you can't poke target path", func(t *testing.T) {
+		fi, err := os.Stat(d.dir + "/test")
+		assert.Assert(t, err)
+
+		err = os.Chmod(d.dir+"/test", 0000)
+		assert.Assert(t, err)
+
+		defer func() {
+			err := os.Chmod(d.dir+"/test", fi.Mode())
+			assert.Assert(t, err)
+		}()
+
+		_, err = d.Download(ctx, server.URL+"/test/file-1.txt", 0644)
+
+		assert.Check(t, cmp.ErrorContains(err, "permission denied"))
+	})
 }
 
 func assertFileContents(t *testing.T, path, contents string) {
