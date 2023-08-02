@@ -16,6 +16,7 @@ import (
 
 	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/httpclient"
+	"github.com/circleci/ex/o11y"
 )
 
 type Downloader struct {
@@ -68,7 +69,7 @@ func (d *Downloader) Download(ctx context.Context, rawURL string, perm os.FileMo
 		}
 	}()
 
-	if isCached(target) {
+	if isCached(ctx, target) {
 		return target, nil
 	}
 
@@ -103,9 +104,12 @@ func (d *Downloader) targetPath(u *url.URL) string {
 	return filepath.Join(d.dir, u.Path)
 }
 
-func isCached(target string) bool {
+func isCached(ctx context.Context, target string) bool {
 	info, err := os.Stat(target)
-	if os.IsNotExist(err) {
+	if err != nil {
+		if !os.IsNotExist(err) {
+			o11y.AddField(ctx, "downloader_error", err)
+		}
 		return false
 	}
 	return !info.IsDir()
