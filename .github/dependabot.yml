@@ -3,9 +3,15 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
+    groups:
+      aws-sdk:
+        patterns:
+          - "*aws-sdk*"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "wednesday"
   - package-ecosystem: "gomod"
     directory: "/tools"
     schedule:
       interval: "weekly"
+      day: "wednesday"
