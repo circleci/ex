@@ -1,0 +1,74 @@
+package rootcerts
+
+import (
+	"testing"
+
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+)
+
+func TestAddPEM(t *testing.T) {
+	PEMData := []byte(`
+-----BEGIN CERTIFICATE-----
+MIIDcjCCAloCCQC9qDsvKhQ7YzANBgkqhkiG9w0BAQsFADB7MQswCQYDVQQGEwJD
+QTEQMA4GA1UECAwHVW5rbm93bjEQMA4GA1UEBwwHVGVzdGluZzELMAkGA1UECgwC
+ZXgxDzANBgNVBAsMBmJhbmFuYTEXMBUGA1UEAwwOZXguZXhhbXBsZS5jb20xETAP
+BgkqhkiG9w0BCQEWAk5BMB4XDTIzMDgyMzEzMTUwMFoXDTI0MDgyMjEzMTUwMFow
+ezELMAkGA1UEBhMCQ0ExEDAOBgNVBAgMB1Vua25vd24xEDAOBgNVBAcMB1Rlc3Rp
+bmcxCzAJBgNVBAoMAmV4MQ8wDQYDVQQLDAZiYW5hbmExFzAVBgNVBAMMDmV4LmV4
+YW1wbGUuY29tMREwDwYJKoZIhvcNAQkBFgJOQTCCASIwDQYJKoZIhvcNAQEBBQAD
+ggEPADCCAQoCggEBAK+D+j80/+12p4uc8K3Wtmmh1fUw+3M0Z734kRThZyGVu/u8
+S+e/vCEr2oNRqen1POt6em0bbmeiqnZSBm6fTqE1rieP2j0bjxqjBw36jM2PMyzd
+OjjQmjIcDe3Rw4BQK8RYVz/Z3ygb+tooys1eIr6ITJG9eIUT2v2bZASDZ8QpicqY
+tnW6k/4DHSIaTVn6O6wYBT42MRyuhjRJlC2jVB7UhT+kTUeYCXkwqCiVU9pL0cts
+/2oU4j42v1vaxW7+Okg+y3F/VxGLB2cqFmNjzhbYi9YL/ycpshWn9LZCIoHntKjm
+jYpv8FRHi25Pfnpt2l6ndsxybYJFAHhYOVKPqqUCAwEAATANBgkqhkiG9w0BAQsF
+AAOCAQEAYy8eupX0AeyIyl2PPdrRhT3BHqH4ZtK4f4UsOcrpR9Yj45cM4AsRn0ro
+bPpTKSqCZZ8fjxNUAwtgY4UUSLT86Q3ZLEBmh7PGFh4yn/pcwJek2N1hEFE5m+PT
+BjrxDKsYaaNmFSQkcaxeNNd/FCW6ALpiC3Z4tFPqRz1o8jSLFWtbkAA/jbod6Ods
+tVbuDbuEFGhx4MZWc9xBoehLRO/qNHg6rc578C4ZTf5i1oP0fJeA//ztrQqKoPuE
+oD/sBVVDvN3IaW6QJFGX+2Ww+vrtfUUV2NNEXBWt5zpnZBw4TviUmKr4kANHvkYb
+CRlaLP/fPOT/Lugwuhp8gor70N+v2Q==
+-----END CERTIFICATE-----
+
+-----BEGIN CERTIFICATE-----
+MIIDejCCAmICCQD+Q3h5CUqYODANBgkqhkiG9w0BAQsFADB/MQswCQYDVQQGEwJD
+QTEQMA4GA1UECAwHVW5rbm93bjEQMA4GA1UEBwwHVGVzdGluZzELMAkGA1UECgwC
+ZXgxDzANBgNVBAsMBmJhbmFuYTEbMBkGA1UEAwwSYmFuYW5hLmV4YW1wbGUuY29t
+MREwDwYJKoZIhvcNAQkBFgJOQTAeFw0yMzA4MjMxMzE4MDNaFw0yNDA4MjIxMzE4
+MDNaMH8xCzAJBgNVBAYTAkNBMRAwDgYDVQQIDAdVbmtub3duMRAwDgYDVQQHDAdU
+ZXN0aW5nMQswCQYDVQQKDAJleDEPMA0GA1UECwwGYmFuYW5hMRswGQYDVQQDDBJi
+YW5hbmEuZXhhbXBsZS5jb20xETAPBgkqhkiG9w0BCQEWAk5BMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEA00KnZZbdkkTTLOxG5LwAZacksXyuTesJpkJK
+IPJzpEWB4l+yrBdUXSa9sVVDuTX4qTpm+9YGL2c4ELBXHpC2p4I9RzlJF9/zbLx/
+SZB+NRHoEIMUeuG5praxr6Rb7qyO9JXxzOxQ9KamzlpyI2sbxqH1Hu5TPZd+DHbl
+izLxrT9pV/1PYoaBZXDFkd8EYXtdquqdZEnNh0eGD4oc+/vmp2YMcvEEc7RiGo62
+Mxn9ECLUSkvWtUvcL3I3xYgEq9psz+9n6TCO3mKTtBl1EVX1j1G9J2WY1jjVzftq
+UUjDyxk85ETcdRh9oiXiJxPtjNhwVBq5y0klHo93du+bMfRrDQIDAQABMA0GCSqG
+SIb3DQEBCwUAA4IBAQCelvKPcEFMse3UIFdYReKOE9NR4UIuVbJiE4wXWUk6aSQG
+2yZJK5j932P5IqgLZsv2dRvwC5Ax0GU1DmXWsaIjFMBqQV32LuBZa8k2M6YzSg/h
+hhpp1SsROPQ6Ve4/VIhleKrhjzf2B5rkt3QAZNEElC1w1ppeFR1c376t3ANLvpT0
+WIv7CLKksCHPUT836XRly7yRBingj/LVpP9f8jIw9uCq7l1gS0/6HeoL8YAl5tPy
+KAEEsHBJeCr0GmUy5Tx2w15mIJdpPP+qfMmtNf7jAtHwpT4Pe3bJWVQYGCg326r2
+ErRnwE7tyZc8ghIsq0JVDlnJPyZFAFtF9k84naQE
+-----END CERTIFICATE-----
+		`)
+
+	err := AddPEM(PEMData)
+	assert.NilError(t, err)
+
+	exCertFound := false
+	bananaCertFound := false
+	for _, v := range certs {
+		if v.Label == "ex.example.com" {
+			assert.Check(t, cmp.Equal(v.Serial, "13666238143011240803"))
+			exCertFound = true
+		}
+		if v.Label == "banana.example.com" {
+			assert.Check(t, cmp.Equal(v.Serial, "18321620170315569208"))
+			bananaCertFound = true
+		}
+	}
+	assert.Check(t, exCertFound, "ex.example.com cert not found")
+	assert.Check(t, bananaCertFound, "banana.example.com cert not found")
+}
