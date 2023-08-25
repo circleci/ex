@@ -91,6 +91,10 @@ jobs:
           '/datanv',
           '--address', ':9124',
         ]
+      - image: hashicorp/vault:1.12.2
+        environment:
+          SKIP_SETCAP: skip
+          VAULT_DEV_ROOT_TOKEN_ID: dummyroot
     resource_class: large
     environment:
       GOMAXPROCS: 4
