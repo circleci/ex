@@ -2,8 +2,9 @@ version: 2.1
 
 x-data:
   go_versions: &go_versions
-    - '1.19'
-    - '1.20'
+    - "1.19"
+    - "1.20"
+    - "1.21"
 
 workflows:
   main:
@@ -26,7 +27,6 @@ workflows:
               only: main
 
 jobs:
-
   lint:
     parameters:
       go_version:
@@ -62,11 +62,8 @@ jobs:
           POSTGRES_PASSWORD: password
           POSTGRES_DB: dbname
       - image: cimg/redis:7.0
-        command: [
-          "redis-server",
-          "--protected-mode", "no",
-          "--databases", "1000000",
-        ]
+        command:
+          ["redis-server", "--protected-mode", "no", "--databases", "1000000"]
       - image: rabbitmq:3.8-management-alpine
       - image: mongo:4.2
         environment:
@@ -75,22 +72,23 @@ jobs:
           MONGO_INITDB_DATABASE: dbname
       - image: minio/minio
         environment:
-          MINIO_ROOT_USER: 'minio'
-          MINIO_ROOT_PASSWORD: 'minio123'
-        command: [
-          'server',
-          '/data/1','/data/2','/data/3','/data/4',
-          '--address', ':9123',
-        ]
+          MINIO_ROOT_USER: "minio"
+          MINIO_ROOT_PASSWORD: "minio123"
+        command:
+          [
+            "server",
+            "/data/1",
+            "/data/2",
+            "/data/3",
+            "/data/4",
+            "--address",
+            ":9123",
+          ]
       - image: minio/minio
         environment:
-          MINIO_ROOT_USER: 'minio-nv'
-          MINIO_ROOT_PASSWORD: 'minio-nv-123'
-        command: [
-          'server',
-          '/datanv',
-          '--address', ':9124',
-        ]
+          MINIO_ROOT_USER: "minio-nv"
+          MINIO_ROOT_PASSWORD: "minio-nv-123"
+        command: ["server", "/datanv", "--address", ":9124"]
       - image: hashicorp/vault:1.12.2
         environment:
           SKIP_SETCAP: skip
@@ -153,4 +151,3 @@ commands:
           path: test-reports
       - store_test_results:
           path: test-reports
-
