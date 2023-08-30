@@ -4,6 +4,7 @@ x-data:
   go_versions: &go_versions
     - '1.19'
     - '1.20'
+    - '1.21'
 
 workflows:
   main:
