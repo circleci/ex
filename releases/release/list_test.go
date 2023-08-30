@@ -51,6 +51,14 @@ func TestRequirements_Validate(t *testing.T) {
 			},
 		},
 		{
+			name: "Valid server release",
+			request: Requirements{
+				Version:  "0.0.0-server-4.3-c0e01dbe",
+				Platform: "linux",
+				Arch:     "amd64",
+			},
+		},
+		{
 			name: "Invalid version with newline",
 			request: Requirements{
 				Version:  "1.0.29509-c0e01dbe\n",

@@ -33,7 +33,7 @@ type Requirements struct {
 	Arch     string `json:"arch" form:"arch"`
 }
 
-var downloadVersionRegexp = regexp.MustCompile(`^\d+\.\d+\.\d+-(canary-|dev-)?[0-9a-f]+$`)
+var downloadVersionRegexp = regexp.MustCompile(`^\d+\.\d+\.\d+-(canary-|dev-|server-\d\.\d+-)?[0-9a-f]+$`)
 
 func (d *Requirements) Validate() error {
 	if d.Version != "" && !downloadVersionRegexp.MatchString(d.Version) {
