@@ -30,6 +30,7 @@ type Work struct {
 	Target       string
 	Source       string
 	WithCoverage bool
+	Tags         string
 	Environment  []string
 
 	Result *string
@@ -53,21 +54,32 @@ func (c *compiler) Compile(ctx context.Context, work Work) (string, error) {
 	goBin := goPath()
 	var cmd *exec.Cmd
 	if !work.WithCoverage {
-		// #nosec - this is fine
-		cmd = exec.CommandContext(ctx, goBin, "build",
-			"-ldflags="+c.ldFlags,
+		args := []string{
+			"build",
+			"-ldflags=" + c.ldFlags,
 			"-o", path,
-			work.Source,
-		)
-	} else {
+		}
+		if work.Tags != "" {
+			args = append(args, "-tags", work.Tags)
+		}
+		args = append(args, work.Source)
 		// #nosec - this is fine
-		cmd = exec.CommandContext(ctx, goBin, "test",
+		cmd = exec.CommandContext(ctx, goBin, args...)
+	} else {
+		args := []string{
+			"test",
 			"-coverpkg=./...",
 			"-c",
-			"-tags", "testrunmain",
 			work.Source,
 			"-o", path,
-		)
+			"-tags", "testrunmain",
+		}
+		if work.Tags != "" {
+			args[len(args)-1] += " " + work.Tags
+		}
+		args = append(args, work.Source)
+		// #nosec - this is fine
+		cmd = exec.CommandContext(ctx, goBin, args...)
 	}
 
 	cmd.Dir = cwd

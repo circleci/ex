@@ -21,7 +21,7 @@ func TestCompiler_Compile(t *testing.T) {
 		binary, err = c.Compile(context.Background(), Work{
 			Name:        "name",
 			Target:      "../..",
-			Source:      "./testing/compiler/internal/cmd",
+			Source:      "./releases/compiler/internal/cmd",
 			Environment: []string{"FOO=foo", "BAR=bar"},
 		})
 		assert.Assert(t, err)
