@@ -15,5 +15,6 @@
 # vendor/
 
 # Ephemeral directories
+/.idea
 /bin
 /test-reports
