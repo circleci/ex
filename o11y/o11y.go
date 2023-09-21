@@ -202,7 +202,8 @@ func WithProvider(ctx context.Context, p Provider) context.Context {
 	return context.WithValue(ctx, providerKey{}, p)
 }
 
-// FromContext returns the provider stored in the context, or nil if none exists.
+// FromContext returns the provider stored in the context, or the default noop
+// provider if none exists.
 func FromContext(ctx context.Context) Provider {
 	provider, ok := ctx.Value(providerKey{}).(Provider)
 	if !ok {
