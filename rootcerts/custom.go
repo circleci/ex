@@ -1,10 +1,37 @@
 package rootcerts
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 )
+
+// AddBase64PEM Adds a the supplied base64 PEM formatted Certificate to the set of certs used by Rootcerts.
+// This is useful when an individual CA needs to be added to the trust chain.
+//
+// AddPEM only support Certificates, it doesn't support Private keys.
+func AddBase64PEM(base64PemCert []byte) error {
+	scanner := bufio.NewScanner(bytes.NewReader(base64PemCert))
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+		rawDecodedText, err := base64.StdEncoding.DecodeString(scanner.Text())
+		if err != nil {
+			return err
+		}
+		err = AddPEM(rawDecodedText)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // AddPEM Adds a the supplied PEM formatted Certificate to the set of certs used by Rootcerts.
 // This is useful when an individual CA needs to be added to the trust chain.
