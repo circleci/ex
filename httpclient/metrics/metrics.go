@@ -20,7 +20,7 @@ type Metrics struct {
 	name string
 
 	mu            sync.Mutex
-	poolAvailable int64 // an estimate based on reference counting
+	poolAvailable atomic.Int64 // an estimate based on reference counting
 	inFlight      int64
 	inFlightMax   int64
 }
@@ -80,7 +80,7 @@ func (m *Metrics) Gauges(_ context.Context) map[string][]system.TaggedValue {
 
 	tags := []string{"client:" + m.name}
 
-	poolAvail := m.poolAvailable
+	poolAvail := m.poolAvailable.Load()
 	if poolAvail < 0 {
 		poolAvail = 0
 	}
@@ -129,7 +129,7 @@ func (m *Metrics) WithTracer(ctx context.Context, route string) context.Context 
 			if err != nil {
 				return
 			}
-			atomic.AddInt64(&r.m.poolAvailable, 1)
+			r.m.poolAvailable.Add(1)
 		},
 		GotFirstResponseByte: func() {
 			// This can race with WroteRequest (on internal retires I think)
@@ -242,7 +242,7 @@ func (r *request) gotCon(info httptrace.GotConnInfo) {
 
 	if info.Reused {
 		// Update the approximation to pool available depth
-		atomic.AddInt64(&r.m.poolAvailable, -1)
+		r.m.poolAvailable.Add(-1)
 
 		tags["reused"] = "true"
 
