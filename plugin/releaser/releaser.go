@@ -12,6 +12,29 @@ import (
 	"github.com/circleci/ex/releases/releaser"
 )
 
+// Namespace is an enum representing the valid namespaces that a binary can be uploaded to
+type Namespace int
+
+const (
+	// NamespacePlugin is the namespace used to upload plugin binaries
+	NamespacePlugin Namespace = iota
+	// NamespaceSubcommand is the namespace used to upload subcommand binaries
+	NamespaceSubcommand
+)
+
+func (n Namespace) String() string {
+	switch n {
+	case NamespacePlugin:
+		return "task-agent-plugins"
+	case NamespaceSubcommand:
+		return "task-agent-subcommands"
+	default:
+		return "task-agent-plugins"
+	}
+}
+
+// Releaser is responsible for compiling and uploading the Go binaries for task-agent plugins/subcommands
+// in a standardised way
 type Releaser struct {
 	plugin  string
 	version string
@@ -19,20 +42,31 @@ type Releaser struct {
 	buildDir  string
 	platforms map[string][]string
 
-	bucket string
-	client *s3.Client
+	bucket    string
+	namespace string
+	client    *s3.Client
 }
 
 type Config struct {
-	Plugin  string
+	// Plugin is the name of the plugin/subcommand binary
+	Plugin string
+	// Version is the version of the binary to release
 	Version string
 
+	// Platforms is a map of OSes to architectures that the target binary will be compiled for
 	Platforms map[string][]string
 
+	// Bucket is the name of the S3 bucket that the compiled binaries will be uploaded to
 	Bucket string
+	// Namespace is the namespace prefix to use in the upload key for the binary. If not provided then
+	// defaults to `task-agent-plugins`. Valid options are: `task-agent-plugins` or `task-agent-subcommands`
+	Namespace Namespace
+
+	// Client is an S3 client
 	Client *s3.Client
 }
 
+// New constructs a new Releaser
 func New(cfg Config) (Releaser, error) {
 	if cfg.Plugin == "" || cfg.Version == "" {
 		return Releaser{}, fmt.Errorf("plugin and version must be provided")
@@ -78,16 +112,23 @@ func New(cfg Config) (Releaser, error) {
 		buildDir:  buildDir,
 		platforms: cfg.Platforms,
 
-		bucket: cfg.Bucket,
-		client: cfg.Client,
+		bucket:    cfg.Bucket,
+		namespace: cfg.Namespace.String(),
+		client:    cfg.Client,
 	}, nil
 }
 
+// Opts are the options available when running the Releaser
 type Opts struct {
-	Source     string
+	// Source is the source package of the plugin to compile and upload
+	Source string
+	// WorkingDir is the directory from which the compilation should be run from
 	WorkingDir string
 }
 
+// Run compiles the binary at opts.Source for each of the configured platforms and then uploads the
+// resulting binaries to the configured S3 bucket using the key with the format:
+// `namespace/plugin_name/version/os/arch/plugin_name`
 func (r Releaser) Run(ctx context.Context, opts Opts) error {
 	if opts.Source == "" {
 		return fmt.Errorf("source must not be empty")
@@ -140,7 +181,7 @@ func (r Releaser) build(ctx context.Context, source, workingDir string) (func(),
 }
 
 func (r Releaser) upload(ctx context.Context) error {
-	app := filepath.Join("task-agent-plugins", r.plugin)
+	app := filepath.Join(r.namespace, r.plugin)
 
 	rel := releaser.NewWithClient(r.client)
 	err := rel.Publish(ctx, releaser.PublishParameters{
