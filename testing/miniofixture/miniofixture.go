@@ -236,7 +236,7 @@ func (f *Fixture) emptyVersionedBucket(ctx context.Context, t testing.TB) {
 			})
 		}
 
-		if out.IsTruncated {
+		if aws.ToBool(out.IsTruncated) {
 			listReq.KeyMarker = out.NextKeyMarker
 			listReq.VersionIdMarker = out.NextVersionIdMarker
 		} else {
@@ -264,7 +264,7 @@ func (f *Fixture) emptyBucket(ctx context.Context, t testing.TB) {
 			})
 		}
 
-		if out.IsTruncated {
+		if aws.ToBool(out.IsTruncated) {
 			listReq.Marker = out.NextMarker
 		} else {
 			break
