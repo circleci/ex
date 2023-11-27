@@ -199,7 +199,7 @@ func TestReleaser_Release(t *testing.T) {
 				b, err := io.ReadAll(resp.Body)
 				assert.Assert(t, err)
 				assert.Check(t, cmp.Equal(string(b), "0.0.1-dev"))
-				assert.Check(t, cmp.Equal(resp.TagCount, int32(1)))
+				assert.Check(t, cmp.Equal(aws.ToInt32(resp.TagCount), int32(1)))
 			})
 
 			t.Run("Check tags are present", func(t *testing.T) {
