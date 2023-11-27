@@ -29,7 +29,7 @@ func TestSetup(t *testing.T) {
 		t.Run("maybe-is-not-versioned", func(t *testing.T) {
 			// something about the file system on mac means that only one volume means that
 			// versioning can not be enabled
-			if runtime.GOOS == "darwin" {
+			if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" {
 				assert.Check(t, !fix.Versioned)
 			} else {
 				// on other os's the file system appears to support versioning with one volume
@@ -40,13 +40,14 @@ func TestSetup(t *testing.T) {
 		})
 
 		t.Run("force-ver-fails", func(t *testing.T) {
-			if runtime.GOOS != "darwin" {
-				t.Skip("force versioning succeeds on non-mac file systems")
+			if runtime.GOOS == "darwin" && runtime.GOARCH == "amd64" {
+				fix.Client = nil
+				fix.ForceVersioned = true
+				err := runSetup(ctx, fix)
+				assert.ErrorContains(t, err, "failed")
+			} else {
+				t.Skip("force versioning succeeds on non-intel-mac file systems")
 			}
-			fix.Client = nil
-			fix.ForceVersioned = true
-			err := runSetup(ctx, fix)
-			assert.ErrorContains(t, err, "failed")
 		})
 	})
 
