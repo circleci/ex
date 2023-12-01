@@ -82,8 +82,9 @@ type Client struct {
 	tracer                tracer
 	noRateLimitBackoff    bool
 
-	mu      sync.RWMutex
-	last429 time.Time
+	mu                 sync.RWMutex
+	last429            time.Time
+	lastRetryAfterTime time.Time
 
 	now func() time.Time // purely a test hook
 }
@@ -512,6 +513,14 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		if err != nil {
 			if HasStatusCode(err, http.StatusTooManyRequests) {
 				c.setLast429()
+
+				if res.Header.Get("Retry-After") != "" {
+					if retryAfterTime, ok := parseRetryAfterHeader(res.Header.Get("Retry-After")); ok {
+						c.setRetryAfterTime(retryAfterTime)
+					}
+				} else {
+					c.setRetryAfterTime(time.Time{})
+				}
 			}
 
 			// attempt to decode a failure message if registered
@@ -539,6 +548,21 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	bo.InitialInterval = time.Millisecond * 50
 	bo.MaxElapsedTime = c.backOffMaxElapsedTime
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
+}
+
+func parseRetryAfterHeader(retryAfterHeader string) (time.Time, bool) {
+	// Following RFC7231, which allows for HTTP-date or a delay in seconds
+	retryAfterSeconds, err := strconv.Atoi(retryAfterHeader)
+	if err == nil {
+		return time.Now().Add(time.Duration(retryAfterSeconds) * time.Second), true
+	}
+
+	retryAfterTime, err := time.Parse(http.TimeFormat, retryAfterHeader)
+	if !retryAfterTime.IsZero() {
+		return retryAfterTime, true
+	}
+
+	return time.Time{}, false
 }
 
 func (c *Client) addPropagationHeader(ctx context.Context, req *http.Request) {
@@ -607,6 +631,10 @@ func (c *Client) shouldBackoff() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
+	if !c.lastRetryAfterTime.IsZero() {
+		return c.now().Before(c.lastRetryAfterTime)
+	}
+
 	// If not yet 10 seconds since the last 429
 	return c.now().Before(c.last429.Add(time.Second * 10))
 }
@@ -616,6 +644,13 @@ func (c *Client) setLast429() {
 	defer c.mu.Unlock()
 
 	c.last429 = c.now()
+}
+
+func (c *Client) setRetryAfterTime(t time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.lastRetryAfterTime = t
 }
 
 // NewJSONDecoder returns a decoder func enclosing the resp param
