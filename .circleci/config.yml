@@ -95,6 +95,11 @@ jobs:
         environment:
           SKIP_SETCAP: skip
           VAULT_DEV_ROOT_TOKEN_ID: dummyroot
+      - image: jaegertracing/all-in-one:latest
+        environment:
+          COLLECTOR_OTLP_ENABLED: true
+          LOG_LEVEL: debug
+
     resource_class: large
     environment:
       GOMAXPROCS: 4
