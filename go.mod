@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/vault/api v1.10.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.5.0
 	github.com/hellofresh/health-go/v4 v4.7.0
-	github.com/honeycombio/beeline-go v1.13.0
+	github.com/honeycombio/beeline-go v1.14.0
 	github.com/honeycombio/dynsampler-go v0.5.1
 	github.com/honeycombio/libhoney-go v1.20.0
 	github.com/jackc/pgconn v1.14.1
