@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
@@ -124,6 +125,8 @@ type Opts struct {
 	Source string
 	// WorkingDir is the directory from which the compilation should be run from
 	WorkingDir string
+	// LDFlags are any linker flags to be included when building the binary
+	LDFlags string
 }
 
 // Run compiles the binary at opts.Source for each of the configured platforms and then uploads the
@@ -138,7 +141,7 @@ func (r Releaser) Run(ctx context.Context, opts Opts) error {
 		opts.WorkingDir = "."
 	}
 
-	cleanup, err := r.build(ctx, opts.Source, opts.WorkingDir)
+	cleanup, err := r.build(ctx, opts.Source, opts.WorkingDir, opts.LDFlags)
 	defer cleanup()
 	if err != nil {
 		return fmt.Errorf("build: %w", err)
@@ -152,10 +155,14 @@ func (r Releaser) Run(ctx context.Context, opts Opts) error {
 	return nil
 }
 
-func (r Releaser) build(ctx context.Context, source, workingDir string) (func(), error) {
+func (r Releaser) build(ctx context.Context, source, workingDir, extraLDFlags string) (func(), error) {
+	ldFlags := []string{
+		"-s -w", // remove debug information from released binaries
+		extraLDFlags,
+	}
 	comp := compiler.New(compiler.Config{
 		BaseDir: r.buildDir,
-		LDFlags: "-s -w", // remove debug information from released binaries
+		LDFlags: strings.Join(ldFlags, " "),
 	})
 
 	cleanup := func() {
