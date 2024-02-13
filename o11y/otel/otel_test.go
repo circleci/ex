@@ -2,10 +2,16 @@ package otel
 
 import (
 	"context"
+	"net"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
+	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
@@ -29,6 +35,7 @@ func TestO11y(t *testing.T) {
 				Statsd:         s.Addr(),
 				StatsNamespace: "test-app",
 			},
+			OtelDataset:     "local-testing",
 			GrpcHostAndPort: "127.0.0.1:4317",
 		})
 		assert.NilError(t, err)
@@ -201,4 +208,121 @@ func (j *jaegerClient) Traces(ctx context.Context, since time.Time) ([]jTrace, e
 		hc.JSONDecoder(&resp),
 	))
 	return resp.Data, err
+}
+
+func TestRealCollector_HoneycombDatasetHeader(t *testing.T) {
+	col := &testTraceCollector{}
+
+	lis, err := net.Listen("tcp", "localhost:0")
+	assert.Assert(t, err)
+
+	grpcServer := grpc.NewServer()
+	coltracepb.RegisterTraceServiceServer(grpcServer, col)
+
+	g := &errgroup.Group{}
+	g.Go(func() error {
+		return grpcServer.Serve(lis)
+	})
+
+	t.Run("trace", func(t *testing.T) {
+		prov, err := New(Config{
+			Config:          o11yconf.Config{},
+			OtelDataset:     "execyooshun",
+			GrpcHostAndPort: lis.Addr().String(),
+		})
+		assert.NilError(t, err)
+		ctx := o11y.WithProvider(context.Background(), prov)
+		ctx, span := prov.StartSpan(ctx, "roobar")
+		span.End()
+
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if len(col.Spans()) > 0 {
+				return poll.Success()
+			}
+			return poll.Continue("spans never turned up")
+		})
+
+		assert.Check(t, cmp.Equal(col.Spans()[0].Name, "roobar"))
+		assert.Check(t, cmp.Equal(col.Metadata("x-honeycomb-dataset")[0], "execyooshun"))
+	})
+}
+
+type testTraceCollector struct {
+	coltracepb.UnimplementedTraceServiceServer
+
+	// mutable state below here
+	mu       sync.RWMutex
+	metadata map[string][]string
+	spans    []CollectSpan
+}
+
+type CollectSpan struct {
+	Name   string
+	Code   string
+	Desc   string
+	Attrs  map[string]string
+	Events []CollectEvent
+}
+
+type CollectEvent struct {
+	Name  string
+	Attrs map[string]string
+}
+
+func (c *testTraceCollector) Spans() []CollectSpan {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	spans := make([]CollectSpan, len(c.spans))
+	copy(spans, c.spans)
+	return spans
+}
+
+func (c *testTraceCollector) Metadata(what string) []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	ma := c.metadata[what]
+	if len(ma) == 0 {
+		return nil
+	}
+	r := make([]string, len(ma))
+	copy(r, ma)
+	return r
+}
+
+func (c *testTraceCollector) Export(ctx context.Context,
+	req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// last metadata in wins
+	c.metadata, _ = metadata.FromIncomingContext(ctx)
+
+	for _, resourceSpans := range req.GetResourceSpans() {
+		for _, scopeSpans := range resourceSpans.GetScopeSpans() {
+			for _, span := range scopeSpans.GetSpans() {
+				cspan := CollectSpan{
+					Name:  span.GetName(),
+					Code:  span.GetStatus().GetCode().String(),
+					Desc:  span.GetStatus().GetMessage(),
+					Attrs: map[string]string{},
+				}
+				for _, kv := range span.GetAttributes() {
+					cspan.Attrs[kv.GetKey()] = kv.GetValue().GetStringValue()
+				}
+				for _, event := range span.GetEvents() {
+					cevent := CollectEvent{Name: event.GetName(), Attrs: map[string]string{}}
+					for _, kv := range event.GetAttributes() {
+						cevent.Attrs[kv.GetKey()] = kv.GetValue().GetStringValue()
+					}
+					cspan.Events = append(cspan.Events, cevent)
+				}
+				c.spans = append(c.spans, cspan)
+			}
+		}
+	}
+
+	return &coltracepb.ExportTraceServiceResponse{}, nil
 }
