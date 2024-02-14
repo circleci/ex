@@ -95,6 +95,11 @@ func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter
 
 var spanCtxKey = struct{}{}
 
+// RawProvider satisfies an interface the helpers need
+func (o *OTel) RawProvider() *OTel {
+	return o
+}
+
 func (o OTel) AddGlobalField(key string, val interface{}) {
 	mustValidateKey(key)
 	globalFields.addField(key, val)
@@ -103,7 +108,7 @@ func (o OTel) AddGlobalField(key string, val interface{}) {
 func (o OTel) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
 	ctx, span := o.tracer.Start(ctx, name)
 
-	s := o.startSpan(span)
+	s := o.wrapSpan(span)
 	if s != nil {
 		ctx = context.WithValue(ctx, spanCtxKey, s)
 	}
@@ -147,7 +152,7 @@ func (o OTel) Helpers() o11y.Helpers {
 	return helpers{}
 }
 
-func (o OTel) startSpan(s trace.Span) *span {
+func (o OTel) wrapSpan(s trace.Span) *span {
 	if s == nil {
 		return nil
 	}
