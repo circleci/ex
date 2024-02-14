@@ -39,7 +39,7 @@ func New(conf Config) (o11y.Provider, error) {
 		return nil, err
 	}
 	if conf.GrpcHostAndPort != "" {
-		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort)
+		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.OtelDataset)
 		if err != nil {
 			return nil, err
 		}
@@ -84,10 +84,11 @@ func New(conf Config) (o11y.Provider, error) {
 	}, nil
 }
 
-func newGRPC(ctx context.Context, endpoint string) (*otlptrace.Exporter, error) {
+func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter, error) {
 	opts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
 	}
 	return otlptrace.New(ctx, otlptracegrpc.NewClient(opts...))
 }
