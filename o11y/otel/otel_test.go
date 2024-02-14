@@ -104,8 +104,16 @@ func doSomething(ctx context.Context) {
 	}(ctx)
 }
 
+type wrappedProvider struct {
+	o11y.Provider
+}
+
+func (p wrappedProvider) RawProvider() *OTel {
+	return p.Provider.(*OTel)
+}
+
 func TestHelpers(t *testing.T) {
-	provider, err := New(Config{
+	op, err := New(Config{
 		Config: o11yconf.Config{
 			Service: "test-service",
 			Mode:    "test",
@@ -113,48 +121,59 @@ func TestHelpers(t *testing.T) {
 		},
 		GrpcHostAndPort: "127.0.0.1:4317",
 	})
+
+	runTest := func(t *testing.T, provider o11y.Provider) {
+		h := provider.Helpers()
+		assert.Check(t, h != nil)
+
+		ctx := o11y.WithProvider(context.Background(), provider)
+		defer provider.Close(ctx)
+
+		doSomething(ctx)
+
+		t.Run("ids", func(t *testing.T) {
+			traceID, parentID := h.TraceIDs(ctx)
+			assert.Check(t, cmp.Equal(len(traceID), 32))
+			assert.Check(t, cmp.Equal(len(parentID), 0))
+		})
+
+		t.Run("extract and inject", func(t *testing.T) {
+			ctx, span := o11y.StartSpan(ctx, "test")
+			defer span.End()
+
+			svc1Propagation := h.ExtractPropagation(ctx)
+
+			// Make a new context for a second "service"
+			service2Context := o11y.WithProvider(context.Background(), provider)
+
+			// Confirm it has not got a context
+			svc2Propagation := h.ExtractPropagation(service2Context)
+			assert.Check(t, cmp.Equal(len(svc2Propagation.Headers), 0))
+
+			// Inject the propagation stuff into the new context
+			service2Context, svc2Span := h.InjectPropagation(service2Context, svc1Propagation)
+			defer svc2Span.End()
+
+			// make sure the propagations match
+			svc2Propagation = h.ExtractPropagation(service2Context)
+			assert.Check(t, cmp.DeepEqual(svc1Propagation, svc2Propagation))
+
+			// and make sure the two contexts have the same tracID
+			traceID1, _ := h.TraceIDs(ctx)
+			traceID2, _ := h.TraceIDs(service2Context)
+			assert.Check(t, cmp.Equal(traceID1, traceID2))
+		})
+	}
+
+	t.Run("raw", func(t *testing.T) {
+		runTest(t, op)
+	})
+
+	t.Run("wrapped", func(t *testing.T) {
+		runTest(t, wrappedProvider{Provider: op})
+	})
+
 	assert.NilError(t, err)
-
-	h := provider.Helpers()
-	assert.Check(t, h != nil)
-
-	ctx := o11y.WithProvider(context.Background(), provider)
-	defer provider.Close(ctx)
-
-	doSomething(ctx)
-
-	t.Run("ids", func(t *testing.T) {
-		traceID, parentID := h.TraceIDs(ctx)
-		assert.Check(t, cmp.Equal(len(traceID), 32))
-		assert.Check(t, cmp.Equal(len(parentID), 0))
-	})
-
-	t.Run("extract and inject", func(t *testing.T) {
-		ctx, span := o11y.StartSpan(ctx, "test")
-		defer span.End()
-
-		svc1Propagation := h.ExtractPropagation(ctx)
-
-		// Make a new context for a second "service"
-		service2Context := o11y.WithProvider(context.Background(), provider)
-
-		// Confirm it has not got a context
-		svc2Propagation := h.ExtractPropagation(service2Context)
-		assert.Check(t, cmp.Equal(len(svc2Propagation.Headers), 0))
-
-		// Inject the propagation stuff into the new context
-		service2Context, svc2Span := h.InjectPropagation(service2Context, svc1Propagation)
-		defer svc2Span.End()
-
-		// make sure the propagations match
-		svc2Propagation = h.ExtractPropagation(service2Context)
-		assert.Check(t, cmp.DeepEqual(svc1Propagation, svc2Propagation))
-
-		// and make sure the two contexts have the same tracID
-		traceID1, _ := h.TraceIDs(ctx)
-		traceID2, _ := h.TraceIDs(service2Context)
-		assert.Check(t, cmp.Equal(traceID1, traceID2))
-	})
 }
 
 func newJaegerClient(base, service string) jaegerClient {

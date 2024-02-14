@@ -28,20 +28,22 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 // rename the returned span.
 func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationContext) (context.Context, o11y.Span) {
 	p := o11y.FromContext(ctx)
-	provider, ok := p.(*OTel)
+	// We need to be sure to get to the underlying raw otel provider if we want to wrap
+	// the otel spn
+	oteller, ok := p.(interface{ RawProvider() *OTel })
 	if !ok {
-		return provider.StartSpan(ctx, "root")
+		return p.StartSpan(ctx, "root")
 	}
+	op := oteller.RawProvider()
 
 	// TODO support single ca.Parent
 	ctx = otel.GetTextMapPropagator().Extract(ctx, mapCarrier(ca.Headers))
 	sp := trace.SpanFromContext(ctx)
 	if sp.SpanContext().IsValid() {
-		return ctx, provider.startSpan(sp)
-
+		return ctx, op.wrapSpan(sp)
 	}
 	// If there was no context propagation make a span
-	return provider.StartSpan(ctx, "root")
+	return p.StartSpan(ctx, "root")
 }
 
 // TraceIDs return standard o11y ids
