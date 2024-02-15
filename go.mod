@@ -13,6 +13,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/go-cmp v0.6.0
+	github.com/google/uuid v1.4.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/vault/api v1.11.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.5.0
