@@ -30,8 +30,6 @@ type OTel struct {
 }
 
 func New(conf Config) (o11y.Provider, error) {
-	globalFields.addField("service.name", conf.Service)
-
 	var exporter sdktrace.SpanExporter
 
 	exporter, err := texttrace.New(os.Stdout)
@@ -39,7 +37,7 @@ func New(conf Config) (o11y.Provider, error) {
 		return nil, err
 	}
 	if conf.GrpcHostAndPort != "" {
-		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.OtelDataset)
+		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.Dataset)
 		if err != nil {
 			return nil, err
 		}
@@ -57,6 +55,10 @@ func New(conf Config) (o11y.Provider, error) {
 		semconv.ServiceNameKey.String(conf.Service),
 		semconv.ServiceVersionKey.String(conf.Version),
 	)
+
+	// This custom attribute is used by our honeycomb otel collector to route these traces
+	// to the correct dataset.
+	globalFields.addField("x-honeycomb-dataset", conf.Dataset)
 
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	tp := sdktrace.NewTracerProvider(
@@ -88,6 +90,9 @@ func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter
 	opts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithInsecure(),
+		// This header may be used by honeycomb ingestion pathways
+		// It is not currently needed for how the collectors at circle are set up, which
+		// expect an attribute instead.
 		otlptracegrpc.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
 	}
 	return otlptrace.New(ctx, otlptracegrpc.NewClient(opts...))

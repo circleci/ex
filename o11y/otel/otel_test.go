@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -27,6 +28,7 @@ func TestO11y(t *testing.T) {
 	start := time.Now()
 	s := fakestatsd.New(t)
 	ctx := testcontext.Background()
+	uuid := uuid.NewString()
 	t.Run("trace", func(t *testing.T) {
 		o, err := New(Config{
 			Config: o11yconf.Config{
@@ -35,7 +37,7 @@ func TestO11y(t *testing.T) {
 				Statsd:         s.Addr(),
 				StatsNamespace: "test-app",
 			},
-			OtelDataset:     "local-testing",
+			Dataset:         "local-testing",
 			GrpcHostAndPort: "127.0.0.1:4317",
 		})
 		assert.NilError(t, err)
@@ -58,17 +60,23 @@ func TestO11y(t *testing.T) {
 		})
 
 		gs := o.GetSpan(ctx)
-		gs.AddRawField("raw_got", "13")
+		gs.AddRawField("raw_got", uuid)
 	})
 
 	jc := newJaegerClient("http://localhost:16686", "app-main")
 	traces, err := jc.Traces(ctx, start)
 	assert.NilError(t, err)
-
 	assert.Assert(t, cmp.Len(traces, 1))
 
+	spans := traces[0].Spans
+
 	spanNames := map[string]bool{}
-	for _, s := range traces[0].Spans {
+	for _, s := range spans {
+		// jaeger normalises certain tags into the process entry
+		assertTag(t, s.Tags, "x-honeycomb-dataset", "local-testing")
+		if s.OperationName == "root" {
+			assertTag(t, s.Tags, "raw_got", uuid)
+		}
 		spanNames[s.OperationName] = true
 	}
 	assert.Check(t, cmp.DeepEqual(spanNames,
@@ -78,6 +86,16 @@ func TestO11y(t *testing.T) {
 			"sub operation": true,
 		},
 	))
+}
+
+func assertTag(t *testing.T, tags []jTag, k, v string) {
+	t.Helper()
+	for _, tag := range tags {
+		if tag.Key == k && tag.Value.(string) == v {
+			return
+		}
+	}
+	t.Errorf("key:%q with value %q was not found", k, v)
 }
 
 func doSomething(ctx context.Context) {
@@ -191,6 +209,12 @@ type jaegerClient struct {
 	service string
 }
 
+type jTag struct {
+	Key   string      `json:"key"`
+	Type  string      `json:"type"`
+	Value interface{} `json:"value"`
+}
+
 type jSpan struct {
 	TraceID       string `json:"traceID"`
 	SpanID        string `json:"spanID"`
@@ -200,21 +224,23 @@ type jSpan struct {
 		TraceID string `json:"traceID"`
 		SpanID  string `json:"spanID"`
 	} `json:"references"`
-	StartTime int64 `json:"startTime"`
-	Duration  int   `json:"duration"`
-	Tags      []struct {
-		Key   string      `json:"key"`
-		Type  string      `json:"type"`
-		Value interface{} `json:"value"`
-	} `json:"tags"`
+	StartTime int64         `json:"startTime"`
+	Duration  int           `json:"duration"`
+	Tags      []jTag        `json:"tags"`
 	Logs      []interface{} `json:"logs"`
 	ProcessID string        `json:"processID"`
 	Warnings  interface{}   `json:"warnings"`
 }
 
+type jProcess struct {
+	ServiceName string `json:"service_name"`
+	Tags        []jTag `json:"tags"`
+}
+
 type jTrace struct {
-	ID    string  `json:"id"`
-	Spans []jSpan `json:"spans"`
+	ID        string              `json:"id"`
+	Spans     []jSpan             `json:"spans"`
+	Processes map[string]jProcess `json:"processes"`
 }
 
 func (j *jaegerClient) Traces(ctx context.Context, since time.Time) ([]jTrace, error) {
@@ -246,7 +272,7 @@ func TestRealCollector_HoneycombDatasetHeader(t *testing.T) {
 	t.Run("trace", func(t *testing.T) {
 		prov, err := New(Config{
 			Config:          o11yconf.Config{},
-			OtelDataset:     "execyooshun",
+			Dataset:         "execyooshun",
 			GrpcHostAndPort: lis.Addr().String(),
 		})
 		assert.NilError(t, err)
@@ -261,8 +287,9 @@ func TestRealCollector_HoneycombDatasetHeader(t *testing.T) {
 			return poll.Continue("spans never turned up")
 		})
 
-		assert.Check(t, cmp.Equal(col.Spans()[0].Name, "roobar"))
-		assert.Check(t, cmp.Equal(col.Metadata("x-honeycomb-dataset")[0], "execyooshun"))
+		span0 := col.Spans()[0]
+		assert.Check(t, cmp.Equal(span0.Name, "roobar"))
+		assert.Check(t, cmp.Equal(span0.Attrs["x-honeycomb-dataset"], "execyooshun"))
 	})
 }
 
