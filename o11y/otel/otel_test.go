@@ -75,6 +75,10 @@ func TestO11y(t *testing.T) {
 		if s.OperationName == "root" {
 			assertTag(t, s.Tags, "raw_got", uuid)
 		}
+
+		// Jaeger passes otel resource span attributes into their process tags.
+		assertTag(t, traces[0].Processes[s.ProcessID].Tags, "x-honeycomb-dataset", "local-testing")
+
 		spanNames[s.OperationName] = true
 	}
 	assert.Check(t, cmp.DeepEqual(spanNames,
@@ -253,7 +257,7 @@ func (j *jaegerClient) Traces(ctx context.Context, since time.Time) ([]jTrace, e
 	return resp.Data, err
 }
 
-func TestRealCollector_HoneycombDatasetHeader(t *testing.T) {
+func TestRealCollector_HoneycombDataset(t *testing.T) {
 	col := &testTraceCollector{}
 
 	lis, err := net.Listen("tcp", "localhost:0")
@@ -287,8 +291,13 @@ func TestRealCollector_HoneycombDatasetHeader(t *testing.T) {
 
 		span0 := col.Spans()[0]
 		assert.Check(t, cmp.Equal(span0.Name, "roobar"))
-		// We don't get span-level attributes for dataset - OTel sends it as collector metadata instead
-		assert.Check(t, cmp.Contains(col.metadata["x-honeycomb-dataset"], "execyooshun"))
+
+		// Check the resource attributes
+		assert.Check(t, cmp.Equal(col.ResourceAttribute("x-honeycomb-dataset"), "execyooshun"))
+
+		// Headers set on the grpc exporter become collector metadata.
+		// N.B. This is not currently expected by the otel collectors.
+		assert.Check(t, cmp.Contains(col.Metadata("x-honeycomb-dataset"), "execyooshun"))
 	})
 }
 
@@ -296,9 +305,13 @@ type testTraceCollector struct {
 	coltracepb.UnimplementedTraceServiceServer
 
 	// mutable state below here
-	mu       sync.RWMutex
+	mu sync.RWMutex
+	// metadata is where headers set on the exporter headers will end up
 	metadata map[string][]string
-	spans    []CollectSpan
+	// resource attributes are populated from string attributes set on the last received resource.
+	resourceAttr map[string]string
+	// spans are populated from the individual otel 'scope spans'.
+	spans []CollectSpan
 }
 
 type CollectSpan struct {
@@ -336,6 +349,13 @@ func (c *testTraceCollector) Metadata(what string) []string {
 	return r
 }
 
+func (c *testTraceCollector) ResourceAttribute(what string) string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return c.resourceAttr[what]
+}
+
 func (c *testTraceCollector) Export(ctx context.Context,
 	req *coltracepb.ExportTraceServiceRequest) (*coltracepb.ExportTraceServiceResponse, error) {
 
@@ -346,6 +366,13 @@ func (c *testTraceCollector) Export(ctx context.Context,
 	c.metadata, _ = metadata.FromIncomingContext(ctx)
 
 	for _, resourceSpans := range req.GetResourceSpans() {
+		r := resourceSpans.GetResource()
+		if r != nil {
+			c.resourceAttr = map[string]string{}
+			for _, v := range r.GetAttributes() {
+				c.resourceAttr[v.GetKey()] = v.GetValue().GetStringValue()
+			}
+		}
 		for _, scopeSpans := range resourceSpans.GetScopeSpans() {
 			for _, span := range scopeSpans.GetSpans() {
 				cspan := CollectSpan{
