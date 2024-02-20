@@ -72,8 +72,6 @@ func TestO11y(t *testing.T) {
 
 	spanNames := map[string]bool{}
 	for _, s := range spans {
-		// jaeger normalises certain tags into the process entry
-		assertTag(t, s.Tags, "x-honeycomb-dataset", "local-testing")
 		if s.OperationName == "root" {
 			assertTag(t, s.Tags, "raw_got", uuid)
 		}
@@ -289,7 +287,8 @@ func TestRealCollector_HoneycombDatasetHeader(t *testing.T) {
 
 		span0 := col.Spans()[0]
 		assert.Check(t, cmp.Equal(span0.Name, "roobar"))
-		assert.Check(t, cmp.Equal(span0.Attrs["x-honeycomb-dataset"], "execyooshun"))
+		// We don't get span-level attributes for dataset - OTel sends it as collector metadata instead
+		assert.Check(t, cmp.Contains(col.metadata["x-honeycomb-dataset"], "execyooshun"))
 	})
 }
 
