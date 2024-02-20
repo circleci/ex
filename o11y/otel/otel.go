@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
@@ -54,11 +55,10 @@ func New(conf Config) (o11y.Provider, error) {
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(conf.Service),
 		semconv.ServiceVersionKey.String(conf.Version),
+		// This custom attribute is used by our honeycomb otel collector to route these traces
+		// to the correct dataset.
+		attribute.String("x-honeycomb-dataset", conf.Dataset),
 	)
-
-	// This custom attribute is used by our honeycomb otel collector to route these traces
-	// to the correct dataset.
-	globalFields.addField("x-honeycomb-dataset", conf.Dataset)
 
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	tp := sdktrace.NewTracerProvider(
