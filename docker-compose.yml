@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   postgres:
-    image: circleci/postgres:13.3-ram
+    image: circleci/postgres:13.5-ram
     ports:
       - '127.0.0.1:5432:5432'
     shm_size: '512mb'
