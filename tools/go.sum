@@ -298,6 +298,8 @@ github.com/gwatts/rootcerts v0.0.0-20221101192827-4691bc73c2b8 h1:SzsrH3T2cjioYg
 github.com/gwatts/rootcerts v0.0.0-20221101192827-4691bc73c2b8/go.mod h1:5Kt9XkWvkGi2OHOq0QsGxebHmhCcqJ8KCbNg/a6+n+g=
 github.com/gwatts/rootcerts v0.0.0-20230901182830-152e8b13d00f h1:7SmvKEdF00dHBmiOIeKLq56V0s8YBsqDmCrOye9L+Bw=
 github.com/gwatts/rootcerts v0.0.0-20230901182830-152e8b13d00f/go.mod h1:5Kt9XkWvkGi2OHOq0QsGxebHmhCcqJ8KCbNg/a6+n+g=
+github.com/gwatts/rootcerts v0.0.0-20240201200609-c24dbb071ef8 h1:GKy2YkROlUXH+kEv4IProNxZfrNOBkoJevCoHFa/P2c=
+github.com/gwatts/rootcerts v0.0.0-20240201200609-c24dbb071ef8/go.mod h1:5Kt9XkWvkGi2OHOq0QsGxebHmhCcqJ8KCbNg/a6+n+g=
 github.com/hashicorp/errwrap v1.0.0 h1:hLrqtEDnRye3+sgx6z4qVLNuviH3MR5aQ0ykNJa/UYA=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/go-multierror v1.1.1 h1:H5DkEtf6CXdFp0N0Em5UCwQpXMWke8IA0+lD48awMYo=
