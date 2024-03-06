@@ -18,9 +18,9 @@ require (
 	github.com/hashicorp/vault/api v1.12.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.6.0
 	github.com/hellofresh/health-go/v4 v4.7.0
-	github.com/honeycombio/beeline-go v1.14.0
+	github.com/honeycombio/beeline-go v1.15.0
 	github.com/honeycombio/dynsampler-go v0.6.0
-	github.com/honeycombio/libhoney-go v1.21.0
+	github.com/honeycombio/libhoney-go v1.22.0
 	github.com/jackc/pgconn v1.14.1
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/jmoiron/sqlx v1.3.5
@@ -100,7 +100,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/mattn/go-isatty v0.0.19 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
