@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/vault/api v1.12.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.6.0
-	github.com/hellofresh/health-go/v4 v4.7.0
+	github.com/hellofresh/health-go/v5 v5.5.2
 	github.com/honeycombio/beeline-go v1.15.0
 	github.com/honeycombio/dynsampler-go v0.6.0
 	github.com/honeycombio/libhoney-go v1.22.0
@@ -99,7 +99,6 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.4 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

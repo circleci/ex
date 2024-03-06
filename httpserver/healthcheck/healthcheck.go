@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/hellofresh/health-go/v4"
+	"github.com/hellofresh/health-go/v5"
 
 	"github.com/circleci/ex/httpserver/ginrouter"
 	"github.com/circleci/ex/o11y"
