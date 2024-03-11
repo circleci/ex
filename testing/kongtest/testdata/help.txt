@@ -1,4 +1,4 @@
-Usage: test-app --required-var=REQUIRED-VAR
+Usage: test-app --required-var=REQUIRED-VAR [flags]
 
 Flags:
   -h, --help                Show context-sensitive help.
