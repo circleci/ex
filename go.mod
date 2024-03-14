@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/vault/api v1.12.0
 	github.com/hashicorp/vault/api/auth/kubernetes v0.6.0
-	github.com/hellofresh/health-go/v5 v5.5.2
+	github.com/hellofresh/health-go/v5 v5.5.3
 	github.com/honeycombio/beeline-go v1.15.0
 	github.com/honeycombio/dynsampler-go v0.6.0
 	github.com/honeycombio/libhoney-go v1.22.0
