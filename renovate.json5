@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "postUpdateOptions": [
+    "gomodTidy",
+    "gomodUpdateImportPaths"
+  ],
+  "packageRules": [
+    {
+      // golangci-lint > 1.55 updates go version requirement to 1.21
+      "matchPackageNames": ["github.com/golangci/golangci-lint"],
+      "allowedVersions": "<=1.55"
+    }
+  ]
+}
