@@ -111,7 +111,7 @@ func NewCluster(o ClusterOptions) *redis.ClusterClient {
 		ClusterSlots:   o.ClusterSlots,
 
 		Username: o.User,
-		Password: o.Password.Value(),
+		Password: o.Password.Raw(),
 
 		MaxRetries:      o.MaxRetries,
 		MinRetryBackoff: o.MinRetryBackoff,

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 
 	"github.com/circleci/ex/config/secret"
@@ -51,7 +51,7 @@ func New(ctx context.Context, dbName, appName string, options Config) (db *sqlx.
 
 	uri := url.URL{
 		Scheme:   "postgres",
-		User:     url.UserPassword(options.User, options.Pass.Value()),
+		User:     url.UserPassword(options.User, options.Pass.Raw()),
 		Host:     host,
 		Path:     options.Name,
 		RawQuery: params.Encode(),

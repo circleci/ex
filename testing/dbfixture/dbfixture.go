@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/jmoiron/sqlx"
 	"gotest.tools/v3/assert"
 
@@ -213,7 +213,7 @@ func ensureAppCreds(ctx context.Context, fix *Fixture, conn Connection) (err err
 	}
 	_, err = db.NewTxManager(fix.AdminDB).NoTx().ExecContext(ctx, fmt.Sprintf(createAppUserQuery,
 		conn.AppUser,
-		conn.AppPassword.Value(),
+		conn.AppPassword.Raw(),
 		pgx.Identifier{fix.DBName}.Sanitize()),
 	)
 	if errors.Is(err, db.ErrNop) {
@@ -258,7 +258,7 @@ func newDB(con Connection, name string) (db *sqlx.DB, err error) {
 
 	uri := url.URL{
 		Scheme:   "postgres",
-		User:     url.UserPassword(con.User, con.Password.Value()),
+		User:     url.UserPassword(con.User, con.Password.Raw()),
 		Host:     con.Host,
 		Path:     name,
 		RawQuery: params.Encode(),

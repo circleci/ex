@@ -1,5 +1,7 @@
 package secret
 
+import "database/sql/driver"
+
 type String string
 
 const redacted = "REDACTED"
@@ -14,16 +16,19 @@ func (s String) GoString() string {
 	return redacted
 }
 
-// Value returns the sensitive value as a string.
-func (s String) Value() string {
+// Raw returns the sensitive value as a string.
+func (s String) Raw() string {
 	return string(s)
+}
+
+// Value returns the sensitive value as a string for database (https://github.com/jackc/pgx) use.
+//
+// Deprecated: this exists for automatic database integration with secret values. Use
+// Raw instead for general purpose secret handling.
+func (s String) Value() (driver.Value, error) {
+	return string(s), nil
 }
 
 func (s String) MarshalJSON() ([]byte, error) {
 	return []byte(`"` + redacted + `"`), nil
-}
-
-// Get is used by pqx before any other type checks to get the underlying type
-func (s String) Get() interface{} {
-	return string(s)
 }

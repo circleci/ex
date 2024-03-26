@@ -87,7 +87,7 @@ func New(o Options) *redis.Client {
 	opts := &redis.Options{
 		Addr:     net.JoinHostPort(o.Host, strconv.FormatInt(int64(o.Port), 10)),
 		Username: o.User,
-		Password: o.Password.Value(),
+		Password: o.Password.Raw(),
 		DB:       o.DB,
 
 		MaxRetries:      o.MaxRetries,

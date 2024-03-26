@@ -31,7 +31,7 @@ func NewClient(baseURL, username string, password secret.String) *Client {
 }
 
 func basicAuth(username string, password secret.String) string {
-	auth := username + ":" + password.Value()
+	auth := username + ":" + password.Raw()
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 

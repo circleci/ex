@@ -100,7 +100,7 @@ func Setup(ctx context.Context, o Config) (context.Context, func(context.Context
 	}
 
 	if o.RollbarToken != "" {
-		client := rollbar.NewAsync(o.RollbarToken.Value(), o.RollbarEnv, o.Version, hostname, o.RollbarServerRoot)
+		client := rollbar.NewAsync(o.RollbarToken.Raw(), o.RollbarEnv, o.Version, hostname, o.RollbarServerRoot)
 		client.SetEnabled(!o.RollbarDisabled)
 		client.Message(rollbar.INFO, "Deployment")
 		o11yProvider = rollBarHoneycombProvider{
