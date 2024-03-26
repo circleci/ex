@@ -54,13 +54,13 @@ func NewWithConnection(ctx context.Context, t types.TestingTB, con Connection) (
 	if con.User == "" {
 		con.User = "guest"
 	}
-	if con.Password.Value() == "" {
+	if con.Password.Raw() == "" {
 		con.Password = "guest"
 	}
 
 	vhost := fmt.Sprintf("%s-%s", t.Name(), randomSuffix())
 	span.AddField("vhost", vhost)
-	rawurl = fmt.Sprintf("amqp://%s:%s@%s/%s", con.User, con.Password.Value(), con.Host, vhost)
+	rawurl = fmt.Sprintf("amqp://%s:%s@%s/%s", con.User, con.Password.Raw(), con.Host, vhost)
 	span.AddField("url", rawurl)
 
 	client := rabbit.NewClient(fmt.Sprintf("http://%s:15672", con.Host), con.User, con.Password)

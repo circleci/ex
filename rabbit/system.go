@@ -18,7 +18,7 @@ type Config struct {
 
 func Load(ctx context.Context, cfg Config, sys *system.System) (*PublisherPool, error) {
 	dialer, err := amqpextra.NewDialer(
-		amqpextra.WithURL(cfg.URL.Value()),
+		amqpextra.WithURL(cfg.URL.Raw()),
 		amqpextra.WithConnectionProperties(amqp.Table{
 			"connection_name": cfg.ConnectionName,
 		}),

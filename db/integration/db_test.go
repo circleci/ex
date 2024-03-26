@@ -47,7 +47,7 @@ func TestDB(t *testing.T) {
 			Height:   187,
 			DOB:      time.Date(1998, 7, 4, 0, 0, 0, 0, time.UTC),
 			Password: "correct horse battery staple",
-			Raw:      json.RawMessage(`{"help": "me"}`), // note the space
+			Raw:      json.RawMessage(`{"help": "me"}`),
 		}
 		err := fix.TX.WithTx(ctx, func(ctx context.Context, q db.Querier) error {
 
@@ -62,8 +62,7 @@ VALUES (:id,:name,:height,:dob,:password,:raw);
 		})
 		assert.Assert(t, err)
 
-		// note the space removed - this behaviour may change from driver to driver
-		person1.Raw = json.RawMessage(`{"help":"me"}`)
+		person1.Raw = json.RawMessage(`{"help": "me"}`)
 
 		t.Run("get", func(t *testing.T) {
 			p := person{}

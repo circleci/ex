@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 

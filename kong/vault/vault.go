@@ -56,7 +56,7 @@ func New(ctx context.Context, cfg Config) (*Resolver, error) {
 	resolver := &Resolver{client: client}
 
 	if cfg.Token != "" {
-		resolver.client.SetToken(cfg.Token.Value())
+		resolver.client.SetToken(cfg.Token.Raw())
 	} else {
 		err = resolver.k8sServiceAuth(ctx)
 		if err != nil {

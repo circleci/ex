@@ -184,7 +184,7 @@ func newAWSConfig(fix *Fixture) aws.Config {
 
 	return aws.Config{
 		Region:                      fix.Region,
-		Credentials:                 credentials.NewStaticCredentialsProvider(fix.Key.Value(), fix.Secret.Value(), ""),
+		Credentials:                 credentials.NewStaticCredentialsProvider(fix.Key.Raw(), fix.Secret.Raw(), ""),
 		EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(resolveFn),
 	}
 }
