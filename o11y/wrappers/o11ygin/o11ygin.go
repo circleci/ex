@@ -51,6 +51,15 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 			}
 		}
 
+		// Extract the route from the engine and put it into an X-Route header on the response.
+		// this is similar to what's already being done in circle/circle, and backplane-go
+		// https://github.com/circleci/circle/blob/756e1245d1f00ba37b5c0e9531e616eae3073b06/src/circle/http/defpage.clj#L35
+		route := c.FullPath()
+		if route == "" {
+			route = "not-found"
+		}
+		c.Header("X-Route", route)
+
 		// Server OTEL attributes
 		span.AddRawField("meta.type", "http_server")
 		span.AddRawField("http.server_name", serverName)

@@ -181,6 +181,9 @@ func TestMiddleware(t *testing.T) {
 	t.Run("Hit an ID that exists", func(t *testing.T) {
 		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s",
 			httpclient.RouteParams("exists"),
+			httpclient.ResponseHeader(func(hdr http.Header) {
+				assert.Check(t, cmp.Equal(hdr.Get("X-Route"), "/api/:id"))
+			}),
 		))
 		assert.Assert(t, err)
 	})
