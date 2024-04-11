@@ -39,7 +39,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.2.0
 	golang.org/x/net v0.24.0
 	golang.org/x/sync v0.7.0
-	google.golang.org/grpc v1.63.0
+	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
 	gotest.tools/v3 v3.5.1
 )
