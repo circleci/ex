@@ -26,7 +26,7 @@ type Config struct {
 // Dial wraps up a standard set of dial behaviours that most grpc clients will want to use.
 // Using this will default to some grpc calls retrying if the name resolver does not provide a
 // service config.
-func Dial(ctx context.Context, conf Config) (*grpc.ClientConn, error) {
+func Dial(conf Config) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock(),
@@ -55,5 +55,5 @@ func Dial(ctx context.Context, conf Config) (*grpc.ClientConn, error) {
 		opts = append(opts, grpc.WithUnaryInterceptor(o11yInterceptor))
 	}
 
-	return grpc.DialContext(ctx, ProxyProofTarget(conf.Host), opts...)
+	return grpc.NewClient(ProxyProofTarget(conf.Host), opts...)
 }
