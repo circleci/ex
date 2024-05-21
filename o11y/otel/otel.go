@@ -154,7 +154,7 @@ func (o OTel) MetricsProvider() o11y.MetricsProvider {
 }
 
 func (o OTel) Helpers() o11y.Helpers {
-	return helpers{}
+	return helpers{p: o}
 }
 
 func (o OTel) wrapSpan(s trace.Span) *span {

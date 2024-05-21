@@ -2,19 +2,23 @@ package otel
 
 import (
 	"context"
+	"net/http"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/circleci/ex/o11y"
 )
 
-type helpers struct{}
+type helpers struct {
+	p OTel
+}
 
 // ExtractPropagation pulls propagation information out of the context
 func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext {
-	m := map[string]string{}
-	otel.GetTextMapPropagator().Inject(ctx, mapCarrier(m))
+	m := http.Header{}
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(m))
 
 	return o11y.PropagationContext{
 		// TODO support single ca.Parent
@@ -27,48 +31,18 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 // found then a new span named root is returned. It is expected that callers of this will
 // rename the returned span.
 func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationContext) (context.Context, o11y.Span) {
-	p := o11y.FromContext(ctx)
-	// We need to be sure to get to the underlying raw otel provider if we want to wrap
-	// the otel spn
-	oteller, ok := p.(interface{ RawProvider() *OTel })
-	if !ok {
-		return p.StartSpan(ctx, "root")
-	}
-	op := oteller.RawProvider()
-
 	// TODO support single ca.Parent
-	ctx = otel.GetTextMapPropagator().Extract(ctx, mapCarrier(ca.Headers))
+	ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(ca.Headers))
 	sp := trace.SpanFromContext(ctx)
 	if sp.SpanContext().IsValid() {
-		return ctx, op.wrapSpan(sp)
+		return ctx, h.p.wrapSpan(sp)
 	}
 	// If there was no context propagation make a span
-	return p.StartSpan(ctx, "root")
+	return h.p.StartSpan(ctx, "root")
 }
 
 // TraceIDs return standard o11y ids
 func (h helpers) TraceIDs(ctx context.Context) (traceID, parentID string) {
 	sc := trace.SpanFromContext(ctx).SpanContext()
 	return sc.TraceID().String(), "" // TODO - do we ever use parent
-}
-
-type mapCarrier map[string]string
-
-// Get returns the value associated with the passed key.
-func (m mapCarrier) Get(key string) string {
-	return m[key]
-}
-
-// Set stores the key-value pair.
-func (m mapCarrier) Set(key string, value string) {
-	m[key] = value
-}
-
-// Keys lists the keys stored in this carrier.
-func (m mapCarrier) Keys() []string {
-	ks := make([]string, 0, len(m))
-	for k := range m {
-		ks = append(ks, k)
-	}
-	return ks
 }

@@ -69,19 +69,15 @@ type PropagationContext struct {
 	// Parent contains single string serialisation of just the trace parent fields
 	Parent string
 	// Headers contains the map of all context propagation headers
-	Headers map[string]string
+	Headers http.Header
 }
 
 // PropagationContextFromHeader is a helper constructs a PropagationContext from h. It is not filtered
 // to the headers needed for propagation. It is expected to be used as the input to InjectPropagation.
 func PropagationContextFromHeader(h http.Header) PropagationContext {
-	p := PropagationContext{
-		Headers: map[string]string{},
+	return PropagationContext{
+		Headers: h,
 	}
-	for k := range h {
-		p.Headers[k] = h.Get(k)
-	}
-	return p
 }
 
 type Helpers interface {
@@ -90,7 +86,8 @@ type Helpers interface {
 	// InjectPropagation adds propagation header fields into the returned root span returning
 	// the context carrying that span
 	InjectPropagation(context.Context, PropagationContext) (context.Context, Span)
-	// TraceIDs return standard o11y ids
+
+	// TraceIDs return standard o11y ids - used for testing
 	TraceIDs(ctx context.Context) (traceID, parentID string)
 }
 
