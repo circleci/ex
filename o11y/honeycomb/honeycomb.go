@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -370,17 +371,29 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 	}
 	parent := s.SerializeHeaders()
 	return o11y.PropagationContext{
-		Parent:  parent,
-		Headers: map[string]string{propagation.TracePropagationHTTPHeader: parent},
+		Parent: parent,
+		Headers: http.Header{
+			propagation.TracePropagationHTTPHeader: []string{parent},
+		},
 	}
 }
 
 func (h helpers) InjectPropagation(ctx context.Context, p o11y.PropagationContext) (context.Context, o11y.Span) {
+	var prop *propagation.PropagationContext
+
 	field := p.Parent
 	if field == "" {
-		field = p.Headers[propagation.TracePropagationHTTPHeader]
+		field = p.Headers.Get(propagation.TracePropagationHTTPHeader)
 	}
-	prop, _ := propagation.UnmarshalHoneycombTraceContext(field)
+	// Use the honeycomb propagation if present, otherwise grab the w3c headers
+	if field != "" {
+		prop, _ = propagation.UnmarshalHoneycombTraceContext(field)
+	} else {
+		_, prop, _ = propagation.UnmarshalW3CTraceContext(ctx, map[string]string{
+			propagation.TraceparentHeader: p.Headers.Get(propagation.TraceparentHeader),
+		})
+	}
+
 	ctx, tr := trace.NewTrace(ctx, prop)
 	return ctx, WrapSpan(tr.GetRootSpan())
 }

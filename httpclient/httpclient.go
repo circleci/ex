@@ -548,7 +548,7 @@ func (c *Client) addPropagationHeader(ctx context.Context, req *http.Request) {
 	}
 	propagation := p.Helpers().ExtractPropagation(ctx)
 	for k, v := range propagation.Headers {
-		req.Header.Set(k, v)
+		req.Header[k] = v
 	}
 }
 
