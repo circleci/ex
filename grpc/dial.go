@@ -29,7 +29,6 @@ type Config struct {
 func Dial(conf Config) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 		grpc.WithDefaultServiceConfig(ServiceConfig(conf.ServiceName)),
 	}
 
