@@ -80,7 +80,7 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}}, ignoreHoneyCombHeader)
+		}}, ignoreO11yCombHeaders)
 	})
 
 	url2 := server.URL + "/test/file-2.txt"
@@ -101,7 +101,7 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}}, ignoreHoneyCombHeader)
+		}}, ignoreO11yCombHeaders)
 	})
 
 	t.Run("Cached download", func(t *testing.T) {
@@ -113,7 +113,7 @@ func TestDownloader_Download(t *testing.T) {
 		assert.Check(t, strings.HasSuffix(target, filepath.Join("test", "file-2.txt")))
 		assertFileContents(t, target, "Second compressed file")
 
-		assert.DeepEqual(t, recorder.AllRequests(), originalRequests, ignoreHoneyCombHeader)
+		assert.DeepEqual(t, recorder.AllRequests(), originalRequests, ignoreO11yCombHeaders)
 	})
 
 	t.Run("Remove cached and re-download", func(t *testing.T) {
@@ -140,7 +140,7 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}}, ignoreHoneyCombHeader)
+		}}, ignoreO11yCombHeaders)
 	})
 
 	t.Run("Not found", func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestDownloader_Download(t *testing.T) {
 				"User-Agent":      {"Go-http-client/1.1"},
 			},
 			Body: []byte(""),
-		}}, ignoreHoneyCombHeader)
+		}}, ignoreO11yCombHeaders)
 	})
 
 	t.Run("remote downloads", func(t *testing.T) {
@@ -211,6 +211,6 @@ func assertFileContents(t *testing.T, path, contents string) {
 	assert.Check(t, cmp.Equal(string(b), contents))
 }
 
-var ignoreHoneyCombHeader = cmpopts.IgnoreMapEntries(func(key string, values []string) bool {
-	return key == "X-Honeycomb-Trace"
+var ignoreO11yCombHeaders = cmpopts.IgnoreMapEntries(func(key string, values []string) bool {
+	return key == "X-Honeycomb-Trace" || key == "Traceparent" || key == "Tracestate"
 })

@@ -369,12 +369,22 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 	if s == nil {
 		return o11y.PropagationContext{}
 	}
+
 	parent := s.SerializeHeaders()
+	headers := http.Header{
+		propagation.TracePropagationHTTPHeader: []string{parent},
+	}
+
+	// Start sending wc3 headers as well as honeycomb headers
+	_, otelHeaders := propagation.MarshalW3CTraceContext(ctx, s.PropagationContext())
+
+	for k, v := range otelHeaders {
+		headers.Set(k, v)
+	}
+
 	return o11y.PropagationContext{
-		Parent: parent,
-		Headers: http.Header{
-			propagation.TracePropagationHTTPHeader: []string{parent},
-		},
+		Parent:  parent,
+		Headers: headers,
 	}
 }
 

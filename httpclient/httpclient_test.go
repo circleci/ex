@@ -140,6 +140,39 @@ func TestClient_Call_Propagates(t *testing.T) {
 		t.Logf("httpClientTraceID: %q", httpClientTraceID)
 		assert.Check(t, cmp.Equal(httpClientTraceID, <-traceIDChan))
 	})
+
+	t.Run("hc client propagates to otel server", func(t *testing.T) {
+		srvProvider, err := otel.New(otel.Config{})
+		assert.NilError(t, err)
+
+		okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			helpers := srvProvider.Helpers()
+			traceID, _ := helpers.TraceIDs(r.Context())
+			traceIDChan <- traceID
+		})
+
+		server := httptest.NewServer(o11ynethttp.Middleware(srvProvider, "name", okHandler))
+		client := httpclient.New(httpclient.Config{
+			Name:    "otel-test",
+			BaseURL: server.URL,
+			Timeout: time.Second,
+		})
+
+		// Client Side stuff
+		ctx := testcontext.Background()
+		op := o11y.FromContext(ctx)
+		helpers := op.Helpers()
+
+		ctx, span := o11y.StartSpan(ctx, "new client span")
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/"))
+		assert.Check(t, err)
+		span.End()
+
+		httpClientTraceID, _ := helpers.TraceIDs(ctx)
+
+		t.Logf("httpClientTraceID: %q", httpClientTraceID)
+		assert.Check(t, cmp.Equal(httpClientTraceID, <-traceIDChan))
+	})
 }
 
 func TestClient_Call_Decodes(t *testing.T) {
