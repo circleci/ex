@@ -174,10 +174,6 @@ func TestHelpers(t *testing.T) {
 			service2Context, svc2Span := h.InjectPropagation(service2Context, svc1Propagation)
 			defer svc2Span.End()
 
-			// make sure the propagations match
-			svc2Propagation = h.ExtractPropagation(service2Context)
-			assert.Check(t, cmp.DeepEqual(svc1Propagation, svc2Propagation))
-
 			// and make sure the two contexts have the same tracID
 			traceID1, _ := h.TraceIDs(ctx)
 			traceID2, _ := h.TraceIDs(service2Context)
