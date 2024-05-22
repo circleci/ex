@@ -31,6 +31,7 @@ func Middleware(provider o11y.Provider, name string, handler http.Handler) http.
 		ctx = o11y.WithProvider(ctx, provider)
 		ctx = o11y.WithBaggage(ctx, baggage.Get(ctx, r))
 		ctx = context.WithValue(ctx, nethttpRouteRecorderContextKey{}, routeRecorder)
+
 		r = r.WithContext(ctx)
 
 		// We default to using the Path as the name and route - which could be high cardinality

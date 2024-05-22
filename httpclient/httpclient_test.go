@@ -45,6 +45,8 @@ func TestClient_Call_Propagates(t *testing.T) {
 			helpers := o11y.FromContext(ctx).Helpers()
 			traceID, _ := helpers.TraceIDs(r.Context())
 			traceIDChan <- traceID
+			span := o11y.FromContext(r.Context()).GetSpan(r.Context())
+			span.AddField("prov_get_span", true)
 		})
 
 		server := httptest.NewServer(o11ynethttp.Middleware(o11y.FromContext(ctx), "name", okHandler))
@@ -84,6 +86,8 @@ func TestClient_Call_Propagates(t *testing.T) {
 			helpers := op.Helpers()
 			traceID, _ := helpers.TraceIDs(r.Context())
 			traceIDChan <- traceID
+			span := o11y.FromContext(r.Context()).GetSpan(r.Context())
+			span.AddField("prov_get_span", true)
 		})
 
 		server := httptest.NewServer(o11ynethttp.Middleware(op, "name", okHandler))
@@ -114,6 +118,8 @@ func TestClient_Call_Propagates(t *testing.T) {
 			helpers := srvProvider.Helpers()
 			traceID, _ := helpers.TraceIDs(r.Context())
 			traceIDChan <- traceID
+			span := o11y.FromContext(r.Context()).GetSpan(r.Context())
+			span.AddField("prov_get_span", true)
 		})
 
 		server := httptest.NewServer(o11ynethttp.Middleware(srvProvider, "name", okHandler))
@@ -149,6 +155,8 @@ func TestClient_Call_Propagates(t *testing.T) {
 			helpers := srvProvider.Helpers()
 			traceID, _ := helpers.TraceIDs(r.Context())
 			traceIDChan <- traceID
+			span := o11y.FromContext(r.Context()).GetSpan(r.Context())
+			span.AddField("prov_get_span", true)
 		})
 
 		server := httptest.NewServer(o11ynethttp.Middleware(srvProvider, "name", okHandler))
