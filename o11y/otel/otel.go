@@ -121,6 +121,7 @@ func (o OTel) StartSpan(ctx context.Context, name string) (context.Context, o11y
 	return ctx, s
 }
 
+// GetSpan returns the active span in the given context. It will return nil if there is no span available.
 func (o OTel) GetSpan(ctx context.Context) o11y.Span {
 	if s, ok := ctx.Value(spanCtxKey).(*span); ok {
 		return s

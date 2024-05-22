@@ -34,7 +34,7 @@ type Provider interface {
 	//   defer span.End()
 	StartSpan(ctx context.Context, name string) (context.Context, Span)
 
-	// GetSpan returns the currently active span
+	// GetSpan returns the active span in the given context. It will return nil if there is no span available.
 	GetSpan(ctx context.Context) Span
 
 	// AddField is for adding application-level information to the currently active span

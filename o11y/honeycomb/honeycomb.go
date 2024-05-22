@@ -324,6 +324,7 @@ func (h *honeycomb) StartSpan(ctx context.Context, name string) (context.Context
 	return ctx, WrapSpan(newSpan)
 }
 
+// GetSpan returns the active span in the given context. It will return nil if there is no span available.
 func (h *honeycomb) GetSpan(ctx context.Context) o11y.Span {
 	return WrapSpan(trace.GetSpanFromContext(ctx))
 }
