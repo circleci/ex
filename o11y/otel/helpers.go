@@ -33,17 +33,9 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationContext) (context.Context, o11y.Span) {
 	// TODO support single ca.Parent
 	ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(ca.Headers))
-	sp := trace.SpanFromContext(ctx)
 
-	// If we found a valid span wrap it up and make sure it is available on the context.
-	// (GetSpan expects the current span to be in the context)
-	if sp.SpanContext().IsValid() {
-		ws := h.p.wrapSpan(sp)
-		ctx = context.WithValue(ctx, spanCtxKey, ws)
-		return ctx, ws
-	}
-
-	// If there was no context propagation make a new span
+	// Make a new span - the trace propagation info in the context will be used
+	// N.B we update the name of this span at the calling site.
 	return h.p.StartSpan(ctx, "root")
 }
 
