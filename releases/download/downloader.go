@@ -38,6 +38,7 @@ func NewDownloader(timeout time.Duration, dir string) (*Downloader, error) {
 	return &Downloader{
 		dir: dir,
 		client: httpclient.New(httpclient.Config{
+			Name:    "downloader",
 			Timeout: timeout,
 		}),
 	}, nil

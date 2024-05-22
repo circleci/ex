@@ -107,9 +107,11 @@ func New(cfg Config) *Client {
 	}
 
 	additionalHeaders := make(map[string]string)
-	if cfg.UserAgent != "" {
-		additionalHeaders["User-Agent"] = cfg.UserAgent
+	ua := cfg.UserAgent
+	if ua == "" {
+		ua = fmt.Sprintf("CircleCI (%s, ex)", cfg.Name)
 	}
+	additionalHeaders["User-Agent"] = ua
 
 	var roundTripper = cfg.Transport
 	if cfg.Tracer != nil {
