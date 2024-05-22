@@ -77,7 +77,7 @@ func TestDownloader_Download(t *testing.T) {
 			URL:    url.URL{Path: "/test/file-1.txt"},
 			Header: http.Header{
 				"Accept-Encoding": {"gzip"},
-				"User-Agent":      {"Go-http-client/1.1"},
+				"User-Agent":      {"CircleCI (downloader, ex)"},
 			},
 			Body: []byte(""),
 		}}, ignoreO11yCombHeaders)
@@ -98,7 +98,7 @@ func TestDownloader_Download(t *testing.T) {
 			URL:    url.URL{Path: "/test/file-2.txt"},
 			Header: http.Header{
 				"Accept-Encoding": {"gzip"},
-				"User-Agent":      {"Go-http-client/1.1"},
+				"User-Agent":      {"CircleCI (downloader, ex)"},
 			},
 			Body: []byte(""),
 		}}, ignoreO11yCombHeaders)
@@ -137,7 +137,7 @@ func TestDownloader_Download(t *testing.T) {
 			URL:    url.URL{Path: "/test/file-2.txt"},
 			Header: http.Header{
 				"Accept-Encoding": {"gzip"},
-				"User-Agent":      {"Go-http-client/1.1"},
+				"User-Agent":      {"CircleCI (downloader, ex)"},
 			},
 			Body: []byte(""),
 		}}, ignoreO11yCombHeaders)
@@ -154,7 +154,7 @@ func TestDownloader_Download(t *testing.T) {
 			URL:    url.URL{Path: "/test/file-3.txt"},
 			Header: http.Header{
 				"Accept-Encoding": {"gzip"},
-				"User-Agent":      {"Go-http-client/1.1"},
+				"User-Agent":      {"CircleCI (downloader, ex)"},
 			},
 			Body: []byte(""),
 		}}, ignoreO11yCombHeaders)
