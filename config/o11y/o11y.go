@@ -27,7 +27,7 @@ type Config struct {
 	HoneycombHost     string
 	HoneycombKey      secret.String
 	SampleTraces      bool
-	SampleKeyFunc     func(map[string]interface{}) string
+	SampleKeyFunc     func(map[string]any) string
 	SampleRates       map[string]int
 	Format            string
 	Version           string

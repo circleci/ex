@@ -297,6 +297,53 @@ func TestRealCollector_HoneycombDataset(t *testing.T) {
 	})
 }
 
+func TestSampling(t *testing.T) {
+	col := &testTraceCollector{}
+
+	lis, err := net.Listen("tcp", "localhost:0")
+	assert.Assert(t, err)
+
+	grpcServer := grpc.NewServer()
+	coltracepb.RegisterTraceServiceServer(grpcServer, col)
+
+	g := &errgroup.Group{}
+	g.Go(func() error {
+		return grpcServer.Serve(lis)
+	})
+
+	t.Run("trace", func(t *testing.T) {
+		prov, err := New(Config{
+			Config: o11yconf.Config{
+				SampleTraces: true,
+				SampleKeyFunc: func(m map[string]any) string {
+					return m["name"].(string)
+				},
+				SampleRates: map[string]int{
+					"roobar": 10, // 1 in 10 spans to be kept
+				},
+			},
+			Dataset:         "execyooshun",
+			GrpcHostAndPort: lis.Addr().String(),
+		})
+		assert.NilError(t, err)
+		ctx := o11y.WithProvider(context.Background(), prov)
+		for n := 0; n < 100; n++ {
+			_, span := prov.StartSpan(ctx, "roobar")
+			span.AddField("number", n)
+			span.End()
+		}
+
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if len(col.Spans()) > 5 {
+				return poll.Success()
+			}
+			return poll.Continue("not enough spans never turned up. Sampling too heavily?")
+		})
+
+		assert.Check(t, len(col.Spans()) < 20, "got too many spans: %d", len(col.Spans()))
+	})
+}
+
 type testTraceCollector struct {
 	coltracepb.UnimplementedTraceServiceServer
 

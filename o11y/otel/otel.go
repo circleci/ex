@@ -51,21 +51,7 @@ func New(conf Config) (o11y.Provider, error) {
 		}
 	}
 
-	res := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceNameKey.String(conf.Service),
-		semconv.ServiceVersionKey.String(conf.Version),
-		// This custom resource attribute is used by our honeycomb otel collector to route these traces
-		// to the correct dataset.
-		attribute.String("x-honeycomb-dataset", conf.Dataset),
-	)
-
-	bsp := sdktrace.NewBatchSpanProcessor(exporter)
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSpanProcessor(bsp),
-		sdktrace.WithSpanProcessor(globalFields),
-		sdktrace.WithResource(res),
-	)
+	tp := traceProvider(exporter, conf)
 
 	// set the global options
 	otel.SetTracerProvider(tp)
@@ -84,6 +70,36 @@ func New(conf Config) (o11y.Provider, error) {
 		tp:              tp,
 		tracer:          otel.Tracer(""),
 	}, nil
+}
+
+func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.TracerProvider {
+	res := resource.NewWithAttributes(
+		semconv.SchemaURL,
+		semconv.ServiceNameKey.String(conf.Service),
+		semconv.ServiceVersionKey.String(conf.Version),
+		// HC Backwards compatible fields
+		attribute.String("service", conf.Service),
+		attribute.String("mode", conf.Mode),
+		// This custom resource attribute is used by our honeycomb otel collector to route these traces
+		// to the correct dataset.
+		attribute.String("x-honeycomb-dataset", conf.Dataset),
+	)
+
+	bsp := sdktrace.NewBatchSpanProcessor(exporter)
+
+	traceOptions := []sdktrace.TracerProviderOption{
+		sdktrace.WithSpanProcessor(bsp),
+		sdktrace.WithSpanProcessor(globalFields),
+		sdktrace.WithResource(res),
+	}
+	if conf.SampleTraces {
+		traceOptions = append(traceOptions, sdktrace.WithSampler(deterministicSampler{
+			sampleKeyFunc: conf.SampleKeyFunc,
+			sampleRates:   conf.SampleRates,
+		}))
+	}
+
+	return sdktrace.NewTracerProvider(traceOptions...)
 }
 
 func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter, error) {
