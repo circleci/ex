@@ -21,7 +21,7 @@ require (
 	github.com/honeycombio/beeline-go v1.16.0
 	github.com/honeycombio/dynsampler-go v0.6.0
 	github.com/honeycombio/libhoney-go v1.22.0
-	github.com/jackc/pgx/v5 v5.5.5
+	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/klauspost/compress v1.17.8
