@@ -5,7 +5,6 @@ import (
 	"math"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type deterministicSampler struct {
@@ -13,28 +12,17 @@ type deterministicSampler struct {
 	sampleRates   map[string]int
 }
 
-func (s deterministicSampler) ShouldSample(p sdktrace.SamplingParameters) sdktrace.SamplingResult {
-	tsc := trace.SpanContextFromContext(p.ParentContext).TraceState()
-
+// shouldSample means should sample in, returning true if the span should be sampled in (kept)
+func (s deterministicSampler) shouldSample(p sdktrace.ReadOnlySpan) bool {
 	fields := map[string]any{}
-	for _, attr := range p.Attributes {
-		fields[string(attr.Key)] = attr.Value
+	for _, attr := range p.Attributes() {
+		fields[string(attr.Key)] = attr.Value.AsInterface()
 	}
 	fields["name"] = p.Name
 
 	key := s.sampleKeyFunc(fields)
 	rate, ok := s.sampleRates[key] // no rate found means keep
-	if !ok || shouldKeep(p.TraceID.String(), rate) {
-		return sdktrace.SamplingResult{
-			Decision:   sdktrace.RecordAndSample,
-			Tracestate: tsc,
-		}
-	}
-
-	return sdktrace.SamplingResult{
-		Decision:   sdktrace.Drop,
-		Tracestate: tsc,
-	}
+	return !ok || shouldKeep(p.SpanContext().SpanID().String(), rate)
 }
 
 // shouldKeep deterministically decides whether to sample. True means keep, false means drop
@@ -47,8 +35,4 @@ func shouldKeep(determinant string, rate int) bool {
 	v := crc32.ChecksumIEEE([]byte(determinant))
 
 	return v < threshold
-}
-
-func (s deterministicSampler) Description() string {
-	return "deterministicSampler"
 }
