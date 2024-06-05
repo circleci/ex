@@ -2,6 +2,7 @@ package otel
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -318,7 +319,9 @@ func TestSampling(t *testing.T) {
 			Config: o11yconf.Config{
 				SampleTraces: true,
 				SampleKeyFunc: func(m map[string]any) string {
-					return m["name"].(string)
+					// n.b. don't test with name - since that is available in the head sampler
+					// attributes
+					return fmt.Sprintf("%v", m["app.sample_thing"])
 				},
 				SampleRates: map[string]int{
 					"roobar": 10, // 1 in 10 spans to be kept
@@ -330,8 +333,9 @@ func TestSampling(t *testing.T) {
 		assert.NilError(t, err)
 		ctx := o11y.WithProvider(context.Background(), prov)
 		for n := 0; n < 100; n++ {
-			_, span := prov.StartSpan(ctx, "roobar")
+			_, span := prov.StartSpan(ctx, "span-name")
 			span.AddField("number", n)
+			span.AddField("sample_thing", "roobar")
 			span.End()
 		}
 

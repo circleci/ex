@@ -42,12 +42,20 @@ func New(conf Config) (o11y.Provider, error) {
 		if err != nil {
 			return nil, err
 		}
-		// use gRPC and text - mainly so acceptance testing can harvest the ports.
+		var sampler *deterministicSampler
+		if conf.SampleTraces {
+			sampler = &deterministicSampler{
+				sampleKeyFunc: conf.SampleKeyFunc,
+				sampleRates:   conf.SampleRates,
+			}
+		}
+		// use gRPC and text - mainly so sampled out spans still make it to logs
 		exporter = multipleExporter{
 			exporters: []sdktrace.SpanExporter{
 				exporter,
 				grpc,
 			},
+			sampler: sampler,
 		}
 	}
 
@@ -96,14 +104,6 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 		// N.B. must pass in the address here since we need to see later mutations
 		sdktrace.WithSpanProcessor(&globalFields),
 		sdktrace.WithResource(res),
-	}
-	if conf.SampleTraces {
-		// This sampler can only do pure head based sampling, there is no end of span sampler.
-		// only pure tail based for the whole trace via refinery
-		traceOptions = append(traceOptions, sdktrace.WithSampler(deterministicSampler{
-			sampleKeyFunc: conf.SampleKeyFunc,
-			sampleRates:   conf.SampleRates,
-		}))
 	}
 
 	return sdktrace.NewTracerProvider(traceOptions...)
@@ -249,9 +249,11 @@ func mustValidateKey(key string) {
 
 type multipleExporter struct {
 	exporters []sdktrace.SpanExporter
+	sampler   *deterministicSampler
 }
 
 func (m multipleExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+	spans = m.sampleSpans(spans)
 	for _, e := range m.exporters {
 		if err := e.ExportSpans(ctx, spans); err != nil {
 			return err
@@ -267,4 +269,17 @@ func (m multipleExporter) Shutdown(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (m multipleExporter) sampleSpans(spans []sdktrace.ReadOnlySpan) []sdktrace.ReadOnlySpan {
+	if m.sampler == nil {
+		return spans
+	}
+	ss := make([]sdktrace.ReadOnlySpan, 0, len(spans))
+	for _, s := range spans {
+		if m.sampler.shouldSample(s) {
+			ss = append(ss, s)
+		}
+	}
+	return ss
 }
