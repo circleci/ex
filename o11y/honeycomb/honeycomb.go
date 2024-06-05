@@ -376,12 +376,13 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 		propagation.TracePropagationHTTPHeader: []string{parent},
 	}
 
+	// TODO - make optional
 	// Start sending wc3 headers as well as honeycomb headers
-	_, otelHeaders := propagation.MarshalW3CTraceContext(ctx, s.PropagationContext())
-
-	for k, v := range otelHeaders {
-		headers.Set(k, v)
-	}
+	// _, otelHeaders := propagation.MarshalW3CTraceContext(ctx, s.PropagationContext())
+	//
+	// for k, v := range otelHeaders {
+	//	headers.Set(k, v)
+	// }
 
 	return o11y.PropagationContext{
 		Parent:  parent,
@@ -399,11 +400,14 @@ func (h helpers) InjectPropagation(ctx context.Context, p o11y.PropagationContex
 	// Use the honeycomb propagation if present, otherwise grab the w3c headers
 	if field != "" {
 		prop, _ = propagation.UnmarshalHoneycombTraceContext(field)
-	} else {
-		_, prop, _ = propagation.UnmarshalW3CTraceContext(ctx, map[string]string{
-			propagation.TraceparentHeader: p.Headers.Get(propagation.TraceparentHeader),
-		})
 	}
+	// TODO - make optional
+	// else {
+	// _, prop, _ = propagation.UnmarshalW3CTraceContext(ctx, map[string]string{
+	// propagation.TraceparentHeader: p.Headers.Get(propagation.TraceparentHeader),
+	// })
+	// }
+	// }
 
 	ctx, tr := trace.NewTrace(ctx, prop)
 	return ctx, WrapSpan(tr.GetRootSpan())
