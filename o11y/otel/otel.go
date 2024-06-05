@@ -77,9 +77,13 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 		semconv.SchemaURL,
 		semconv.ServiceNameKey.String(conf.Service),
 		semconv.ServiceVersionKey.String(conf.Version),
-		// HC Backwards compatible fields
+		// other Config specific fields
+		attribute.String("service.mode", conf.Mode),
+
+		// HC Backwards compatible fields - can remove once boards are updated
 		attribute.String("service", conf.Service),
 		attribute.String("mode", conf.Mode),
+		attribute.String("version", conf.Version),
 		// This custom resource attribute is used by our honeycomb otel collector to route these traces
 		// to the correct dataset.
 		attribute.String("x-honeycomb-dataset", conf.Dataset),
@@ -89,10 +93,13 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 
 	traceOptions := []sdktrace.TracerProviderOption{
 		sdktrace.WithSpanProcessor(bsp),
-		sdktrace.WithSpanProcessor(globalFields),
+		// N.B. must pass in the address here since we need to see later mutations
+		sdktrace.WithSpanProcessor(&globalFields),
 		sdktrace.WithResource(res),
 	}
 	if conf.SampleTraces {
+		// This sampler can only do pure head based sampling, there is no end of span sampler.
+		// only pure tail based for the whole trace via refinery
 		traceOptions = append(traceOptions, sdktrace.WithSampler(deterministicSampler{
 			sampleKeyFunc: conf.SampleKeyFunc,
 			sampleRates:   conf.SampleRates,
