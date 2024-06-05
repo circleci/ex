@@ -41,6 +41,7 @@ func TestO11y(t *testing.T) {
 			GrpcHostAndPort: "127.0.0.1:4317",
 		})
 		assert.NilError(t, err)
+		o.AddGlobalField("a_global_key", "a-global-value")
 
 		// need to close the provider to be sure traces flushed
 		defer o.Close(ctx)
@@ -74,6 +75,7 @@ func TestO11y(t *testing.T) {
 	for _, s := range spans {
 		if s.OperationName == "root" {
 			assertTag(t, s.Tags, "raw_got", uuid)
+			assertTag(t, s.Tags, "a_global_key", "a-global-value")
 		}
 
 		// Jaeger passes otel resource span attributes into their process tags.
