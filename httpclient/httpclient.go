@@ -67,6 +67,8 @@ type Config struct {
 	// (e.g. if it uses specific query params or headers when bucketing requests) but should be enabled
 	// with care as it can lead to thrashing the server if not used appropriately.
 	NoRateLimitBackoff bool
+	// DisableW3CTracePropagation is a temporary option to disable sending w3c trace propagation headers
+	DisableW3CTracePropagation bool
 }
 
 // Client is the o11y instrumented http client.
@@ -81,6 +83,8 @@ type Client struct {
 	additionalHeaders     map[string]string
 	tracer                tracer
 	noRateLimitBackoff    bool
+	// temporary - whilst we cut over to otel and a shared dataset
+	disableW3CTracePropagation bool
 
 	mu      sync.RWMutex
 	last429 time.Time
@@ -128,9 +132,10 @@ func New(cfg Config) *Client {
 		httpClient: &http.Client{
 			Transport: roundTripper,
 		},
-		tracer:             cfg.Tracer,
-		now:                time.Now,
-		noRateLimitBackoff: cfg.NoRateLimitBackoff,
+		tracer:                     cfg.Tracer,
+		now:                        time.Now,
+		noRateLimitBackoff:         cfg.NoRateLimitBackoff,
+		disableW3CTracePropagation: cfg.DisableW3CTracePropagation,
 	}
 }
 
@@ -548,7 +553,7 @@ func (c *Client) addPropagationHeader(ctx context.Context, req *http.Request) {
 	if p == nil {
 		return
 	}
-	propagation := p.Helpers().ExtractPropagation(ctx)
+	propagation := p.Helpers(c.disableW3CTracePropagation).ExtractPropagation(ctx)
 	for k, v := range propagation.Headers {
 		req.Header[k] = v
 	}

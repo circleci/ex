@@ -177,8 +177,16 @@ func (o OTel) MetricsProvider() o11y.MetricsProvider {
 	return o.metricsProvider
 }
 
-func (o OTel) Helpers() o11y.Helpers {
-	return helpers{p: o}
+func (o OTel) Helpers(disableW3c ...bool) o11y.Helpers {
+	d := false
+	if len(disableW3c) > 0 {
+		d = disableW3c[0]
+	}
+
+	return helpers{
+		p:          o,
+		disableW3c: d,
+	}
 }
 
 func (o OTel) wrapSpan(s trace.Span) *span {
