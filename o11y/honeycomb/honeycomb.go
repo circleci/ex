@@ -359,12 +359,22 @@ func (h *honeycomb) MetricsProvider() o11y.MetricsProvider {
 	return h.metricsProvider
 }
 
-func (h *honeycomb) Helpers() o11y.Helpers {
-	return helpers{}
+func (h *honeycomb) Helpers(disableW3c ...bool) o11y.Helpers {
+	d := false
+	if len(disableW3c) > 0 {
+		d = disableW3c[0]
+	}
+	return helpers{
+		disableW3c: d,
+	}
 }
 
-type helpers struct{}
+type helpers struct {
+	disableW3c bool
+}
 
+// ExtractPropagation pulls propagation info out of the ctx and returns it to be used by other packages
+// to send trace propagate to other systems.
 func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext {
 	s := trace.GetSpanFromContext(ctx)
 	if s == nil {
@@ -376,13 +386,14 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 		propagation.TracePropagationHTTPHeader: []string{parent},
 	}
 
-	// TODO - make optional
-	// Start sending wc3 headers as well as honeycomb headers
-	// _, otelHeaders := propagation.MarshalW3CTraceContext(ctx, s.PropagationContext())
-	//
-	// for k, v := range otelHeaders {
-	//	headers.Set(k, v)
-	// }
+	if !h.disableW3c {
+		// Start sending wc3 headers as well as honeycomb headers
+		_, otelHeaders := propagation.MarshalW3CTraceContext(ctx, s.PropagationContext())
+
+		for k, v := range otelHeaders {
+			headers.Set(k, v)
+		}
+	}
 
 	return o11y.PropagationContext{
 		Parent:  parent,
@@ -390,6 +401,8 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 	}
 }
 
+// InjectPropagation adds propagation info into the ctx from p which will have been populated by other packages
+// that receive trace propagation data from other systems.
 func (h helpers) InjectPropagation(ctx context.Context, p o11y.PropagationContext) (context.Context, o11y.Span) {
 	var prop *propagation.PropagationContext
 
@@ -400,14 +413,11 @@ func (h helpers) InjectPropagation(ctx context.Context, p o11y.PropagationContex
 	// Use the honeycomb propagation if present, otherwise grab the w3c headers
 	if field != "" {
 		prop, _ = propagation.UnmarshalHoneycombTraceContext(field)
+	} else if !h.disableW3c {
+		_, prop, _ = propagation.UnmarshalW3CTraceContext(ctx, map[string]string{
+			propagation.TraceparentHeader: p.Headers.Get(propagation.TraceparentHeader),
+		})
 	}
-	// TODO - make optional
-	// else {
-	// _, prop, _ = propagation.UnmarshalW3CTraceContext(ctx, map[string]string{
-	// propagation.TraceparentHeader: p.Headers.Get(propagation.TraceparentHeader),
-	// })
-	// }
-	// }
 
 	ctx, tr := trace.NewTrace(ctx, prop)
 	return ctx, WrapSpan(tr.GetRootSpan())

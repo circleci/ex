@@ -57,8 +57,8 @@ type Provider interface {
 	// MetricsProvider grants lower control over the metrics that o11y sends, allowing skipping spans.
 	MetricsProvider() MetricsProvider
 
-	// Helpers returns some specific helper functions
-	Helpers() Helpers
+	// Helpers returns some specific helper functions. Temporary optional param during the cutover to otel
+	Helpers(disableW3c ...bool) Helpers
 }
 
 // PropagationContext contains trace context values that are propagated from service to service.
@@ -340,7 +340,7 @@ func (c *noopProvider) MetricsProvider() MetricsProvider {
 	return &statsd.NoOpClient{}
 }
 
-func (c *noopProvider) Helpers() Helpers {
+func (c *noopProvider) Helpers(...bool) Helpers {
 	return noopHelpers{}
 }
 

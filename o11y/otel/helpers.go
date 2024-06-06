@@ -12,11 +12,16 @@ import (
 )
 
 type helpers struct {
-	p OTel
+	p          OTel
+	disableW3c bool // temporary option whilst we have split datasets
 }
 
 // ExtractPropagation pulls propagation information out of the context
 func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext {
+	if h.disableW3c {
+		return o11y.PropagationContext{}
+	}
+
 	m := http.Header{}
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(m))
 
@@ -31,6 +36,10 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 // found then a new span named root is returned. It is expected that callers of this will
 // rename the returned span.
 func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationContext) (context.Context, o11y.Span) {
+	if h.disableW3c {
+		return h.p.StartSpan(ctx, "root")
+	}
+
 	// TODO support single ca.Parent
 	ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(ca.Headers))
 
