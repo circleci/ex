@@ -53,3 +53,109 @@ func TestDontErrorTrace(t *testing.T) {
 	err = fmt.Errorf("wrapped: %w", context.Canceled)
 	assert.Check(t, DontErrorTrace(err))
 }
+
+func TestWarning_Join(t *testing.T) {
+	we := NewWarning("i am a warning")
+	err := errors.New("i am an error")
+
+	t.Run("one of each", func(t *testing.T) {
+		te := errors.Join(we, err)
+		assert.Check(t, IsWarning(te), "joined %q should be a warning", te)
+	})
+
+	t.Run("only errors", func(t *testing.T) {
+		te := errors.Join(err, err)
+		assert.Check(t, !IsWarning(te), "joined %q should not be a warning", te)
+	})
+
+	t.Run("only warnings", func(t *testing.T) {
+		te := errors.Join(we, we)
+		assert.Check(t, IsWarning(te), "joined %q should be a warning", te)
+	})
+
+	t.Run("fmt wrapped", func(t *testing.T) {
+		te := fmt.Errorf("%w: %w", NewWarning("bad body"), err)
+		assert.Check(t, IsWarning(te), "fmt wrapped %q should be a warning", te)
+	})
+
+	t.Run("fmt wrapped and joined", func(t *testing.T) {
+		wErr := fmt.Errorf("%w: %w", NewWarning("bad body"), err)
+		te := errors.Join(err, wErr)
+		assert.Check(t, IsWarning(te), "fmt wrapped and joined %q should be a warning", te)
+	})
+}
+
+type testError struct {
+	thing int
+}
+
+func (e testError) Error() string {
+	return "test error"
+}
+
+func TestNewAllWarningError(t *testing.T) {
+	we := NewWarning("i am a warning")
+	err := errors.New("i am an error")
+
+	t.Run("is", func(t *testing.T) {
+		te := AllWarning(errors.Join(we, err))
+		assert.Check(t, errors.Is(te, we), "err %q should be is", te)
+	})
+
+	t.Run("as", func(t *testing.T) {
+		te := AllWarning(errors.Join(we, testError{thing: 5}))
+		hc := testError{}
+		assert.Check(t, errors.As(te, &hc), "err %q should be is", te)
+		assert.Check(t, cmp.Equal(hc.thing, 5))
+	})
+
+	t.Run("one of each", func(t *testing.T) {
+		te := AllWarning(errors.Join(we, err))
+		assert.Check(t, !IsWarning(te), "joined %q should not be a warning", te)
+	})
+
+	t.Run("only errors", func(t *testing.T) {
+		te := AllWarning(errors.Join(err, err))
+		assert.Check(t, !IsWarning(te), "joined %q should not be a warning", te)
+	})
+
+	t.Run("only all warnings", func(t *testing.T) {
+		te := AllWarning(errors.Join(we, we))
+		assert.Check(t, IsWarning(te), "joined %q should be a warning", te)
+	})
+
+	t.Run("fmt wrapped with error", func(t *testing.T) {
+		te := AllWarning(fmt.Errorf("%w: %w", NewWarning("bad body"), err))
+		assert.Check(t, !IsWarning(te), "fmt wrapped %q should not be a warning", te)
+	})
+
+	t.Run("fmt wrapped only warnings", func(t *testing.T) {
+		te := AllWarning(fmt.Errorf("%w: %w", NewWarning("bad body"), we))
+		assert.Check(t, IsWarning(te), "fmt wrapped %q should be a warning", te)
+	})
+
+	t.Run("fmt wrapped and joined", func(t *testing.T) {
+		wErr := fmt.Errorf("%w: %w", NewWarning("bad body"), we)
+		te := AllWarning(errors.Join(we, wErr))
+		assert.Check(t, IsWarning(te), "fmt wrapped and joined %q should be a warning", te)
+	})
+
+	t.Run("single warning is a warning", func(t *testing.T) {
+		te := AllWarning(we)
+		assert.Check(t, IsWarning(te), "single %q should be a warning", te)
+	})
+
+	t.Run("single error is not warning", func(t *testing.T) {
+		te := AllWarning(err)
+		assert.Check(t, !IsWarning(te), "single %q should not a warning", te)
+	})
+
+	t.Run("nested", func(t *testing.T) {
+		we2 := errors.Join(we, err)
+		assert.Check(t, IsWarning(we2))
+
+		// Since we have wrapped the we2 (containing an error) it should cause te to be reported as not a warning
+		te := AllWarning(errors.Join(we, AllWarning(we2)))
+		assert.Check(t, !IsWarning(te), "single %q should be a warning", te)
+	})
+}
