@@ -24,7 +24,19 @@ import (
 	"github.com/circleci/ex/o11y/otel/texttrace"
 )
 
-type OTel struct {
+type Config struct {
+	Dataset            string
+	GrpcHostAndPort    string
+	ResourceAttributes []attribute.KeyValue
+
+	SampleTraces  bool
+	SampleKeyFunc func(map[string]interface{}) string
+	SampleRates   map[string]int
+
+	Metrics o11y.ClosableMetricsProvider
+}
+
+type Provider struct {
 	metricsProvider o11y.ClosableMetricsProvider
 	tracer          trace.Tracer
 	tp              *sdktrace.TracerProvider
@@ -68,34 +80,19 @@ func New(conf Config) (o11y.Provider, error) {
 
 	// TODO check baggage is wired up above
 
-	mProv, err := metricsProvider(conf.Config)
-	if err != nil {
-		return nil, fmt.Errorf("metrics provider failed: %w", err)
-	}
-
-	return &OTel{
-		metricsProvider: mProv,
+	return &Provider{
+		metricsProvider: conf.Metrics,
 		tp:              tp,
 		tracer:          otel.Tracer(""),
 	}, nil
 }
 
 func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.TracerProvider {
-	res := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceNameKey.String(conf.Service),
-		semconv.ServiceVersionKey.String(conf.Version),
-		// other Config specific fields
-		attribute.String("service.mode", conf.Mode),
-
-		// HC Backwards compatible fields - can remove once boards are updated
-		attribute.String("service", conf.Service),
-		attribute.String("mode", conf.Mode),
-		attribute.String("version", conf.Version),
-		// This custom resource attribute is used by our honeycomb otel collector to route these traces
-		// to the correct dataset.
+	ra := append([]attribute.KeyValue{
 		attribute.String("x-honeycomb-dataset", conf.Dataset),
-	)
+	}, conf.ResourceAttributes...)
+
+	res := resource.NewWithAttributes(semconv.SchemaURL, ra...)
 
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 
@@ -124,16 +121,16 @@ func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter
 var spanCtxKey = struct{}{}
 
 // RawProvider satisfies an interface the helpers need
-func (o *OTel) RawProvider() *OTel {
+func (o *Provider) RawProvider() *Provider {
 	return o
 }
 
-func (o OTel) AddGlobalField(key string, val interface{}) {
+func (o Provider) AddGlobalField(key string, val interface{}) {
 	mustValidateKey(key)
 	globalFields.addField(key, val)
 }
 
-func (o OTel) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
+func (o Provider) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
 	ctx, span := o.tracer.Start(ctx, name)
 
 	s := o.wrapSpan(span)
@@ -145,27 +142,27 @@ func (o OTel) StartSpan(ctx context.Context, name string) (context.Context, o11y
 }
 
 // GetSpan returns the active span in the given context. It will return nil if there is no span available.
-func (o OTel) GetSpan(ctx context.Context) o11y.Span {
+func (o Provider) GetSpan(ctx context.Context) o11y.Span {
 	if s, ok := ctx.Value(spanCtxKey).(*span); ok {
 		return s
 	}
 	return nil
 }
 
-func (o OTel) AddField(ctx context.Context, key string, val interface{}) {
+func (o Provider) AddField(ctx context.Context, key string, val interface{}) {
 	trace.SpanFromContext(ctx).SetAttributes(attr(key, val))
 }
 
-func (o OTel) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
+func (o Provider) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	// TODO - some equivalent to adding this field to all child spans to the root span
 	o.AddField(ctx, key, val)
 }
 
-func (o OTel) Log(ctx context.Context, name string, fields ...o11y.Pair) {
+func (o Provider) Log(ctx context.Context, name string, fields ...o11y.Pair) {
 	// TODO Log
 }
 
-func (o OTel) Close(ctx context.Context) {
+func (o Provider) Close(ctx context.Context) {
 	// TODO Handle these errors in a sensible manner where possible
 	_ = o.tp.Shutdown(ctx)
 	if o.metricsProvider != nil {
@@ -173,11 +170,11 @@ func (o OTel) Close(ctx context.Context) {
 	}
 }
 
-func (o OTel) MetricsProvider() o11y.MetricsProvider {
+func (o Provider) MetricsProvider() o11y.MetricsProvider {
 	return o.metricsProvider
 }
 
-func (o OTel) Helpers(disableW3c ...bool) o11y.Helpers {
+func (o Provider) Helpers(disableW3c ...bool) o11y.Helpers {
 	d := false
 	if len(disableW3c) > 0 {
 		d = disableW3c[0]
@@ -189,7 +186,7 @@ func (o OTel) Helpers(disableW3c ...bool) o11y.Helpers {
 	}
 }
 
-func (o OTel) wrapSpan(s trace.Span) *span {
+func (o Provider) wrapSpan(s trace.Span) *span {
 	if s == nil {
 		return nil
 	}

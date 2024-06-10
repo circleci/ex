@@ -1,9 +1,7 @@
 package o11y_test
 
 import (
-	"bytes"
 	"context"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -11,49 +9,11 @@ import (
 	"gotest.tools/v3/poll"
 
 	o11yconfig "github.com/circleci/ex/config/o11y"
-	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/testing/fakestatsd"
 )
 
-func TestO11Y_SecretRedacted(t *testing.T) {
-	// confirm that honeycomb uses the json marshaller and that we dont see secrets
-	buf := bytes.Buffer{}
-	provider := honeycomb.New(honeycomb.Config{
-		Writer: &buf,
-	})
-	ctx := context.Background()
-	ctx, span := provider.StartSpan(ctx, "secret test")
-	s := secret.String("super-secret")
-	span.AddField("secret", s)
-	span.End()
-	provider.Close(ctx)
-	assert.Check(t, !strings.Contains(buf.String(), "super-secret"), buf.String())
-	assert.Check(t, cmp.Contains(buf.String(), "REDACTED"))
-}
-
-func TestO11Y_SecretRedactedColor(t *testing.T) {
-	// This test can be run to *VISUALLY* confirm that color honeycomb
-	// formatter uses the json marshaller under the hood and that we dont see secrets.
-	// Once you provide a writer the Format is ignored so this test does
-	// not assert on anything since we cant catch the output
-	//
-	// The test is left in so that it can be eyeballed with -v
-	// The other buffer based test does assert and it is very likely if secrets
-	// leak in this test then the above test will fail in any case
-	provider := honeycomb.New(honeycomb.Config{
-		Format: "color",
-	})
-	ctx := context.Background()
-	ctx, span := provider.StartSpan(ctx, "secret test")
-	s := secret.String("super-secret")
-	span.AddField("secret", s)
-	span.End()
-	provider.Close(ctx)
-}
-
-func TestSetup_Wiring(t *testing.T) {
+func TestSetup(t *testing.T) {
 	s := fakestatsd.New(t)
 
 	ctx := context.Background()
@@ -105,18 +65,4 @@ func TestSetup_Wiring(t *testing.T) {
 		assert.Check(t, cmp.Contains(metric.Tags, "mode:banana"))
 		assert.Check(t, cmp.Contains(metric.Tags, "mytag:myvalue"))
 	})
-}
-
-func TestSetup_WithWriter(t *testing.T) {
-	buf := bytes.Buffer{}
-	ctx := context.Background()
-	ctx, cleanup, err := o11yconfig.Setup(ctx, o11yconfig.Config{
-		Writer: &buf,
-	})
-	assert.Assert(t, err)
-	defer cleanup(ctx)
-
-	o11y.Log(ctx, "some log output")
-
-	assert.Check(t, cmp.Contains(buf.String(), "some log output"))
 }

@@ -1,9 +1,18 @@
+/*
+Package testcontextotel provides a context with o11y wired in, setup for coloured logging and no-op
+metrics.
+
+TL;DR - will give your tests pretty logs!
+*/
 package testcontextotel
 
 import (
 	"context"
 
-	o11yconf "github.com/circleci/ex/config/o11y"
+	"github.com/DataDog/datadog-go/statsd"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
+
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/otel"
 )
@@ -18,16 +27,17 @@ func Background() context.Context {
 }
 
 func newContext() context.Context {
-	ctx := context.Background()
 	o, err := otel.New(otel.Config{
-		Config: o11yconf.Config{
-			Service: "test-service",
-			Mode:    "test",
-			Version: "dev",
+		ResourceAttributes: []attribute.KeyValue{
+			semconv.ServiceNameKey.String("test-service"),
+			semconv.ServiceVersionKey.String("dev"),
+			// Other Config specific fields
+			attribute.String("service.mode", "mode"),
 		},
+		Metrics: &statsd.NoOpClient{},
 	})
 	if err != nil {
-		return ctx
+		return context.Background()
 	}
-	return o11y.WithProvider(ctx, o)
+	return o11y.WithProvider(context.Background(), o)
 }
