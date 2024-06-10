@@ -1,4 +1,4 @@
-package otel
+package otel_test
 
 import (
 	"context"
@@ -18,9 +18,10 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
-	o11yconf "github.com/circleci/ex/config/o11y"
+	o11yconfig "github.com/circleci/ex/config/o11y"
 	hc "github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/testing/fakestatsd"
 	"github.com/circleci/ex/testing/testcontext"
 )
@@ -31,23 +32,21 @@ func TestO11y(t *testing.T) {
 	ctx := testcontext.Background()
 	uuid := uuid.NewString()
 	t.Run("trace", func(t *testing.T) {
-		o, err := New(Config{
-			Config: o11yconf.Config{
-				Service:        "app-main",
-				Version:        "dev-test",
-				Statsd:         s.Addr(),
-				StatsNamespace: "test-app",
-			},
+		ctx, closeProvider, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
 			Dataset:         "local-testing",
 			GrpcHostAndPort: "127.0.0.1:4317",
+			Service:         "app-main",
+			Version:         "dev-test",
+			Statsd:          s.Addr(),
+			StatsNamespace:  "test-app",
 		})
+
+		o := o11y.FromContext(ctx)
 		assert.NilError(t, err)
 		o.AddGlobalField("a_global_key", "a-global-value")
 
 		// need to close the provider to be sure traces flushed
-		defer o.Close(ctx)
-
-		ctx = o11y.WithProvider(ctx, o)
+		defer closeProvider(ctx)
 
 		ctx, span := o.StartSpan(ctx, "root")
 		defer span.End()
@@ -131,17 +130,12 @@ type wrappedProvider struct {
 	o11y.Provider
 }
 
-func (p wrappedProvider) RawProvider() *OTel {
-	return p.Provider.(*OTel)
+func (p wrappedProvider) RawProvider() *otel.Provider {
+	return p.Provider.(*otel.Provider)
 }
 
 func TestHelpers(t *testing.T) {
-	op, err := New(Config{
-		Config: o11yconf.Config{
-			Service: "test-service",
-			Mode:    "test",
-			Version: "dev",
-		},
+	op, err := otel.New(otel.Config{
 		GrpcHostAndPort: "127.0.0.1:4317",
 	})
 
@@ -271,8 +265,7 @@ func TestRealCollector_HoneycombDataset(t *testing.T) {
 	})
 
 	t.Run("trace", func(t *testing.T) {
-		prov, err := New(Config{
-			Config:          o11yconf.Config{},
+		prov, err := otel.New(otel.Config{
 			Dataset:         "execyooshun",
 			GrpcHostAndPort: lis.Addr().String(),
 		})
@@ -315,20 +308,18 @@ func TestSampling(t *testing.T) {
 	})
 
 	t.Run("trace", func(t *testing.T) {
-		prov, err := New(Config{
-			Config: o11yconf.Config{
-				SampleTraces: true,
-				SampleKeyFunc: func(m map[string]any) string {
-					// n.b. don't test with name - since that is available in the head sampler
-					// attributes
-					return fmt.Sprintf("%v", m["app.sample_thing"])
-				},
-				SampleRates: map[string]int{
-					"roobar": 10, // 1 in 10 spans to be kept
-				},
-			},
+		prov, err := otel.New(otel.Config{
 			Dataset:         "execyooshun",
 			GrpcHostAndPort: lis.Addr().String(),
+			SampleTraces:    true,
+			SampleKeyFunc: func(m map[string]any) string {
+				// n.b. don't test with name - since that is available in the head sampler
+				// attributes
+				return fmt.Sprintf("%v", m["app.sample_thing"])
+			},
+			SampleRates: map[string]int{
+				"roobar": 10, // 1 in 10 spans to be kept
+			},
 		})
 		assert.NilError(t, err)
 		ctx := o11y.WithProvider(context.Background(), prov)

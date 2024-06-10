@@ -12,7 +12,7 @@ import (
 )
 
 type helpers struct {
-	p          OTel
+	p          Provider
 	disableW3c bool // temporary option whilst we have split datasets
 }
 
