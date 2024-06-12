@@ -20,7 +20,7 @@ require (
 	github.com/hellofresh/health-go/v5 v5.5.3
 	github.com/honeycombio/beeline-go v1.16.0
 	github.com/honeycombio/dynsampler-go v0.6.0
-	github.com/honeycombio/libhoney-go v1.22.0
+	github.com/honeycombio/libhoney-go v1.23.0
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
@@ -106,7 +106,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
-	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
