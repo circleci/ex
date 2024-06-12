@@ -14,7 +14,7 @@ type Annotator struct {
 	attrs []attribute.KeyValue
 }
 
-func (a *Annotator) addField(key string, value interface{}) {
+func (a *Annotator) addField(key string, value any) {
 	a.attrs = append(a.attrs, attr(key, value))
 }
 

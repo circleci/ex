@@ -24,7 +24,7 @@ type OtelConfig struct {
 
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
-	SampleRates   map[string]int
+	SampleRates   map[string]uint
 
 	Statsd                  string
 	StatsNamespace          string
