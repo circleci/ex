@@ -307,14 +307,43 @@ func TestSampling(t *testing.T) {
 		return grpcServer.Serve(lis)
 	})
 
-	t.Run("trace", func(t *testing.T) {
+	t.Run("by-name", func(t *testing.T) {
 		prov, err := otel.New(otel.Config{
 			Dataset:         "execyooshun",
 			GrpcHostAndPort: lis.Addr().String(),
 			SampleTraces:    true,
 			SampleKeyFunc: func(m map[string]any) string {
-				// n.b. don't test with name - since that is available in the head sampler
-				// attributes
+				return fmt.Sprintf("%s", m["name"])
+			},
+			SampleRates: map[string]int{
+				"span-name": 10, // 1 in 10 spans to be kept
+			},
+		})
+		assert.NilError(t, err)
+		ctx := o11y.WithProvider(context.Background(), prov)
+		for n := 0; n < 100; n++ {
+			_, span := prov.StartSpan(ctx, "span-name")
+			span.AddField("number", n)
+			span.End()
+		}
+
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if len(col.Spans()) > 5 {
+				return poll.Success()
+			}
+			return poll.Continue("not enough spans never turned up. Sampling too heavily?")
+		})
+
+		assert.Check(t, len(col.Spans()) < 20, "got too many spans: %d", len(col.Spans()))
+	})
+
+	// n.b. don't only test with name - since that is available in the head sampler
+	t.Run("by-attrib", func(t *testing.T) {
+		prov, err := otel.New(otel.Config{
+			Dataset:         "execyooshun",
+			GrpcHostAndPort: lis.Addr().String(),
+			SampleTraces:    true,
+			SampleKeyFunc: func(m map[string]any) string {
 				return fmt.Sprintf("%v", m["app.sample_thing"])
 			},
 			SampleRates: map[string]int{
