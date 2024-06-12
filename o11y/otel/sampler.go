@@ -18,7 +18,7 @@ func (s deterministicSampler) shouldSample(p sdktrace.ReadOnlySpan) bool {
 	for _, attr := range p.Attributes() {
 		fields[string(attr.Key)] = attr.Value.AsInterface()
 	}
-	fields["name"] = p.Name
+	fields["name"] = p.Name()
 
 	key := s.sampleKeyFunc(fields)
 	rate, ok := s.sampleRates[key] // no rate found means keep
