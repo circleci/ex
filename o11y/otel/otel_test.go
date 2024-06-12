@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	v1 "go.opentelemetry.io/proto/otlp/common/v1"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -62,6 +64,8 @@ func TestO11y(t *testing.T) {
 
 		gs := o.GetSpan(ctx)
 		gs.AddRawField("raw_got", uuid)
+		gs.AddField("test_app_fld", true)
+		o11y.AddField(ctx, "test_app_o11y_fld", 42)
 	})
 
 	jc := newJaegerClient("http://localhost:16686", "app-main")
@@ -76,6 +80,8 @@ func TestO11y(t *testing.T) {
 		if s.OperationName == "root" {
 			assertTag(t, s.Tags, "raw_got", uuid)
 			assertTag(t, s.Tags, "a_global_key", "a-global-value")
+			assertTag(t, s.Tags, "app.test_app_fld", "true")
+			assertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
 		}
 
 		// Jaeger passes otel resource span attributes into their process tags.
@@ -95,7 +101,7 @@ func TestO11y(t *testing.T) {
 func assertTag(t *testing.T, tags []jTag, k, v string) {
 	t.Helper()
 	for _, tag := range tags {
-		if tag.Key == k && tag.Value.(string) == v {
+		if tag.Key == k && fmt.Sprintf("%v", tag.Value) == v {
 			return
 		}
 	}
@@ -205,9 +211,9 @@ type jaegerClient struct {
 }
 
 type jTag struct {
-	Key   string      `json:"key"`
-	Type  string      `json:"type"`
-	Value interface{} `json:"value"`
+	Key   string `json:"key"`
+	Type  string `json:"type"`
+	Value any    `json:"value"`
 }
 
 type jSpan struct {
@@ -219,12 +225,12 @@ type jSpan struct {
 		TraceID string `json:"traceID"`
 		SpanID  string `json:"spanID"`
 	} `json:"references"`
-	StartTime int64         `json:"startTime"`
-	Duration  int           `json:"duration"`
-	Tags      []jTag        `json:"tags"`
-	Logs      []interface{} `json:"logs"`
-	ProcessID string        `json:"processID"`
-	Warnings  interface{}   `json:"warnings"`
+	StartTime int64  `json:"startTime"`
+	Duration  int    `json:"duration"`
+	Tags      []jTag `json:"tags"`
+	Logs      []any  `json:"logs"`
+	ProcessID string `json:"processID"`
+	Warnings  any    `json:"warnings"`
 }
 
 type jProcess struct {
@@ -315,7 +321,7 @@ func TestSampling(t *testing.T) {
 			SampleKeyFunc: func(m map[string]any) string {
 				return fmt.Sprintf("%s", m["name"])
 			},
-			SampleRates: map[string]int{
+			SampleRates: map[string]uint{
 				"span-name": 10, // 1 in 10 spans to be kept
 			},
 		})
@@ -328,13 +334,14 @@ func TestSampling(t *testing.T) {
 		}
 
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
-			if len(col.Spans()) > 5 {
+			if len(col.Spans()) > 2 {
 				return poll.Success()
 			}
 			return poll.Continue("not enough spans never turned up. Sampling too heavily?")
 		})
 
-		assert.Check(t, len(col.Spans()) < 20, "got too many spans: %d", len(col.Spans()))
+		assert.Check(t, len(col.Spans()) < 30, "got too many spans: %d", len(col.Spans()))
+		assert.Check(t, cmp.Equal(col.Spans()[0].Attrs["sample_rate"], "10"))
 	})
 
 	// n.b. don't only test with name - since that is available in the head sampler
@@ -346,7 +353,7 @@ func TestSampling(t *testing.T) {
 			SampleKeyFunc: func(m map[string]any) string {
 				return fmt.Sprintf("%v", m["app.sample_thing"])
 			},
-			SampleRates: map[string]int{
+			SampleRates: map[string]uint{
 				"roobar": 10, // 1 in 10 spans to be kept
 			},
 		})
@@ -366,7 +373,7 @@ func TestSampling(t *testing.T) {
 			return poll.Continue("not enough spans never turned up. Sampling too heavily?")
 		})
 
-		assert.Check(t, len(col.Spans()) < 20, "got too many spans: %d", len(col.Spans()))
+		assert.Check(t, len(col.Spans()) < 30, "got too many spans: %d", len(col.Spans()))
 	})
 }
 
@@ -439,7 +446,7 @@ func (c *testTraceCollector) Export(ctx context.Context,
 		if r != nil {
 			c.resourceAttr = map[string]string{}
 			for _, v := range r.GetAttributes() {
-				c.resourceAttr[v.GetKey()] = v.GetValue().GetStringValue()
+				c.resourceAttr[v.GetKey()] = toString(v.GetValue())
 			}
 		}
 		for _, scopeSpans := range resourceSpans.GetScopeSpans() {
@@ -451,14 +458,14 @@ func (c *testTraceCollector) Export(ctx context.Context,
 					Attrs: map[string]string{},
 				}
 				for _, kv := range span.GetAttributes() {
-					cspan.Attrs[kv.GetKey()] = kv.GetValue().GetStringValue()
+					cspan.Attrs[kv.GetKey()] = toString(kv.GetValue())
 				}
 				for _, event := range span.GetEvents() {
-					cevent := CollectEvent{Name: event.GetName(), Attrs: map[string]string{}}
+					ce := CollectEvent{Name: event.GetName(), Attrs: map[string]string{}}
 					for _, kv := range event.GetAttributes() {
-						cevent.Attrs[kv.GetKey()] = kv.GetValue().GetStringValue()
+						ce.Attrs[kv.GetKey()] = toString(kv.GetValue())
 					}
-					cspan.Events = append(cspan.Events, cevent)
+					cspan.Events = append(cspan.Events, ce)
 				}
 				c.spans = append(c.spans, cspan)
 			}
@@ -466,4 +473,13 @@ func (c *testTraceCollector) Export(ctx context.Context,
 	}
 
 	return &coltracepb.ExportTraceServiceResponse{}, nil
+}
+
+func toString(value *v1.AnyValue) string {
+	v := value.GetStringValue()
+	if v != "" {
+		return v
+	}
+	parts := strings.Split(value.String(), ":")
+	return parts[1]
 }

@@ -6,7 +6,6 @@ package otel
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/otel/texttrace"
 )
 
 type Config struct {
@@ -30,8 +28,8 @@ type Config struct {
 	ResourceAttributes []attribute.KeyValue
 
 	SampleTraces  bool
-	SampleKeyFunc func(map[string]interface{}) string
-	SampleRates   map[string]int
+	SampleKeyFunc func(map[string]any) string
+	SampleRates   map[string]uint
 
 	Metrics o11y.ClosableMetricsProvider
 }
@@ -45,10 +43,10 @@ type Provider struct {
 func New(conf Config) (o11y.Provider, error) {
 	var exporter sdktrace.SpanExporter
 
-	exporter, err := texttrace.New(os.Stdout)
-	if err != nil {
-		return nil, err
-	}
+	//exporter, err := texttrace.New(os.Stdout)
+	//if err != nil {
+	//	return nil, err
+	//}
 	if conf.GrpcHostAndPort != "" {
 		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.Dataset)
 		if err != nil {
@@ -64,7 +62,7 @@ func New(conf Config) (o11y.Provider, error) {
 		// use gRPC and text - mainly so sampled out spans still make it to logs
 		exporter = multipleExporter{
 			exporters: []sdktrace.SpanExporter{
-				exporter,
+				//exporter,
 				grpc,
 			},
 			sampler: sampler,
@@ -125,7 +123,7 @@ func (o *Provider) RawProvider() *Provider {
 	return o
 }
 
-func (o Provider) AddGlobalField(key string, val interface{}) {
+func (o Provider) AddGlobalField(key string, val any) {
 	mustValidateKey(key)
 	globalFields.addField(key, val)
 }
@@ -149,11 +147,11 @@ func (o Provider) GetSpan(ctx context.Context) o11y.Span {
 	return nil
 }
 
-func (o Provider) AddField(ctx context.Context, key string, val interface{}) {
-	trace.SpanFromContext(ctx).SetAttributes(attr(key, val))
+func (o Provider) AddField(ctx context.Context, key string, val any) {
+	o.GetSpan(ctx).AddField(key, val)
 }
 
-func (o Provider) AddFieldToTrace(ctx context.Context, key string, val interface{}) {
+func (o Provider) AddFieldToTrace(ctx context.Context, key string, val any) {
 	// TODO - some equivalent to adding this field to all child spans to the root span
 	o.AddField(ctx, key, val)
 }
@@ -194,7 +192,7 @@ func (o Provider) wrapSpan(s trace.Span) *span {
 		metricsProvider: o.metricsProvider,
 		span:            s,
 		start:           time.Now(),
-		fields:          map[string]interface{}{},
+		fields:          map[string]any{},
 	}
 }
 
@@ -203,14 +201,14 @@ type span struct {
 	metrics         []o11y.Metric
 	metricsProvider o11y.ClosableMetricsProvider
 	start           time.Time
-	fields          map[string]interface{}
+	fields          map[string]any
 }
 
-func (s *span) AddField(key string, val interface{}) {
+func (s *span) AddField(key string, val any) {
 	s.AddRawField("app."+key, val)
 }
 
-func (s *span) AddRawField(key string, val interface{}) {
+func (s *span) AddRawField(key string, val any) {
 	mustValidateKey(key)
 	s.fields[key] = val
 	if err, ok := val.(error); ok {
@@ -282,9 +280,18 @@ func (m multipleExporter) sampleSpans(spans []sdktrace.ReadOnlySpan) []sdktrace.
 	}
 	ss := make([]sdktrace.ReadOnlySpan, 0, len(spans))
 	for _, s := range spans {
-		if m.sampler.shouldSample(s) {
-			ss = append(ss, s)
+		if ok, rate := m.sampler.shouldSample(s); ok {
+			ss = append(ss, sampleRateSpan{ReadOnlySpan: s, rate: rate})
 		}
 	}
 	return ss
+}
+
+type sampleRateSpan struct {
+	sdktrace.ReadOnlySpan
+	rate uint
+}
+
+func (s sampleRateSpan) Attributes() []attribute.KeyValue {
+	return append(s.ReadOnlySpan.Attributes(), attribute.Int("sample_rate", int(s.rate)))
 }

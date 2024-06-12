@@ -6,7 +6,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func attr(key string, val interface{}) attribute.KeyValue {
+func attr(key string, val any) attribute.KeyValue {
 	switch v := val.(type) {
 	case string:
 		return attribute.Key(key).String(v)
