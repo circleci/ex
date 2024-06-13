@@ -6,6 +6,7 @@ package otel
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/o11y/otel/texttrace"
 )
 
 type Config struct {
@@ -43,10 +45,10 @@ type Provider struct {
 func New(conf Config) (o11y.Provider, error) {
 	var exporter sdktrace.SpanExporter
 
-	//exporter, err := texttrace.New(os.Stdout)
-	//if err != nil {
-	//	return nil, err
-	//}
+	exporter, err := texttrace.New(os.Stdout)
+	if err != nil {
+		return nil, err
+	}
 	if conf.GrpcHostAndPort != "" {
 		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.Dataset)
 		if err != nil {
@@ -62,7 +64,7 @@ func New(conf Config) (o11y.Provider, error) {
 		// use gRPC and text - mainly so sampled out spans still make it to logs
 		exporter = multipleExporter{
 			exporters: []sdktrace.SpanExporter{
-				//exporter,
+				exporter,
 				grpc,
 			},
 			sampler: sampler,
