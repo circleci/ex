@@ -6,7 +6,9 @@ package otel
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -20,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/circleci/ex/o11y"
+	"github.com/circleci/ex/o11y/otel/texttrace"
 )
 
 type Config struct {
@@ -43,10 +46,10 @@ type Provider struct {
 func New(conf Config) (o11y.Provider, error) {
 	var exporter sdktrace.SpanExporter
 
-	//exporter, err := texttrace.New(os.Stdout)
-	//if err != nil {
-	//	return nil, err
-	//}
+	exporter, err := texttrace.New(os.Stdout)
+	if err != nil {
+		return nil, err
+	}
 	if conf.GrpcHostAndPort != "" {
 		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.Dataset)
 		if err != nil {
@@ -62,7 +65,7 @@ func New(conf Config) (o11y.Provider, error) {
 		// use gRPC and text - mainly so sampled out spans still make it to logs
 		exporter = multipleExporter{
 			exporters: []sdktrace.SpanExporter{
-				//exporter,
+				exporter,
 				grpc,
 			},
 			sampler: sampler,
@@ -116,7 +119,7 @@ func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter
 	return otlptrace.New(ctx, otlptracegrpc.NewClient(opts...))
 }
 
-var spanCtxKey = struct{}{}
+type spanCtxKey struct{}
 
 // RawProvider satisfies an interface the helpers need
 func (o *Provider) RawProvider() *Provider {
@@ -133,7 +136,7 @@ func (o Provider) StartSpan(ctx context.Context, name string) (context.Context, 
 
 	s := o.wrapSpan(span)
 	if s != nil {
-		ctx = context.WithValue(ctx, spanCtxKey, s)
+		ctx = context.WithValue(ctx, spanCtxKey{}, s)
 	}
 
 	return ctx, s
@@ -141,14 +144,17 @@ func (o Provider) StartSpan(ctx context.Context, name string) (context.Context, 
 
 // GetSpan returns the active span in the given context. It will return nil if there is no span available.
 func (o Provider) GetSpan(ctx context.Context) o11y.Span {
-	if s, ok := ctx.Value(spanCtxKey).(*span); ok {
+	if s, ok := ctx.Value(spanCtxKey{}).(*span); ok {
 		return s
 	}
 	return nil
 }
 
 func (o Provider) AddField(ctx context.Context, key string, val any) {
-	o.GetSpan(ctx).AddField(key, val)
+	s := o.GetSpan(ctx)
+	if s != nil {
+		s.AddField(key, val)
+	}
 }
 
 func (o Provider) AddFieldToTrace(ctx context.Context, key string, val any) {
@@ -201,7 +207,9 @@ type span struct {
 	metrics         []o11y.Metric
 	metricsProvider o11y.ClosableMetricsProvider
 	start           time.Time
-	fields          map[string]any
+
+	mu     sync.Mutex // mu is a write mutex for the map below (concurrent reads are safe)
+	fields map[string]any
 }
 
 func (s *span) AddField(key string, val any) {
@@ -210,7 +218,11 @@ func (s *span) AddField(key string, val any) {
 
 func (s *span) AddRawField(key string, val any) {
 	mustValidateKey(key)
+
+	s.mu.Lock()
 	s.fields[key] = val
+	s.mu.Unlock()
+
 	if err, ok := val.(error); ok {
 		// s.span.RecordError() TODO - maybe this
 		val = err.Error()
@@ -231,6 +243,11 @@ func (s *span) RecordMetric(metric o11y.Metric) {
 }
 
 func (s *span) End() {
+	// insert the expected field for any timing metric
+	s.mu.Lock()
+	s.fields["duration_ms"] = time.Since(s.start) / time.Millisecond
+	s.mu.Unlock()
+
 	s.sendMetric()
 	s.span.End()
 }
@@ -239,8 +256,6 @@ func (s *span) sendMetric() {
 	if s.metricsProvider == nil {
 		return
 	}
-	// insert the expected field for any timing metric
-	s.fields["duration_ms"] = time.Since(s.start) / time.Millisecond
 	extractAndSendMetrics(s.metricsProvider)(s.metrics, s.fields)
 }
 

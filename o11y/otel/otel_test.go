@@ -98,6 +98,109 @@ func TestO11y(t *testing.T) {
 	))
 }
 
+func TestProvider(t *testing.T) {
+	lis, err := net.Listen("tcp", "localhost:0")
+	assert.Assert(t, err)
+
+	col := &testTraceCollector{}
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+	coltracepb.RegisterTraceServiceServer(grpcServer, col)
+
+	g := &errgroup.Group{}
+	g.Go(func() error {
+		return grpcServer.Serve(lis)
+	})
+	defer grpcServer.Stop()
+
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Service:         "app-main",
+		Version:         "dev-test",
+		Dataset:         "execyooshun",
+		GrpcHostAndPort: lis.Addr().String(),
+		StatsNamespace:  "test-app",
+	})
+	assert.NilError(t, err)
+	defer closeProvider(ctx)
+
+	t.Run("no_span", func(t *testing.T) {
+		// No span has been created yet so this should fail gracefully
+		o11y.AddField(ctx, "o_key", "o_val")
+	})
+
+	t.Run("span", func(t *testing.T) {
+		ctx, span := o11y.StartSpan(ctx, "a span")
+		defer span.End()
+
+		span.AddField("fld", 20)
+		o11y.AddField(ctx, "p_key", "p_val")
+
+		t.Run("context_key_conflict", func(t *testing.T) {
+			// If the context uses this key form this will conflict and the span will not be available
+			var key = struct{}{}
+			ctx = context.WithValue(ctx, key, "")
+
+			o11y.AddField(ctx, "cc_key", "cc_val")
+		})
+	})
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		if len(col.Spans()) > 0 {
+			return poll.Success()
+		}
+		return poll.Continue("spans never turned up")
+	})
+
+	assert.Check(t, cmp.Equal(len(col.spans), 1))
+	assert.Check(t, cmp.Equal(col.spans[0].Attrs["app.cc_key"], "cc_val"))
+	assert.Check(t, cmp.Equal(col.spans[0].Attrs["app.p_key"], "p_val"))
+}
+
+func TestConcurrentSpanAccess(t *testing.T) {
+	s := fakestatsd.New(t)
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Service:        "app-main",
+		Version:        "dev-test",
+		Statsd:         s.Addr(),
+		StatsNamespace: "sns",
+	})
+	assert.NilError(t, err)
+	defer closeProvider(ctx)
+
+	t.Run("writes", func(t *testing.T) {
+		_, span := o11y.StartSpan(ctx, "a span")
+		defer span.End()
+
+		g := &errgroup.Group{}
+		for n := 0; n < 1000; n++ {
+			n := n
+			g.Go(func() error {
+				span.AddField(fmt.Sprintf("n_%d", n), "foo")
+				return nil
+			})
+		}
+		assert.Check(t, g.Wait())
+	})
+
+	t.Run("writes_and_ends", func(t *testing.T) {
+		g := &errgroup.Group{}
+		for n := 0; n < 1000; n++ {
+			n := n
+			_, span := o11y.StartSpan(ctx, "a span")
+			g.Go(func() error {
+				span.AddField(fmt.Sprintf("n_%d", n), "foo")
+				return nil
+			})
+			g.Go(func() error {
+				span.End()
+				return nil
+			})
+		}
+		assert.Check(t, g.Wait())
+	})
+
+}
+
 func assertTag(t *testing.T, tags []jTag, k, v string) {
 	t.Helper()
 	for _, tag := range tags {
@@ -264,6 +367,7 @@ func TestRealCollector_HoneycombDataset(t *testing.T) {
 
 	grpcServer := grpc.NewServer()
 	coltracepb.RegisterTraceServiceServer(grpcServer, col)
+	defer grpcServer.Stop()
 
 	g := &errgroup.Group{}
 	g.Go(func() error {
