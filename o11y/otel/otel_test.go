@@ -198,7 +198,49 @@ func TestConcurrentSpanAccess(t *testing.T) {
 		}
 		assert.Check(t, g.Wait())
 	})
+}
 
+func TestFailureMetrics(t *testing.T) {
+	s := fakestatsd.New(t)
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Service:        "app-main",
+		Version:        "dev-test",
+		Statsd:         s.Addr(),
+		StatsNamespace: "sns",
+	})
+	assert.NilError(t, err)
+
+	_, span := o11y.StartSpan(ctx, "a span")
+
+	span.AddField("noteworthy_error", "something went wrong")
+	span.AddRawField("error", "some error")
+	span.AddRawField("warning", "some warning")
+
+	span.End()
+	closeProvider(ctx)
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		if len(s.Metrics()) > 2 {
+			return poll.Success()
+		}
+		return poll.Continue("not enough metrics yet")
+	})
+
+	found := 0
+	wanted := []string{
+		"sns.warning",
+		"sns.failure",
+		"sns.error",
+	}
+	for _, mn := range wanted {
+		for _, m := range s.Metrics() {
+			if m.Name == mn {
+				found++
+				continue
+			}
+		}
+	}
+	assert.Check(t, cmp.Equal(found, len(wanted)))
 }
 
 func assertTag(t *testing.T, tags []jTag, k, v string) {
