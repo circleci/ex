@@ -219,6 +219,11 @@ func (s *span) AddField(key string, val any) {
 func (s *span) AddRawField(key string, val any) {
 	mustValidateKey(key)
 
+	// chuck out nil values
+	if val == nil {
+		return
+	}
+
 	s.mu.Lock()
 	s.fields[key] = val
 	s.mu.Unlock()
@@ -234,6 +239,7 @@ func (s *span) AddRawField(key string, val any) {
 			s.span.SetName(v)
 		}
 	}
+
 	s.span.SetAttributes(attr(key, val))
 }
 
