@@ -22,6 +22,8 @@ type OtelConfig struct {
 	GrpcHostAndPort string
 	Dataset         string
 
+	DisableText bool
+
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
 	SampleRates   map[string]uint
@@ -63,6 +65,8 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 			attribute.String("mode", o.Mode),
 			attribute.String("version", o.Version),
 		},
+
+		DisableText: o.DisableText,
 
 		SampleTraces:  o.SampleTraces,
 		SampleKeyFunc: o.SampleKeyFunc,
