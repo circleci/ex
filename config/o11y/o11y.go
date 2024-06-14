@@ -156,3 +156,13 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 	}
 	return conf, conf.Validate()
 }
+
+// OtelSampleRates adapts the root o11y package configured map[string]int
+// sample rates to the Otel-required map[string]uint
+func (c *Config) OtelSampleRates() map[string]uint {
+	adapted := make(map[string]uint, len(c.SampleRates))
+	for k, v := range c.SampleRates {
+		adapted[k] = uint(v)
+	}
+	return adapted
+}
