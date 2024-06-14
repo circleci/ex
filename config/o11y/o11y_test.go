@@ -120,3 +120,16 @@ func TestSetup_WithWriter(t *testing.T) {
 
 	assert.Check(t, cmp.Contains(buf.String(), "some log output"))
 }
+
+func TestConfig_OTelSampleRates(t *testing.T) {
+	conf := o11yconfig.Config{
+		SampleRates: map[string]int{
+			"foo": 128,
+		},
+	}
+	otelSampleRates := conf.OtelSampleRates()
+
+	assert.Check(t, cmp.DeepEqual(otelSampleRates, map[string]uint{
+		"foo": uint(128),
+	}))
+}
