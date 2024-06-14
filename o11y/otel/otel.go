@@ -208,7 +208,7 @@ type span struct {
 	metricsProvider o11y.ClosableMetricsProvider
 	start           time.Time
 
-	mu     sync.Mutex // mu is a write mutex for the map below (concurrent reads are safe)
+	mu     sync.RWMutex // mu is a write mutex for the map below (concurrent reads are safe)
 	fields map[string]any
 }
 
@@ -256,7 +256,18 @@ func (s *span) sendMetric() {
 	if s.metricsProvider == nil {
 		return
 	}
-	extractAndSendMetrics(s.metricsProvider)(s.metrics, s.fields)
+	extractAndSendMetrics(s.metricsProvider)(s.metrics, s.snapshotFields())
+}
+
+func (s *span) snapshotFields() map[string]any {
+	res := map[string]any{}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for k, v := range s.fields {
+		res[k] = v
+	}
+	return res
 }
 
 func mustValidateKey(key string) {

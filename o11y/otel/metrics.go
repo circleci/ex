@@ -2,6 +2,7 @@ package otel
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/circleci/ex/o11y"
@@ -9,6 +10,8 @@ import (
 
 func extractAndSendMetrics(mp o11y.MetricsProvider) func([]o11y.Metric, map[string]any) {
 	return func(metrics []o11y.Metric, fields map[string]any) {
+
+		standardErrorMetrics(mp, fields)
 
 		for _, m := range metrics {
 			tags := extractTagsFromFields(m.TagFields, fields)
@@ -52,6 +55,40 @@ func extractAndSendMetrics(mp o11y.MetricsProvider) func([]o11y.Metric, map[stri
 			}
 		}
 	}
+}
+
+func standardErrorMetrics(mp o11y.MetricsProvider, fields map[string]any) {
+	// detect and map the fail same errors and add a metric for it if found
+	failClass := addFailure(fields)
+	if failClass != "" {
+		_ = mp.Count("failure", 1, []string{fmtTag("class", failClass)}, 1)
+	}
+	// add standard metric for error and warning
+	tag := []string{fmtTag("type", "o11y")}
+	if _, ok := fields["error"]; ok {
+		_ = mp.Count("error", 1, tag, 1)
+	}
+	if _, ok := fields["warning"]; ok {
+		_ = mp.Count("warning", 1, tag, 1)
+	}
+}
+
+// addFailure finds the first field suffixed with _error and adds the prefix as the value
+// to a failure field, if there is not already a failure field, and returns the prefix.
+// The original _error field is kept to retain details of its value.
+// If found the prefix part is returned.
+func addFailure(fields map[string]interface{}) string {
+	if _, ok := fields["failure"]; ok {
+		return ""
+	}
+	for k := range fields {
+		errClass := strings.TrimSuffix(k, "_error")
+		if errClass != k {
+			fields["failure"] = errClass
+			return errClass
+		}
+	}
+	return ""
 }
 
 func extractTagsFromFields(tags []string, fields map[string]any) []string {
