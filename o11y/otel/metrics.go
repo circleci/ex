@@ -77,7 +77,7 @@ func standardErrorMetrics(mp o11y.MetricsProvider, fields map[string]any) {
 // to a failure field, if there is not already a failure field, and returns the prefix.
 // The original _error field is kept to retain details of its value.
 // If found the prefix part is returned.
-func addFailure(fields map[string]interface{}) string {
+func addFailure(fields map[string]any) string {
 	if _, ok := fields["failure"]; ok {
 		return ""
 	}

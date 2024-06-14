@@ -2,6 +2,7 @@ package otel_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -209,38 +210,61 @@ func TestFailureMetrics(t *testing.T) {
 		StatsNamespace: "sns",
 	})
 	assert.NilError(t, err)
+	defer closeProvider(ctx)
 
-	_, span := o11y.StartSpan(ctx, "a span")
+	t.Run("non_nil_error", func(t *testing.T) {
+		_, span := o11y.StartSpan(ctx, "a span")
 
-	span.AddField("noteworthy_error", "something went wrong")
-	span.AddRawField("error", "some error")
-	span.AddRawField("warning", "some warning")
+		span.AddField("noteworthy_error", errors.New("something went wrong"))
+		span.AddRawField("error", "some error")
+		span.AddRawField("warning", "some warning")
 
-	span.End()
-	closeProvider(ctx)
+		span.End()
 
-	poll.WaitOn(t, func(t poll.LogT) poll.Result {
-		if len(s.Metrics()) > 2 {
-			return poll.Success()
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if len(s.Metrics()) > 2 {
+				return poll.Success()
+			}
+			return poll.Continue("not enough metrics yet")
+		})
+
+		assert.Check(t, cmp.Equal(len(s.Metrics()), 3))
+
+		found := 0
+		wanted := []string{
+			"sns.warning",
+			"sns.failure",
+			"sns.error",
 		}
-		return poll.Continue("not enough metrics yet")
-	})
-
-	found := 0
-	wanted := []string{
-		"sns.warning",
-		"sns.failure",
-		"sns.error",
-	}
-	for _, mn := range wanted {
-		for _, m := range s.Metrics() {
-			if m.Name == mn {
-				found++
-				continue
+		for _, mn := range wanted {
+			for _, m := range s.Metrics() {
+				if m.Name == mn {
+					found++
+					continue
+				}
 			}
 		}
-	}
-	assert.Check(t, cmp.Equal(found, len(wanted)))
+		assert.Check(t, cmp.Equal(found, len(wanted)))
+	})
+
+	s.Reset()
+
+	t.Run("nil_error", func(t *testing.T) {
+		_, span := o11y.StartSpan(ctx, "a span")
+		var ne error
+		span.AddField("nil_error", ne)
+		span.AddRawField("warning", "some warning") // just so we know when metrics were produced
+		span.End()
+
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if len(s.Metrics()) > 0 {
+				return poll.Success()
+			}
+			return poll.Continue("no metrics yet")
+		})
+
+		assert.Check(t, cmp.Equal(len(s.Metrics()), 1))
+	})
 }
 
 func assertTag(t *testing.T, tags []jTag, k, v string) {
