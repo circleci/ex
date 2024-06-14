@@ -34,6 +34,8 @@ type Config struct {
 	SampleKeyFunc func(map[string]any) string
 	SampleRates   map[string]uint
 
+	DisableText bool
+
 	Metrics o11y.ClosableMetricsProvider
 }
 
@@ -62,14 +64,20 @@ func New(conf Config) (o11y.Provider, error) {
 				sampleRates:   conf.SampleRates,
 			}
 		}
+
 		// use gRPC and text - mainly so sampled out spans still make it to logs
-		exporter = multipleExporter{
-			exporters: []sdktrace.SpanExporter{
-				exporter,
-				grpc,
-			},
-			sampler: sampler,
+		exporters := []sdktrace.SpanExporter{
+			grpc,
 		}
+		// some services will just be too noisy so allow text exporter to be disabled
+		if !conf.DisableText {
+			exporters = append(exporters, exporter)
+		}
+		exporter = multipleExporter{
+			exporters: exporters,
+			sampler:   sampler,
+		}
+
 	}
 
 	tp := traceProvider(exporter, conf)
