@@ -142,7 +142,7 @@ func (o Provider) AddGlobalField(key string, val any) {
 func (o Provider) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
 	ctx, span := o.tracer.Start(ctx, name)
 
-	s := o.wrapSpan(span)
+	s := o.wrapSpan(span, o.getSpan(ctx))
 	if s != nil {
 		ctx = context.WithValue(ctx, spanCtxKey{}, s)
 	}
@@ -152,6 +152,15 @@ func (o Provider) StartSpan(ctx context.Context, name string) (context.Context, 
 
 // GetSpan returns the active span in the given context. It will return nil if there is no span available.
 func (o Provider) GetSpan(ctx context.Context) o11y.Span {
+	s := o.getSpan(ctx) // N.B returning s would mean the returned interface is not nil
+	if s == nil {
+		return nil
+	}
+	return s
+}
+
+// getSpan returns the active span in the given context. It will return nil if there is no span available.
+func (o Provider) getSpan(ctx context.Context) *span {
 	if s, ok := ctx.Value(spanCtxKey{}).(*span); ok {
 		return s
 	}
@@ -198,19 +207,27 @@ func (o Provider) Helpers(disableW3c ...bool) o11y.Helpers {
 	}
 }
 
-func (o Provider) wrapSpan(s trace.Span) *span {
+func (o Provider) wrapSpan(s trace.Span, p *span) *span {
 	if s == nil {
 		return nil
 	}
-	return &span{
+	sp := &span{
 		metricsProvider: o.metricsProvider,
+		parent:          p,
 		span:            s,
 		start:           time.Now(),
 		fields:          map[string]any{},
 	}
+	if p != nil && p.flattenPrefix != "" {
+		sp.flatten("", 0)
+	}
+	return sp
 }
 
 type span struct {
+	parent          *span
+	flattenPrefix   string
+	flattenDepth    int
 	span            trace.Span
 	metrics         []o11y.Metric
 	metricsProvider o11y.ClosableMetricsProvider
@@ -225,12 +242,14 @@ func (s *span) AddField(key string, val any) {
 }
 
 func (s *span) AddRawField(key string, val any) {
-	mustValidateKey(key)
-
+	if s == nil {
+		return
+	}
 	// chuck out nil values
 	if val == nil {
 		return
 	}
+	mustValidateKey(key)
 
 	s.mu.Lock()
 	s.fields[key] = val
@@ -263,7 +282,35 @@ func (s *span) End() {
 	s.mu.Unlock()
 
 	s.sendMetric()
+
+	// If this span was asked to be flattened, add its fields to the parent, and don't end the span
+	if s.flattenPrefix != "" {
+		if s.parent != nil {
+			for k, v := range s.fields {
+				s.parent.AddRawField(fmt.Sprintf("%s.%s", s.flattenPrefix, k), v)
+			}
+		}
+		return
+	}
 	s.span.End()
+}
+
+func (s *span) Flatten(prefix string) {
+	s.flatten(prefix, 0)
+}
+
+func (s *span) flatten(prefix string, depth int) {
+	flattenDepth := depth
+	if s.parent != nil {
+		flattenDepth = s.parent.flattenDepth
+	}
+	s.flattenDepth = flattenDepth + 1
+	if prefix == "" {
+		prefix = fmt.Sprintf("l%d", s.flattenDepth)
+	}
+	s.flattenPrefix = prefix
+
+	s.AddRawField("flattened", true)
 }
 
 func (s *span) sendMetric() {

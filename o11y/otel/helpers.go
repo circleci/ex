@@ -22,11 +22,16 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 		return o11y.PropagationContext{}
 	}
 
+	sp := h.p.getSpan(ctx)
+	if sp != nil {
+		if sp.flattenDepth > 0 {
+			ctx = o11y.AddFlattenDepthToBaggage(ctx, sp.flattenDepth)
+		}
+	}
 	m := http.Header{}
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(m))
 
 	return o11y.PropagationContext{
-		// TODO support single ca.Parent
 		Headers: m,
 	}
 }
@@ -40,12 +45,19 @@ func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationConte
 		return h.p.StartSpan(ctx, "root")
 	}
 
-	// TODO support single ca.Parent
 	ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(ca.Headers))
 
 	// Make a new span - the trace propagation info in the context will be used
 	// N.B we update the name of this span at the calling site.
-	return h.p.StartSpan(ctx, "root")
+	ctx, sp := h.p.StartSpan(ctx, "root")
+
+	// Check if the baggage indicates this span should be flattened
+	fd := o11y.FlattenDepthFromBaggage(ctx)
+	if fd > 0 {
+		os := h.p.getSpan(ctx)
+		os.flatten("", fd)
+	}
+	return ctx, sp
 }
 
 // TraceIDs return standard o11y ids

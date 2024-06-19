@@ -179,6 +179,7 @@ type Request struct {
 	allowGETWithBody bool
 
 	propagation bool
+	flatten     string
 
 	url string
 }
@@ -349,6 +350,13 @@ func Propagation(propagation bool) func(*Request) {
 	}
 }
 
+// Flatten marks the span for this request to be flattened into its parent
+func Flatten(prefix string) func(*Request) {
+	return func(r *Request) {
+		r.flatten = prefix
+	}
+}
+
 // Call makes the Request call. It will trace out a top level span and a span for any retry attempts.
 // Retries will be attempted on any 5XX responses.
 // If the http call completed with a non 2XX status code then an HTTPError will be returned containing
@@ -447,6 +455,9 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		defer o11y.End(span, &err)
 		before := time.Now()
 
+		if r.flatten != "" {
+			span.Flatten("hc_" + r.flatten)
+		}
 		attemptCounter++
 
 		if c.shouldBackoff() {

@@ -469,6 +469,10 @@ func (s *span) End() {
 	s.span.Send()
 }
 
+func (s *span) Flatten(string) {
+	// N.B. We are not implementing this feature in hc
+}
+
 func mustValidateKey(key string) {
 	if strings.Contains(key, "-") {
 		panic(fmt.Errorf("key %q cannot contain '-'", key))

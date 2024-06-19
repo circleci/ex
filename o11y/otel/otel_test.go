@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -22,10 +21,10 @@ import (
 	"gotest.tools/v3/poll"
 
 	o11yconfig "github.com/circleci/ex/config/o11y"
-	hc "github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/testing/fakestatsd"
+	"github.com/circleci/ex/testing/jaeger"
 	"github.com/circleci/ex/testing/testcontext"
 )
 
@@ -54,7 +53,7 @@ func TestO11y(t *testing.T) {
 		ctx, span := o.StartSpan(ctx, "root")
 		defer span.End()
 
-		doSomething(ctx)
+		doSomething(ctx, false)
 
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
 			if len(s.Metrics()) > 2 {
@@ -69,7 +68,7 @@ func TestO11y(t *testing.T) {
 		o11y.AddField(ctx, "test_app_o11y_fld", 42)
 	})
 
-	jc := newJaegerClient("http://localhost:16686", "app-main")
+	jc := jaeger.New("http://localhost:16686", "app-main")
 	traces, err := jc.Traces(ctx, start)
 	assert.NilError(t, err)
 	assert.Assert(t, cmp.Len(traces, 1))
@@ -79,14 +78,14 @@ func TestO11y(t *testing.T) {
 	spanNames := map[string]bool{}
 	for _, s := range spans {
 		if s.OperationName == "root" {
-			assertTag(t, s.Tags, "raw_got", uuid)
-			assertTag(t, s.Tags, "a_global_key", "a-global-value")
-			assertTag(t, s.Tags, "app.test_app_fld", "true")
-			assertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
+			jaeger.AssertTag(t, s.Tags, "raw_got", uuid)
+			jaeger.AssertTag(t, s.Tags, "a_global_key", "a-global-value")
+			jaeger.AssertTag(t, s.Tags, "app.test_app_fld", "true")
+			jaeger.AssertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
 		}
 
 		// Jaeger passes otel resource span attributes into their process tags.
-		assertTag(t, traces[0].Processes[s.ProcessID].Tags, "x-honeycomb-dataset", "local-testing")
+		jaeger.AssertTag(t, traces[0].Processes[s.ProcessID].Tags, "x-honeycomb-dataset", "local-testing")
 
 		spanNames[s.OperationName] = true
 	}
@@ -267,19 +266,12 @@ func TestFailureMetrics(t *testing.T) {
 	})
 }
 
-func assertTag(t *testing.T, tags []jTag, k, v string) {
-	t.Helper()
-	for _, tag := range tags {
-		if tag.Key == k && fmt.Sprintf("%v", tag.Value) == v {
-			return
-		}
-	}
-	t.Errorf("key:%q with value %q was not found", k, v)
-}
-
-func doSomething(ctx context.Context) {
+func doSomething(ctx context.Context, flatten bool) {
 	ctx, span := o11y.StartSpan(ctx, "operation")
 	defer span.End()
+	if flatten {
+		span.Flatten("opp")
+	}
 
 	span.AddField("another_key", "yes")
 
@@ -321,7 +313,7 @@ func TestHelpers(t *testing.T) {
 		ctx := o11y.WithProvider(context.Background(), provider)
 		defer provider.Close(ctx)
 
-		doSomething(ctx)
+		doSomething(ctx, false)
 
 		t.Run("ids", func(t *testing.T) {
 			traceID, parentID := h.TraceIDs(ctx)
@@ -332,6 +324,10 @@ func TestHelpers(t *testing.T) {
 		t.Run("extract and inject", func(t *testing.T) {
 			ctx, span := o11y.StartSpan(ctx, "test")
 			defer span.End()
+			ctx = o11y.WithBaggage(ctx, o11y.Baggage{
+				"bg1": "bgv1",
+				"bg2": "bgv2",
+			})
 
 			svc1Propagation := h.ExtractPropagation(ctx)
 
@@ -350,6 +346,11 @@ func TestHelpers(t *testing.T) {
 			traceID1, _ := h.TraceIDs(ctx)
 			traceID2, _ := h.TraceIDs(service2Context)
 			assert.Check(t, cmp.Equal(traceID1, traceID2))
+
+			// and that svc2 context has baggage
+			b := o11y.GetBaggage(ctx)
+			assert.Check(t, cmp.Equal(b["bg1"], "bgv1"))
+			assert.Check(t, cmp.Equal(b["bg2"], "bgv2"))
 		})
 	}
 
@@ -362,67 +363,6 @@ func TestHelpers(t *testing.T) {
 	})
 
 	assert.NilError(t, err)
-}
-
-func newJaegerClient(base, service string) jaegerClient {
-	return jaegerClient{
-		client: hc.New(hc.Config{
-			Name:    "jaeger-api",
-			BaseURL: base + "/api",
-		}),
-		service: service,
-	}
-}
-
-type jaegerClient struct {
-	client  *hc.Client
-	service string
-}
-
-type jTag struct {
-	Key   string `json:"key"`
-	Type  string `json:"type"`
-	Value any    `json:"value"`
-}
-
-type jSpan struct {
-	TraceID       string `json:"traceID"`
-	SpanID        string `json:"spanID"`
-	OperationName string `json:"operationName"`
-	References    []struct {
-		RefType string `json:"refType"`
-		TraceID string `json:"traceID"`
-		SpanID  string `json:"spanID"`
-	} `json:"references"`
-	StartTime int64  `json:"startTime"`
-	Duration  int    `json:"duration"`
-	Tags      []jTag `json:"tags"`
-	Logs      []any  `json:"logs"`
-	ProcessID string `json:"processID"`
-	Warnings  any    `json:"warnings"`
-}
-
-type jProcess struct {
-	ServiceName string `json:"service_name"`
-	Tags        []jTag `json:"tags"`
-}
-
-type jTrace struct {
-	ID        string              `json:"id"`
-	Spans     []jSpan             `json:"spans"`
-	Processes map[string]jProcess `json:"processes"`
-}
-
-func (j *jaegerClient) Traces(ctx context.Context, since time.Time) ([]jTrace, error) {
-	resp := struct {
-		Data []jTrace `json:"data"`
-	}{}
-	err := j.client.Call(ctx, hc.NewRequest("GET", "/traces",
-		hc.QueryParam("service", j.service),
-		hc.QueryParam("start", strconv.FormatInt(since.UnixMicro(), 10)),
-		hc.JSONDecoder(&resp),
-	))
-	return resp.Data, err
 }
 
 func TestRealCollector_HoneycombDataset(t *testing.T) {
@@ -545,6 +485,69 @@ func TestSampling(t *testing.T) {
 
 		assert.Check(t, len(col.Spans()) < 30, "got too many spans: %d", len(col.Spans()))
 	})
+}
+
+func TestFlatten(t *testing.T) {
+	start := time.Now()
+	statsd := fakestatsd.New(t)
+	ctx := testcontext.Background()
+	uuid := uuid.NewString()
+	t.Run("trace", func(t *testing.T) {
+		ctx, closeProvider, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
+			Dataset:         "local-testing",
+			GrpcHostAndPort: "127.0.0.1:4317",
+			Service:         "app-main",
+			Version:         "dev-test",
+			Statsd:          statsd.Addr(),
+			StatsNamespace:  "test-app",
+		})
+
+		o := o11y.FromContext(ctx)
+		assert.NilError(t, err)
+		o.AddGlobalField("a_global_key", "a-global-value")
+
+		// need to close the provider to be sure traces flushed
+		defer closeProvider(ctx)
+
+		ctx, span := o.StartSpan(ctx, "root")
+		defer span.End()
+
+		doSomething(ctx, true)
+
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			if len(statsd.Metrics()) > 2 {
+				return poll.Success()
+			}
+			return poll.Continue("not enough metrics yet")
+		})
+
+		gs := o.GetSpan(ctx)
+		gs.AddRawField("raw_got", uuid)
+		gs.AddField("test_app_fld", true)
+		o11y.AddField(ctx, "test_app_o11y_fld", 42)
+	})
+
+	jc := jaeger.New("http://localhost:16686", "app-main")
+	traces, err := jc.Traces(ctx, start)
+	assert.NilError(t, err)
+	assert.Assert(t, cmp.Len(traces, 1))
+
+	spans := traces[0].Spans
+	// only one span
+	assert.Check(t, cmp.Equal(len(spans), 1))
+
+	s := spans[0]
+	assert.Check(t, cmp.Equal(s.OperationName, "root"))
+	jaeger.AssertTag(t, s.Tags, "raw_got", uuid)
+	jaeger.AssertTag(t, s.Tags, "a_global_key", "a-global-value")
+	jaeger.AssertTag(t, s.Tags, "app.test_app_fld", "true")
+	jaeger.AssertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
+
+	// check the child tags
+	jaeger.AssertTag(t, s.Tags, "opp.app.another_key", "yes")
+	jaeger.AssertTag(t, s.Tags, "opp.l2.app.lemons", "five")
+	jaeger.AssertTag(t, s.Tags, "opp.l2.app.good", "true")
+	jaeger.AssertTag(t, s.Tags, "opp.l2.app.events", "22")
 }
 
 type testTraceCollector struct {
