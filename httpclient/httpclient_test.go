@@ -22,6 +22,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	o11yconfig "github.com/circleci/ex/config/o11y"
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/httpclient/dnscache"
 	"github.com/circleci/ex/httpserver"
@@ -29,12 +30,13 @@ import (
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/o11y/wrappers/o11ynethttp"
+	"github.com/circleci/ex/testing/fakestatsd"
 	"github.com/circleci/ex/testing/httprecorder"
+	"github.com/circleci/ex/testing/jaeger"
 	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestClient_Call_Propagates(t *testing.T) {
-
 	traceIDChan := make(chan string, 1)
 	defer close(traceIDChan)
 
@@ -88,6 +90,8 @@ func TestClient_Call_Propagates(t *testing.T) {
 			traceIDChan <- traceID
 			span := o11y.FromContext(r.Context()).GetSpan(r.Context())
 			span.AddField("prov_get_span", true)
+			b := o11y.GetBaggage(r.Context())
+			assert.Check(t, cmp.Equal(b["test_baggage"], "bag value"))
 		})
 
 		server := httptest.NewServer(o11ynethttp.Middleware(op, "name", okHandler))
@@ -100,6 +104,9 @@ func TestClient_Call_Propagates(t *testing.T) {
 		helpers := o11y.FromContext(ctx).Helpers()
 
 		ctx, span := o11y.StartSpan(ctx, "new client span")
+		ctx = o11y.WithBaggage(ctx, o11y.Baggage{
+			"test_baggage": "bag value",
+		})
 		err = client.Call(ctx, httpclient.NewRequest("POST", "/"))
 		assert.Check(t, err)
 		span.End()
@@ -216,6 +223,89 @@ func TestClient_Call_Propagates(t *testing.T) {
 
 		// The server trace id should be different from the client one
 		assert.Check(t, httpClientTraceID != <-traceIDChan)
+	})
+
+	t.Run("propagate flatten", func(t *testing.T) {
+		start := time.Now()
+		s := fakestatsd.New(t)
+		ctx := testcontext.Background()
+
+		ctx, closeProvider, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
+			Dataset:         "propagate-flatten",
+			GrpcHostAndPort: "127.0.0.1:4317",
+			Service:         "app-main",
+			Version:         "dev-test",
+			Statsd:          s.Addr(),
+			StatsNamespace:  "test-app",
+		})
+
+		assert.NilError(t, err)
+
+		okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, span := o11y.StartSpan(r.Context(), "h-span")
+			span.AddField("prov_get_span", true)
+		})
+
+		server := httptest.NewServer(o11ynethttp.Middleware(o11y.FromContext(ctx), "name", okHandler))
+		client := httpclient.New(httpclient.Config{
+			Name:    "otel-test",
+			BaseURL: server.URL,
+			Timeout: time.Second,
+		})
+
+		ctx, span := o11y.StartSpan(ctx, "new client span")
+
+		err = client.Call(ctx, httpclient.NewRequest("POST", "/", httpclient.Flatten("tcl")))
+		assert.Check(t, err)
+
+		span.End()
+
+		// Should flush to jaeger
+		closeProvider(ctx)
+
+		jc := jaeger.New("http://localhost:16686", "app-main")
+		traces, err := jc.Traces(ctx, start)
+		assert.NilError(t, err)
+		assert.Assert(t, cmp.Len(traces, 1))
+
+		spans := traces[0].Spans
+		// only one span - no httpcl or http server spans
+		assert.Check(t, cmp.Equal(len(spans), 1))
+
+		js := spans[0]
+		assert.Check(t, cmp.Equal(js.OperationName, "new client span"))
+
+		expected := map[string]bool{
+			"service":                             true,
+			"version":                             true,
+			"hc_tcl.meta.type":                    true,
+			"hc_tcl.span.kind":                    true,
+			"hc_tcl.http.url":                     true,
+			"hc_tcl.http.request_content_length":  true,
+			"hc_tcl.http.base_url":                true,
+			"hc_tcl.http.target":                  true,
+			"hc_tcl.http.retry":                   true,
+			"hc_tcl.result":                       true,
+			"hc_tcl.flattened":                    true,
+			"hc_tcl.app.flatten":                  true,
+			"hc_tcl.http.client_name":             true,
+			"hc_tcl.duration_ms":                  true,
+			"hc_tcl.http.attempt":                 true,
+			"hc_tcl.http.user_agent":              true,
+			"hc_tcl.http.response_content_length": true,
+			"hc_tcl.http.status_code":             true,
+			"hc_tcl.http.route":                   true,
+			"hc_tcl.http.scheme":                  true,
+			"hc_tcl.http.host":                    true,
+			"hc_tcl.http.method":                  true,
+			"span.kind":                           true,
+			"internal.span.format":                true,
+		}
+
+		assert.Check(t, cmp.Len(js.Tags, len(expected)))
+		for _, tag := range js.Tags {
+			assert.Check(t, expected[tag.Key], "%q not expected", tag.Key)
+		}
 	})
 }
 

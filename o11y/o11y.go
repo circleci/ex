@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"net/url"
 	"runtime/debug"
+	"strconv"
 	"strings"
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/rollbar/rollbar-go"
+	"go.opentelemetry.io/otel/baggage"
 )
 
 type Provider interface {
@@ -108,6 +110,9 @@ type Span interface {
 
 	// RecordMetric tells the provider to emit a metric to its metric backend when the span ends
 	RecordMetric(metric Metric)
+
+	// Flatten causes all child span attributes to be set on this span, with the given prefix
+	Flatten(prefix string)
 
 	// End sets the duration of the span and tells the related provider that the span is complete,
 	// so it can do its appropriate processing. The span should not be used after End is called.
@@ -302,17 +307,40 @@ func (b Baggage) addToTrace(ctx context.Context) {
 
 type baggageKey struct{}
 
-func WithBaggage(ctx context.Context, baggage Baggage) context.Context {
-	baggage.addToTrace(ctx)
-	return context.WithValue(ctx, baggageKey{}, baggage)
+func WithBaggage(ctx context.Context, b Baggage) context.Context {
+	bg := baggage.FromContext(ctx)
+	for k, v := range b {
+		m, err := baggage.NewMemberRaw(k, v)
+		if err != nil {
+			AddField(ctx, "baggage_error", err)
+			continue
+		}
+		bg, err = bg.SetMember(m)
+		if err != nil {
+			AddField(ctx, "baggage_error", err)
+		}
+	}
+	ctx = baggage.ContextWithBaggage(ctx, bg)
+	b.addToTrace(ctx)
+	return context.WithValue(ctx, baggageKey{}, b)
 }
 
 func GetBaggage(ctx context.Context) Baggage {
+	rbg := Baggage{}
+	bg := baggage.FromContext(ctx)
+	for _, m := range bg.Members() {
+		rbg[m.Key()] = m.Value()
+		// N.B. baggage properties not supported
+	}
+
 	b, ok := ctx.Value(baggageKey{}).(Baggage)
 	if !ok {
-		return Baggage{}
+		return rbg
 	}
-	return b
+	for k, v := range b {
+		rbg[k] = v
+	}
+	return rbg
 }
 
 var defaultProvider = &noopProvider{}
@@ -324,6 +352,7 @@ func (c *noopProvider) AddGlobalField(key string, val interface{}) {}
 func (c *noopProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
 	return ctx, &noopSpan{}
 }
+
 func (c *noopProvider) GetSpan(ctx context.Context) Span {
 	return &noopSpan{}
 }
@@ -368,6 +397,8 @@ func (s *noopSpan) RecordMetric(metric Metric) {}
 
 func (s *noopSpan) End() {}
 
+func (s *noopSpan) Flatten(string) {}
+
 func HandlePanic(ctx context.Context, span Span, panic interface{}, r *http.Request) (err error) {
 	err = fmt.Errorf("panic handled: %+v", panic)
 	span.AddRawField("panic", panic)
@@ -387,6 +418,21 @@ func HandlePanic(ctx context.Context, span Span, panic interface{}, r *http.Requ
 		rollbarClient.LogPanic(panic, true)
 	}
 	return err
+}
+
+const flattenDepthBaggageKey = "flatten"
+
+func FlattenDepthFromBaggage(ctx context.Context) int {
+	b := GetBaggage(ctx)
+	if v, ok := b[flattenDepthBaggageKey]; ok {
+		d, _ := strconv.Atoi(v)
+		return d
+	}
+	return 0
+}
+
+func AddFlattenDepthToBaggage(ctx context.Context, d int) context.Context {
+	return WithBaggage(ctx, Baggage{flattenDepthBaggageKey: strconv.Itoa(d)})
 }
 
 type rollbarAble interface {
