@@ -144,6 +144,14 @@ func TestProvider(t *testing.T) {
 		})
 	})
 
+	t.Run("nil_pointer_field_value", func(t *testing.T) {
+		_, span := o11y.StartSpan(ctx, "a different span")
+		defer o11y.End(span, &err)
+
+		var timeVal *time.Time
+		span.AddRawField("time_val", timeVal)
+	})
+
 	poll.WaitOn(t, func(t poll.LogT) poll.Result {
 		if len(col.Spans()) > 0 {
 			return poll.Success()
@@ -151,9 +159,10 @@ func TestProvider(t *testing.T) {
 		return poll.Continue("spans never turned up")
 	})
 
-	assert.Check(t, cmp.Equal(len(col.spans), 1))
+	assert.Check(t, cmp.Equal(len(col.spans), 2))
 	assert.Check(t, cmp.Equal(col.spans[0].Attrs["app.cc_key"], "cc_val"))
 	assert.Check(t, cmp.Equal(col.spans[0].Attrs["app.p_key"], "p_val"))
+	assert.Check(t, cmp.Equal(col.spans[1].Attrs["time_val"], "nil"))
 }
 
 func TestConcurrentSpanAccess(t *testing.T) {
