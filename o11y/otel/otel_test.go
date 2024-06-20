@@ -550,6 +550,85 @@ func TestFlatten(t *testing.T) {
 	jaeger.AssertTag(t, s.Tags, "opp.l2.app.events", "22")
 }
 
+func TestSpan(t *testing.T) {
+	lis, err := net.Listen("tcp", "localhost:0")
+	assert.Assert(t, err)
+
+	col := &testTraceCollector{}
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+	coltracepb.RegisterTraceServiceServer(grpcServer, col)
+
+	g := &errgroup.Group{}
+	g.Go(func() error {
+		return grpcServer.Serve(lis)
+	})
+	defer grpcServer.Stop()
+
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Service:         "app-main",
+		Version:         "dev-test",
+		Dataset:         "execyooshun",
+		GrpcHostAndPort: lis.Addr().String(),
+		StatsNamespace:  "test-app",
+	})
+
+	assert.NilError(t, err)
+
+	ctx, span := o11y.StartSpan(ctx, "span")
+
+	var (
+		nilTime *time.Time
+		nilInt  *int
+		four    = 4
+		tim     = time.Date(2020, 1, 1, 4, 5, 6, 7, time.UTC)
+		aThing  = "a thing"
+	)
+
+	attrs := []struct {
+		name     string
+		val      any
+		expected string
+	}{
+		{
+			name:     "nil_time_pointer",
+			val:      nilTime,
+			expected: "",
+		},
+		{
+			name:     "nil_int_pointer",
+			val:      nilInt,
+			expected: "",
+		},
+		{
+			name:     "time_pointer",
+			val:      &tim,
+			expected: "2020-01-01 04:05:06.000000007 +0000 UTC",
+		},
+		{
+			name:     "int_pointer",
+			val:      &four,
+			expected: "4",
+		},
+		{
+			name:     "string_pointer",
+			val:      &aThing,
+			expected: "a thing",
+		},
+	}
+	for _, tt := range attrs {
+		span.AddField(tt.name, tt.val)
+	}
+
+	span.End()
+
+	closeProvider(ctx)
+
+	for _, tt := range attrs {
+		assert.Check(t, cmp.Equal(tt.expected, col.spans[0].Attrs["app."+tt.name]), tt.name)
+	}
+}
+
 type testTraceCollector struct {
 	coltracepb.UnimplementedTraceServiceServer
 
@@ -654,5 +733,5 @@ func toString(value *v1.AnyValue) string {
 		return v
 	}
 	parts := strings.Split(value.String(), ":")
-	return parts[1]
+	return strings.Trim(parts[1], `"`)
 }

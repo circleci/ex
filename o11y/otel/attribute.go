@@ -2,11 +2,13 @@ package otel
 
 import (
 	"fmt"
+	"reflect"
 
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func attr(key string, val any) attribute.KeyValue {
+func attr(key string, vi any) attribute.KeyValue {
+	val := deref(vi)
 	switch v := val.(type) {
 	case string:
 		return attribute.Key(key).String(v)
@@ -28,8 +30,49 @@ func attr(key string, val any) attribute.KeyValue {
 		return attribute.Key(key).Float64(v)
 	default:
 		if s, ok := val.(fmt.Stringer); ok {
+			if isNil(s) {
+				return attribute.Key(key).String("")
+			}
 			return attribute.Key(key).String(s.String())
 		}
+		if isNil(val) {
+			return attribute.Key(key).String("")
+		}
 		return attribute.Key(key).String(fmt.Sprintf("%v", v))
+	}
+}
+
+func deref(i any) (o any) {
+	if i == nil {
+		return i
+	}
+	v := reflect.ValueOf(i)
+	if v.Kind() == reflect.Ptr {
+		if v.IsZero() || !v.IsValid() {
+			return i
+		}
+		p := v.Elem()
+		return p.Interface()
+	}
+	return i
+}
+
+func isNil(value any) bool {
+	if value == nil {
+		return true
+	}
+
+	reflected := reflect.ValueOf(value)
+	switch reflected.Kind() {
+	case
+		reflect.Chan,
+		reflect.Func,
+		reflect.Interface,
+		reflect.Map,
+		reflect.Ptr,
+		reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
 	}
 }
