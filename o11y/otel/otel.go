@@ -380,5 +380,5 @@ type sampleRateSpan struct {
 }
 
 func (s sampleRateSpan) Attributes() []attribute.KeyValue {
-	return append(s.ReadOnlySpan.Attributes(), attribute.Int("sample_rate", int(s.rate)))
+	return append(s.ReadOnlySpan.Attributes(), attribute.Int("SampleRate", int(s.rate)))
 }

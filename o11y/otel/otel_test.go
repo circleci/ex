@@ -451,7 +451,7 @@ func TestSampling(t *testing.T) {
 		})
 
 		assert.Check(t, len(col.Spans()) < 30, "got too many spans: %d", len(col.Spans()))
-		assert.Check(t, cmp.Equal(col.Spans()[0].Attrs["sample_rate"], "10"))
+		assert.Check(t, cmp.Equal(col.Spans()[0].Attrs["SampleRate"], "10"))
 	})
 
 	// n.b. don't only test with name - since that is available in the head sampler
