@@ -20,7 +20,6 @@ import (
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
-	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestMiddleware(t *testing.T) {
@@ -34,7 +33,7 @@ func TestMiddleware(t *testing.T) {
 		Writer:      b,
 	}))
 
-	ctx, cancel := context.WithCancel(testcontext.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	r := Default(ctx, "test server")
