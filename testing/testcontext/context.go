@@ -3,10 +3,7 @@ package testcontext
 import (
 	"context"
 
-	"github.com/DataDog/datadog-go/statsd"
-
-	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/honeycomb"
+	"github.com/circleci/ex/config/o11y"
 )
 
 // ctx is a global singleton, initialised at package time to avoid racy initiation of the global singleton
@@ -19,10 +16,8 @@ func Background() context.Context {
 }
 
 func newContext() context.Context {
-	return o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		ServiceName: "test-service",
-		Key:         "unused-test-key",
-		Format:      "color",
-		Metrics:     &statsd.NoOpClient{},
-	}))
+	cx, _, _ := o11y.Otel(context.Background(), o11y.OtelConfig{
+		Service: "test-service",
+	})
+	return cx
 }
