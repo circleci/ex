@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/golangci/golangci-lint v1.59.1
-	github.com/gwatts/rootcerts v0.0.0-20240401182218-3ab9db955caf
+	github.com/gwatts/rootcerts v0.0.0-20240701182254-d67b2c3ed211
 	github.com/rinchsan/gosimports v0.3.8
 	gotest.tools/gotestsum v1.12.0
 )
