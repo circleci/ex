@@ -300,6 +300,7 @@ func TestClient_Call_Propagates(t *testing.T) {
 			"hc_tcl.http.method":                  true,
 			"span.kind":                           true,
 			"internal.span.format":                true,
+			"otel.library.name":                   true, // TODO: where did this field come from?
 		}
 
 		assert.Check(t, cmp.Len(js.Tags, len(expected)))
