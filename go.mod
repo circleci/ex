@@ -1,6 +1,6 @@
 module github.com/circleci/ex
 
-go 1.21
+go 1.22.5
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
