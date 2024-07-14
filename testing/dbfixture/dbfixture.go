@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/jackc/pgx/v5"
 	"github.com/jmoiron/sqlx"
 	"gotest.tools/v3/assert"
@@ -283,7 +282,7 @@ func newDB(con Connection, name string) (db *sqlx.DB, err error) {
 
 func (m *Manager) cleanup(ctx context.Context, db *sqlx.DB, fixture *Fixture) error {
 	err := fixture.DB.Close()
-	err = multierror.Append(err, fixture.AdminDB.Close()).ErrorOrNil()
+	err = errors.Join(err, fixture.AdminDB.Close())
 	if err != nil {
 		o11y.LogError(ctx, "db: cleanup", err)
 	}
