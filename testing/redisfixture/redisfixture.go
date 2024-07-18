@@ -4,6 +4,7 @@ import (
 	"context"
 	"hash/fnv"
 	"math/rand"
+	"os"
 	"strconv"
 	"sync"
 
@@ -14,6 +15,8 @@ import (
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/testing/internal/types"
 )
+
+var mustRunAllTests = os.Getenv("CI") == "true"
 
 type Fixture struct {
 	*redis.Client
@@ -39,7 +42,10 @@ func Setup(ctx context.Context, t types.TestingTB, con Connection) *Fixture {
 
 	switch {
 	case databaseCount == 0:
-		t.Skip("Redis not available")
+		if !mustRunAllTests {
+			t.Skip("Redis not available")
+		}
+		t.Fatal("Redis not available")
 	case databaseCount < 1000000:
 		t.Fatal("not enough Redis databases a unique DB per test, add '--databases 1000000' to Redis setup command")
 	}
@@ -73,8 +79,11 @@ func checkRedisConnection(ctx context.Context, t types.TestingTB, client *redis.
 	switch {
 	case err != nil && err.Error() == "ERR DB index is out of range":
 		assert.Assert(t, err)
-	case err != nil:
-		t.Skip("Redis not available")
+	case err != nil && !mustRunAllTests:
+		if !mustRunAllTests {
+			t.Skip("Redis not available")
+		}
+		assert.Assert(t, err)
 	}
 }
 
