@@ -79,7 +79,7 @@ func checkRedisConnection(ctx context.Context, t types.TestingTB, client *redis.
 	switch {
 	case err != nil && err.Error() == "ERR DB index is out of range":
 		assert.Assert(t, err)
-	case err != nil && !mustRunAllTests:
+	case err != nil:
 		if !mustRunAllTests {
 			t.Skip("Redis not available")
 		}
