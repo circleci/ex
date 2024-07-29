@@ -23,7 +23,7 @@ services:
       MONGO_INITDB_DATABASE: dbname
 
   redis:
-    image: cimg/redis:7.2
+    image: cimg/redis:7.4
     command: [
       "redis-server",
       "--protected-mode", "no",
