@@ -77,6 +77,9 @@ func TestO11y(t *testing.T) {
 
 	spanNames := map[string]bool{}
 	for _, s := range spans {
+		// all spans should have the trace level field (even though it was added in the context of a child span)
+		jaeger.AssertTag(t, s.Tags, "app.trace_field", "trace_value")
+
 		if s.OperationName == "root" {
 			jaeger.AssertTag(t, s.Tags, "raw_got", uuid)
 			jaeger.AssertTag(t, s.Tags, "a_global_key", "a-global-value")
@@ -282,6 +285,7 @@ func doSomething(ctx context.Context, flatten bool) {
 		span.AddField("lemons", "five")
 		span.AddField("good", true)
 		span.AddField("events", 22)
+		o11y.FromContext(ctx).AddFieldToTrace(ctx, "trace_field", "trace_value")
 
 		span.RecordMetric(o11y.Count("count-events", "events", nil, "good"))
 		span.RecordMetric(o11y.Timing("sub-time", "lemons", "good"))
