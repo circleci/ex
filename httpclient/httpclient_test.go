@@ -278,6 +278,7 @@ func TestClient_Call_Propagates(t *testing.T) {
 		expected := map[string]bool{
 			"service":                             true,
 			"version":                             true,
+			"app.flatten":                         true,
 			"hc_tcl.meta.type":                    true,
 			"hc_tcl.span.kind":                    true,
 			"hc_tcl.http.url":                     true,

@@ -175,8 +175,10 @@ func (o Provider) AddField(ctx context.Context, key string, val any) {
 }
 
 func (o Provider) AddFieldToTrace(ctx context.Context, key string, val any) {
-	// TODO - some equivalent to adding this field to all child spans to the root span
-	o.AddField(ctx, key, val)
+	s := o.getSpan(ctx)
+	if s != nil {
+		s.tr.addField(key, val)
+	}
 }
 
 func (o Provider) Log(ctx context.Context, name string, fields ...o11y.Pair) {
@@ -218,13 +220,41 @@ func (o Provider) wrapSpan(s trace.Span, p *span) *span {
 		start:           time.Now(),
 		fields:          map[string]any{},
 	}
-	if p != nil && p.flattenPrefix != "" {
-		sp.flatten("", 0)
+	if p == nil {
+		sp.tr = &tr{
+			fields: map[string]any{},
+		}
+	} else {
+		sp.tr = p.tr
+		if p.flattenPrefix != "" {
+			sp.flatten("", 0)
+		}
 	}
 	return sp
 }
 
+type tr struct {
+	mu     sync.RWMutex // mu is a write mutex for the map below (concurrent reads are safe)
+	fields map[string]any
+}
+
+func (t *tr) addField(key string, val any) {
+	if t == nil {
+		return
+	}
+	// chuck out nil values
+	if val == nil {
+		return
+	}
+	mustValidateKey(key)
+
+	t.mu.Lock()
+	t.fields[key] = val
+	t.mu.Unlock()
+}
+
 type span struct {
+	tr              *tr
 	parent          *span
 	flattenPrefix   string
 	flattenDepth    int
@@ -280,6 +310,14 @@ func (s *span) End() {
 	s.mu.Lock()
 	s.fields["duration_ms"] = time.Since(s.start) / time.Millisecond
 	s.mu.Unlock()
+
+	if s.tr != nil {
+		s.tr.mu.RLock()
+		for k, v := range s.tr.fields {
+			s.AddField(k, v)
+		}
+		s.tr.mu.RUnlock()
+	}
 
 	s.sendMetric()
 
