@@ -150,7 +150,7 @@ func TestPublisherPool_MandatoryRouting(t *testing.T) {
 		})
 
 		s := buf.String()
-		t.Logf(s)
+		t.Log(s)
 
 		assert.Check(t, cmp.Contains(s, "app.reply_code=312"))
 		assert.Check(t, cmp.Contains(s, "app.routing_key=does not exist"))
