@@ -30,11 +30,14 @@ func (s deterministicSampler) shouldSample(p sdktrace.ReadOnlySpan) (bool, uint)
 
 // shouldKeep deterministically decides whether to sample. True means keep, false means drop
 func shouldKeep(determinant string, rate uint) bool {
-	if rate == 1 {
+	if rate < 2 {
 		return true
 	}
+	if rate > math.MaxUint32 {
+		rate = math.MaxUint32
+	}
 
-	threshold := math.MaxUint32 / uint32(rate)
+	threshold := math.MaxUint32 / uint32(rate) //nolint:gosec
 	v := crc32.ChecksumIEEE([]byte(determinant))
 
 	return v < threshold
