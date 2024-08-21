@@ -102,10 +102,10 @@ func readDatabasesCount(ctx context.Context, t types.TestingTB, con Connection) 
 	v := res.Val()
 	assert.Assert(t, cmp.Len(v, 1))
 
-	dbs, err := strconv.ParseInt(v["databases"], 10, 64)
+	dbs, err := strconv.ParseInt(v["databases"], 10, 32)
 	assert.Assert(t, err)
 
-	databaseCount = uint32(dbs)
+	databaseCount = uint32(dbs) //nolint:gosec
 }
 
 func hash(s string, databaseCount uint32) int {
