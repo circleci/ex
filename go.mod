@@ -4,7 +4,7 @@ go 1.22.5
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
-	github.com/alecthomas/kong v0.9.0
+	github.com/alecthomas/kong v1.1.0
 	github.com/aws/aws-sdk-go-v2 v1.30.4
 	github.com/aws/aws-sdk-go-v2/config v1.27.28
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.28
