@@ -8,8 +8,8 @@ github.com/Microsoft/go-winio v0.5.0 h1:Elr9Wn+sGKPlkaBvwu4mTrxtmOp3F3yV9qhaHbXG
 github.com/Microsoft/go-winio v0.5.0/go.mod h1:JPGBdM1cNvN/6ISo+n8V5iA4v8pBzdOpzfwIujj1a84=
 github.com/alecthomas/assert/v2 v2.10.0 h1:jjRCHsj6hBJhkmhznrCzoNpbA3zqy0fYiUcYZP/GkPY=
 github.com/alecthomas/assert/v2 v2.10.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
-github.com/alecthomas/kong v1.1.0 h1:OHQops3ripDRHIzZg8e5QRDqmU2TB0Vdb4U2qtxnpqs=
-github.com/alecthomas/kong v1.1.0/go.mod h1:rKTSFhbdp3Ryefn8x5MOEprnRFQ7nlmMC01GKhehhBM=
+github.com/alecthomas/kong v1.2.0 h1:rzOKVDXrKg6hpQi+99VFbgkiXLCRbnYp18PAlK6wYas=
+github.com/alecthomas/kong v1.2.0/go.mod h1:rKTSFhbdp3Ryefn8x5MOEprnRFQ7nlmMC01GKhehhBM=
 github.com/alecthomas/repr v0.4.0 h1:GhI2A8MACjfegCPVq9f1FLvIBS+DrQ2KQBFZP1iFzXc=
 github.com/alecthomas/repr v0.4.0/go.mod h1:Fr0507jx4eOXV7AlPV6AVZLYrLIuIeSOWtW57eE/O/4=
 github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
