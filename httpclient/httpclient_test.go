@@ -301,7 +301,10 @@ func TestClient_Call_Propagates(t *testing.T) {
 			"hc_tcl.http.method":                  true,
 			"span.kind":                           true,
 			"internal.span.format":                true,
-			"otel.library.name":                   true, // TODO: where did this field come from?
+
+			// N.B. these are added by the jaegertracing/all-in-one:latest image. If you see different results than CI,
+			// it's best to do a docker-compose pull to ensure you're using the latest image.
+			"otel.scope.name": true,
 		}
 
 		assert.Check(t, cmp.Len(js.Tags, len(expected)))

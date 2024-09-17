@@ -159,7 +159,7 @@ func honeyComb(o Config) (honeycomb.Config, error) {
 }
 
 func clampToUintMax(v int) uint {
-	if v >= math.MaxUint32 {
+	if int64(v) >= math.MaxUint32 {
 		return math.MaxUint32 - 1
 	}
 
