@@ -549,6 +549,66 @@ func TestClient_Call_Timeouts(t *testing.T) {
 	}
 }
 
+func TestClient_Call_MaxElapsedTime(t *testing.T) {
+	okHandler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}
+	retriedHandler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+	}
+
+	tests := []struct {
+		name           string
+		handler        func(w http.ResponseWriter, r *http.Request)
+		maxElapsedTime time.Duration
+		wantStatusCode int
+	}{
+		{
+			name:    "good response",
+			handler: okHandler,
+		},
+		{
+			name:           "maxElapsedTime error",
+			handler:        retriedHandler,
+			maxElapsedTime: 200 * time.Millisecond,
+			wantStatusCode: 500,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := testcontext.Background()
+			server := httptest.NewServer(http.HandlerFunc(tt.handler))
+			client := httpclient.New(httpclient.Config{
+				Name:    tt.name,
+				BaseURL: server.URL,
+				Timeout: 30 * time.Second,
+			})
+
+			start := time.Now()
+			perRequestTimeout := 50 * time.Millisecond
+			err := client.Call(ctx, httpclient.NewRequest("POST", "/",
+				httpclient.MaxElapsedTime(tt.maxElapsedTime),
+				httpclient.Timeout(perRequestTimeout),
+			))
+
+			if tt.wantStatusCode == 0 {
+				assert.NilError(t, err)
+			} else {
+				httpErr := &httpclient.HTTPError{}
+				// Checking we have a HTTPError proves we aren't hitting the per req timeout as that results in a
+				// context.DeadlineExceeded
+				assert.Check(t, errors.As(err, &httpErr))
+				assert.Check(t, httpclient.HasStatusCode(err, tt.wantStatusCode))
+
+				// Check the timings are in bounds makes sure we aren't hitting the clients set timeout
+				assert.Check(t, time.Since(start) <= tt.maxElapsedTime)
+				assert.Check(t, time.Since(start) > perRequestTimeout)
+			}
+		})
+	}
+}
+
 func TestClient_Call_Retry500(t *testing.T) {
 	ctx := testcontext.Background()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

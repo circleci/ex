@@ -164,14 +164,15 @@ type Request struct {
 	body    interface{} // If set this will be sent as JSON
 	rawBody []byte      // If set this will be sent as is
 
-	decoders map[int]decoder          // If set will be used to decode the response body by http status code
-	headerFn func(header http.Header) // If set will be called with the response header
-	cookie   *http.Cookie
-	headers  map[string]string
-	timeout  time.Duration // The individual per call timeout
-	retry    bool
-	query    url.Values
-	rawquery string
+	decoders       map[int]decoder          // If set will be used to decode the response body by http status code
+	headerFn       func(header http.Header) // If set will be called with the response header
+	cookie         *http.Cookie
+	headers        map[string]string
+	timeout        time.Duration // The individual per call timeout
+	maxElapsedTime time.Duration // The total timeout for the entire request including retries
+	retry          bool
+	query          url.Values
+	rawquery       string
 
 	// We want to prevent HTTP GETs with body or rawBody due to incompatibilities with CloudFront WAF which API Infra
 	// are introducing. In order to facilitate a migration for runner we need to be able to override this. This can be
@@ -329,9 +330,19 @@ func QueryParams(params map[string]string) func(*Request) {
 // and does not take into account of retries.
 // This is different from setting the timeout field on the http client,
 // which is the total timeout across all retries.
+// To override the total time use MaxElapsedTime
 func Timeout(timeout time.Duration) func(*Request) {
 	return func(r *Request) {
 		r.timeout = timeout
+	}
+}
+
+// MaxElapsedTime sets the overall maximum time a retryable request will execute for,
+// This overrides the timeout field on the http client for this request.
+// To set a per-attempt timeout use Timeout
+func MaxElapsedTime(maxElapsedTime time.Duration) func(*Request) {
+	return func(r *Request) {
+		r.maxElapsedTime = maxElapsedTime
 	}
 }
 
@@ -556,6 +567,10 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = time.Millisecond * 50
 	bo.MaxElapsedTime = c.backOffMaxElapsedTime
+	if r.maxElapsedTime > 0 {
+		bo.MaxElapsedTime = r.maxElapsedTime
+	}
+
 	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
 }
 
