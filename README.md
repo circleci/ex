@@ -30,6 +30,7 @@ See example / template repo [here](https://github.com/circleci/ex-service-templa
 - `system` Manage the startup, running, metrics and shutdown of a Go service.
 - `releases/compiler` Compile your Go binaries in a consistent way.
 - `releases/releaser` Release your Go binaries in a consistent way.
+- `rundef` automatically calculates and sets standard runtime configuration options
 - `termination` A handler to aid signal based service termination. (Used internally by
   the `system` package).
 - `testing/compiler` At CircleCI we aim to acceptance test whole compiled binaries. This
