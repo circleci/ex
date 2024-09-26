@@ -35,6 +35,8 @@ type Config struct {
 	SampleRates   map[string]uint
 
 	DisableText bool
+	
+	Test bool
 
 	Metrics o11y.ClosableMetricsProvider
 }
@@ -103,10 +105,15 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 
 	res := resource.NewWithAttributes(semconv.SchemaURL, ra...)
 
-	bsp := sdktrace.NewBatchSpanProcessor(exporter)
+	var sp sdktrace.SpanProcessor
+	if conf.Test {
+		sp = sdktrace.NewSimpleSpanProcessor(exporter)
+	} else {
+		sp = sdktrace.NewBatchSpanProcessor(exporter)
+	}
 
 	traceOptions := []sdktrace.TracerProviderOption{
-		sdktrace.WithSpanProcessor(bsp),
+		sdktrace.WithSpanProcessor(sp),
 		// N.B. must pass in the address here since we need to see later mutations
 		sdktrace.WithSpanProcessor(&globalFields),
 		sdktrace.WithResource(res),
@@ -182,7 +189,11 @@ func (o Provider) AddFieldToTrace(ctx context.Context, key string, val any) {
 }
 
 func (o Provider) Log(ctx context.Context, name string, fields ...o11y.Pair) {
-	// TODO Log
+	ctx, s := o.StartSpan(ctx, name)
+	for _, f := range fields {
+		s.AddField(f.Key, f.Value)
+	}
+	s.End()
 }
 
 func (o Provider) Close(ctx context.Context) {

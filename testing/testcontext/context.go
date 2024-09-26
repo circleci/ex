@@ -18,6 +18,7 @@ func Background() context.Context {
 func newContext() context.Context {
 	cx, _, _ := o11y.Otel(context.Background(), o11y.OtelConfig{
 		Service: "test-service",
+		Test:    true,
 	})
 	return cx
 }
