@@ -24,6 +24,8 @@ type OtelConfig struct {
 
 	DisableText bool
 
+	Test bool
+
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]interface{}) string
 	SampleRates   map[string]uint
@@ -71,6 +73,8 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 		SampleTraces:  o.SampleTraces,
 		SampleKeyFunc: o.SampleKeyFunc,
 		SampleRates:   o.SampleRates,
+
+		Test: o.Test,
 
 		Metrics: mProv,
 	}

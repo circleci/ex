@@ -35,6 +35,7 @@ func newContext() context.Context {
 			attribute.String("service.mode", "mode"),
 		},
 		Metrics: &statsd.NoOpClient{},
+		Test:    true,
 	})
 	if err != nil {
 		return context.Background()
