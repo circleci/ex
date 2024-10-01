@@ -17,6 +17,11 @@ import (
 func TestMemLimit(t *testing.T) {
 	skip.If(t, runtime.GOOS != "linux", "this test relies on cgroups")
 
+	orig := debug.SetMemoryLimit(-1) // restore original mem limit
+	t.Cleanup(func() {
+		debug.SetMemoryLimit(orig)
+	})
+
 	limit, err := memlimit.FromCgroup()
 	assert.NilError(t, err)
 
