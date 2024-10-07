@@ -68,7 +68,7 @@ jobs:
           "--protected-mode", "no",
           "--databases", "1000000",
         ]
-      - image: rabbitmq:3.13-management-alpine
+      - image: rabbitmq:4.0-management-alpine
       - image: mongo:7.0
         environment:
           MONGO_INITDB_ROOT_USERNAME: root
