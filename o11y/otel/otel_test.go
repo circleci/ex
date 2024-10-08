@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -21,6 +23,7 @@ import (
 	"gotest.tools/v3/poll"
 
 	o11yconfig "github.com/circleci/ex/config/o11y"
+	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/testing/fakestatsd"
@@ -738,4 +741,18 @@ func toString(value *v1.AnyValue) string {
 	}
 	parts := strings.Split(value.String(), ":")
 	return strings.Trim(parts[1], `"`)
+}
+
+func TestOtel_Writer(t *testing.T) {
+	var b syncbuffer.SyncBuffer
+	w := io.MultiWriter(os.Stdout, &b)
+	op, err := otel.New(otel.Config{
+		Writer: w,
+	})
+	assert.NilError(t, err)
+	ctx := o11y.WithProvider(context.Background(), op)
+	ctx, span := o11y.StartSpan(ctx, "a span")
+	o11y.End(span, nil)
+	op.Close(ctx)
+	assert.Check(t, cmp.Contains(b.String(), "a span"))
 }

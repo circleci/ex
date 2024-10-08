@@ -6,6 +6,7 @@ package otel
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -35,9 +36,10 @@ type Config struct {
 	SampleRates   map[string]uint
 
 	DisableText bool
-	
+
 	Test bool
 
+	Writer  io.Writer
 	Metrics o11y.ClosableMetricsProvider
 }
 
@@ -50,7 +52,11 @@ type Provider struct {
 func New(conf Config) (o11y.Provider, error) {
 	var exporter sdktrace.SpanExporter
 
-	exporter, err := texttrace.New(os.Stdout)
+	if conf.Writer == nil {
+		conf.Writer = os.Stdout
+	}
+
+	exporter, err := texttrace.New(conf.Writer)
 	if err != nil {
 		return nil, err
 	}
