@@ -140,7 +140,7 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 
 func newHTTP(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter, error) {
 	opts := []otlptracehttp.Option{
-		otlptracehttp.WithEndpoint(endpoint),
+		otlptracehttp.WithEndpointURL(endpoint),
 		otlptracehttp.WithInsecure(),
 		// This header may be used by honeycomb ingestion pathways in the future, but
 		// it is not currently needed for how the collectors are currently set up, which

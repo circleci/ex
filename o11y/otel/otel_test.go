@@ -50,8 +50,18 @@ func TestO11y(t *testing.T) {
 			name: "http",
 			cfg: o11yconfig.OtelConfig{
 				Dataset:         "local-testing",
-				HTTPHostAndPort: "127.0.0.1:4318",
+				HTTPHostAndPort: "http://127.0.0.1:4318",
 				Service:         "http-main",
+				Version:         "dev-test",
+				StatsNamespace:  "test-app",
+			},
+		},
+		{
+			name: "http with path",
+			cfg: o11yconfig.OtelConfig{
+				Dataset:         "local-testing",
+				HTTPHostAndPort: "http://127.0.0.1:4318/v1/traces",
+				Service:         "http-path-main",
 				Version:         "dev-test",
 				StatsNamespace:  "test-app",
 			},
@@ -64,7 +74,7 @@ func TestO11y(t *testing.T) {
 			s := fakestatsd.New(t)
 			ctx := testcontext.Background()
 			uuid := uuid.NewString()
-			t.Run("trace", func(t *testing.T) {
+			t.Run("send trace", func(t *testing.T) {
 				cfg := tt.cfg
 				cfg.Statsd = s.Addr()
 
@@ -95,37 +105,40 @@ func TestO11y(t *testing.T) {
 				o11y.AddField(ctx, "test_app_o11y_fld", 42)
 			})
 
-			jc := jaeger.New("http://localhost:16686", tt.cfg.Service)
-			traces, err := jc.Traces(ctx, start)
-			assert.NilError(t, err)
-			assert.Assert(t, cmp.Len(traces, 1))
+			t.Run("find trace", func(t *testing.T) {
 
-			spans := traces[0].Spans
+				jc := jaeger.New("http://localhost:16686", tt.cfg.Service)
+				traces, err := jc.Traces(ctx, start)
+				assert.NilError(t, err)
+				assert.Assert(t, cmp.Len(traces, 1))
 
-			spanNames := map[string]bool{}
-			for _, s := range spans {
-				// all spans should have the trace level field (even though it was added in the context of a child span)
-				jaeger.AssertTag(t, s.Tags, "app.trace_field", "trace_value")
+				spans := traces[0].Spans
 
-				if s.OperationName == "root" {
-					jaeger.AssertTag(t, s.Tags, "raw_got", uuid)
-					jaeger.AssertTag(t, s.Tags, "a_global_key", "a-global-value")
-					jaeger.AssertTag(t, s.Tags, "app.test_app_fld", "true")
-					jaeger.AssertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
+				spanNames := map[string]bool{}
+				for _, s := range spans {
+					// all spans should have the trace level field (even though it was added in the context of a child span)
+					jaeger.AssertTag(t, s.Tags, "app.trace_field", "trace_value")
+
+					if s.OperationName == "root" {
+						jaeger.AssertTag(t, s.Tags, "raw_got", uuid)
+						jaeger.AssertTag(t, s.Tags, "a_global_key", "a-global-value")
+						jaeger.AssertTag(t, s.Tags, "app.test_app_fld", "true")
+						jaeger.AssertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
+					}
+
+					// Jaeger passes otel resource span attributes into their process tags.
+					jaeger.AssertTag(t, traces[0].Processes[s.ProcessID].Tags, "x-honeycomb-dataset", "local-testing")
+
+					spanNames[s.OperationName] = true
 				}
-
-				// Jaeger passes otel resource span attributes into their process tags.
-				jaeger.AssertTag(t, traces[0].Processes[s.ProcessID].Tags, "x-honeycomb-dataset", "local-testing")
-
-				spanNames[s.OperationName] = true
-			}
-			assert.Check(t, cmp.DeepEqual(spanNames,
-				map[string]bool{
-					"root":          true,
-					"operation":     true,
-					"sub operation": true,
-				},
-			))
+				assert.Check(t, cmp.DeepEqual(spanNames,
+					map[string]bool{
+						"root":          true,
+						"operation":     true,
+						"sub operation": true,
+					},
+				))
+			})
 		})
 	}
 }
