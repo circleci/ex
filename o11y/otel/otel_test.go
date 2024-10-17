@@ -32,76 +32,102 @@ import (
 )
 
 func TestO11y(t *testing.T) {
-	start := time.Now()
-	s := fakestatsd.New(t)
-	ctx := testcontext.Background()
-	uuid := uuid.NewString()
-	t.Run("trace", func(t *testing.T) {
-		ctx, closeProvider, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
-			Dataset:         "local-testing",
-			GrpcHostAndPort: "127.0.0.1:4317",
-			Service:         "app-main",
-			Version:         "dev-test",
-			Statsd:          s.Addr(),
-			StatsNamespace:  "test-app",
-		})
-
-		o := o11y.FromContext(ctx)
-		assert.NilError(t, err)
-		o.AddGlobalField("a_global_key", "a-global-value")
-
-		// need to close the provider to be sure traces flushed
-		defer closeProvider(ctx)
-
-		ctx, span := o.StartSpan(ctx, "root")
-		defer span.End()
-
-		doSomething(ctx, false)
-
-		poll.WaitOn(t, func(t poll.LogT) poll.Result {
-			if len(s.Metrics()) > 2 {
-				return poll.Success()
-			}
-			return poll.Continue("not enough metrics yet")
-		})
-
-		gs := o.GetSpan(ctx)
-		gs.AddRawField("raw_got", uuid)
-		gs.AddField("test_app_fld", true)
-		o11y.AddField(ctx, "test_app_o11y_fld", 42)
-	})
-
-	jc := jaeger.New("http://localhost:16686", "app-main")
-	traces, err := jc.Traces(ctx, start)
-	assert.NilError(t, err)
-	assert.Assert(t, cmp.Len(traces, 1))
-
-	spans := traces[0].Spans
-
-	spanNames := map[string]bool{}
-	for _, s := range spans {
-		// all spans should have the trace level field (even though it was added in the context of a child span)
-		jaeger.AssertTag(t, s.Tags, "app.trace_field", "trace_value")
-
-		if s.OperationName == "root" {
-			jaeger.AssertTag(t, s.Tags, "raw_got", uuid)
-			jaeger.AssertTag(t, s.Tags, "a_global_key", "a-global-value")
-			jaeger.AssertTag(t, s.Tags, "app.test_app_fld", "true")
-			jaeger.AssertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
-		}
-
-		// Jaeger passes otel resource span attributes into their process tags.
-		jaeger.AssertTag(t, traces[0].Processes[s.ProcessID].Tags, "x-honeycomb-dataset", "local-testing")
-
-		spanNames[s.OperationName] = true
-	}
-	assert.Check(t, cmp.DeepEqual(spanNames,
-		map[string]bool{
-			"root":          true,
-			"operation":     true,
-			"sub operation": true,
+	tests := []struct {
+		name string
+		cfg  o11yconfig.OtelConfig
+	}{
+		{
+			name: "grpc",
+			cfg: o11yconfig.OtelConfig{
+				Dataset:         "local-testing",
+				GrpcHostAndPort: "127.0.0.1:4317",
+				Service:         "grpc-main",
+				Version:         "dev-test",
+				StatsNamespace:  "test-app",
+			},
 		},
-	))
+		{
+			name: "http",
+			cfg: o11yconfig.OtelConfig{
+				Dataset:         "local-testing",
+				HTTPHostAndPort: "127.0.0.1:4318",
+				Service:         "http-main",
+				Version:         "dev-test",
+				StatsNamespace:  "test-app",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start := time.Now()
+			s := fakestatsd.New(t)
+			ctx := testcontext.Background()
+			uuid := uuid.NewString()
+			t.Run("trace", func(t *testing.T) {
+				cfg := tt.cfg
+				cfg.Statsd = s.Addr()
+
+				ctx, closeProvider, err := o11yconfig.Otel(ctx, cfg)
+
+				o := o11y.FromContext(ctx)
+				assert.NilError(t, err)
+				o.AddGlobalField("a_global_key", "a-global-value")
+
+				// need to close the provider to be sure traces flushed
+				defer closeProvider(ctx)
+
+				ctx, span := o.StartSpan(ctx, "root")
+				defer span.End()
+
+				doSomething(ctx, false)
+
+				poll.WaitOn(t, func(t poll.LogT) poll.Result {
+					if len(s.Metrics()) > 2 {
+						return poll.Success()
+					}
+					return poll.Continue("not enough metrics yet")
+				})
+
+				gs := o.GetSpan(ctx)
+				gs.AddRawField("raw_got", uuid)
+				gs.AddField("test_app_fld", true)
+				o11y.AddField(ctx, "test_app_o11y_fld", 42)
+			})
+
+			jc := jaeger.New("http://localhost:16686", tt.cfg.Service)
+			traces, err := jc.Traces(ctx, start)
+			assert.NilError(t, err)
+			assert.Assert(t, cmp.Len(traces, 1))
+
+			spans := traces[0].Spans
+
+			spanNames := map[string]bool{}
+			for _, s := range spans {
+				// all spans should have the trace level field (even though it was added in the context of a child span)
+				jaeger.AssertTag(t, s.Tags, "app.trace_field", "trace_value")
+
+				if s.OperationName == "root" {
+					jaeger.AssertTag(t, s.Tags, "raw_got", uuid)
+					jaeger.AssertTag(t, s.Tags, "a_global_key", "a-global-value")
+					jaeger.AssertTag(t, s.Tags, "app.test_app_fld", "true")
+					jaeger.AssertTag(t, s.Tags, "app.test_app_o11y_fld", "42")
+				}
+
+				// Jaeger passes otel resource span attributes into their process tags.
+				jaeger.AssertTag(t, traces[0].Processes[s.ProcessID].Tags, "x-honeycomb-dataset", "local-testing")
+
+				spanNames[s.OperationName] = true
+			}
+			assert.Check(t, cmp.DeepEqual(spanNames,
+				map[string]bool{
+					"root":          true,
+					"operation":     true,
+					"sub operation": true,
+				},
+			))
+		})
+	}
 }
 
 func TestProvider(t *testing.T) {

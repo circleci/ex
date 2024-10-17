@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -29,12 +30,14 @@ import (
 type Config struct {
 	Dataset            string
 	GrpcHostAndPort    string
+	HTTPHostAndPort    string
 	ResourceAttributes []attribute.KeyValue
 
 	SampleTraces  bool
 	SampleKeyFunc func(map[string]any) string
 	SampleRates   map[string]uint
 
+	// DisableText prevents output to stdout for noisy services. Ignored if no other no hosts are supplied
 	DisableText bool
 
 	Test bool
@@ -50,45 +53,52 @@ type Provider struct {
 }
 
 func New(conf Config) (o11y.Provider, error) {
-	var exporter sdktrace.SpanExporter
+	var exporters []sdktrace.SpanExporter
 
-	if conf.Writer == nil {
-		conf.Writer = os.Stdout
-	}
-
-	exporter, err := texttrace.New(conf.Writer)
-	if err != nil {
-		return nil, err
-	}
 	if conf.GrpcHostAndPort != "" {
 		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.Dataset)
 		if err != nil {
 			return nil, err
 		}
-		var sampler *deterministicSampler
-		if conf.SampleTraces {
-			sampler = &deterministicSampler{
-				sampleKeyFunc: conf.SampleKeyFunc,
-				sampleRates:   conf.SampleRates,
-			}
-		}
 
-		// use gRPC and text - mainly so sampled out spans still make it to logs
-		exporters := []sdktrace.SpanExporter{
-			grpc,
-		}
-		// some services will just be too noisy so allow text exporter to be disabled
-		if !conf.DisableText {
-			exporters = append(exporters, exporter)
-		}
-		exporter = multipleExporter{
-			exporters: exporters,
-			sampler:   sampler,
-		}
-
+		exporters = append(exporters, grpc)
 	}
 
-	tp := traceProvider(exporter, conf)
+	if conf.HTTPHostAndPort != "" {
+		http, err := newHTTP(context.Background(), conf.HTTPHostAndPort, conf.Dataset)
+		if err != nil {
+			return nil, err
+		}
+
+		exporters = append(exporters, http)
+	}
+
+	var sampler *deterministicSampler
+	if conf.SampleTraces {
+		sampler = &deterministicSampler{
+			sampleKeyFunc: conf.SampleKeyFunc,
+			sampleRates:   conf.SampleRates,
+		}
+	}
+
+	if !conf.DisableText || len(exporters) == 0 {
+		// Ignore disable text if no other exports defined
+		out := conf.Writer
+		if out == nil {
+			out = os.Stdout
+		}
+
+		text, err := texttrace.New(out)
+		if err != nil {
+			return nil, err
+		}
+		exporters = append(exporters, text)
+	}
+
+	tp := traceProvider(multipleExporter{
+		exporters: exporters,
+		sampler:   sampler,
+	}, conf)
 
 	// set the global options
 	otel.SetTracerProvider(tp)
@@ -126,6 +136,18 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 	}
 
 	return sdktrace.NewTracerProvider(traceOptions...)
+}
+
+func newHTTP(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter, error) {
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint(endpoint),
+		otlptracehttp.WithInsecure(),
+		// This header may be used by honeycomb ingestion pathways in the future, but
+		// it is not currently needed for how the collectors are currently set up, which
+		// expect a resource attribute instead.
+		otlptracehttp.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
+	}
+	return otlptrace.New(ctx, otlptracehttp.NewClient(opts...))
 }
 
 func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter, error) {

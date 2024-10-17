@@ -20,6 +20,7 @@ import (
 // OtelConfig contains all the things we need to configure for otel based instrumentation.
 type OtelConfig struct {
 	GrpcHostAndPort string
+	HTTPHostAndPort string
 	Dataset         string
 
 	DisableText bool
@@ -55,6 +56,7 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 
 	cfg := otel.Config{
 		GrpcHostAndPort: o.GrpcHostAndPort,
+		HTTPHostAndPort: o.HTTPHostAndPort,
 		Dataset:         o.Dataset,
 		ResourceAttributes: []attribute.KeyValue{
 			semconv.ServiceNameKey.String(o.Service),
