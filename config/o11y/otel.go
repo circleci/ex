@@ -48,6 +48,9 @@ type OtelConfig struct {
 	Version string
 	Service string
 	Mode    string
+
+	// Metrics allows setting a custom metrics client. Typically, setting Statsd/StatsNamespace is preferred
+	Metrics o11y.ClosableMetricsProvider
 }
 
 // Otel is the primary entrypoint to initialize the o11y system for otel.
@@ -116,6 +119,9 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 // N.B this copies the block from Setup, but don't factor that out since the HC stuff will be removed soon
 // TODO - delete this comment after HC cleanup
 func metricsProvider(ctx context.Context, o OtelConfig, hostname string) (o11y.ClosableMetricsProvider, error) {
+	if o.Metrics != nil {
+		return o.Metrics, nil
+	}
 	if o.Statsd == "" {
 		return &statsd.NoOpClient{}, nil
 	}
