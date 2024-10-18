@@ -23,6 +23,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/otel/texttrace"
 )
@@ -33,7 +34,7 @@ type Config struct {
 	HTTPHostAndPort string
 
 	// HTTPAuthorization is the authorization token to send with http requests
-	HTTPAuthorization string
+	HTTPAuthorization secret.String
 
 	ResourceAttributes []attribute.KeyValue
 
@@ -142,7 +143,7 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 	return sdktrace.NewTracerProvider(traceOptions...)
 }
 
-func newHTTP(ctx context.Context, endpoint, dataset, token string) (*otlptrace.Exporter, error) {
+func newHTTP(ctx context.Context, endpoint, dataset string, token secret.String) (*otlptrace.Exporter, error) {
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpointURL(endpoint),
 		otlptracehttp.WithInsecure(),
@@ -152,7 +153,9 @@ func newHTTP(ctx context.Context, endpoint, dataset, token string) (*otlptrace.E
 		otlptracehttp.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
 	}
 	if token != "" {
-		opts = append(opts, otlptracehttp.WithHeaders(map[string]string{"Authorization": fmt.Sprintf("Bearer %s", token)}))
+		opts = append(opts,
+			otlptracehttp.WithHeaders(map[string]string{"Authorization": fmt.Sprintf("Bearer %s", token.Raw())}),
+		)
 	}
 
 	return otlptrace.New(ctx, otlptracehttp.NewClient(opts...))

@@ -23,8 +23,8 @@ type OtelConfig struct {
 	HTTPHostAndPort string
 
 	// HTTPAuthorization is the authorization token to send with http requests
-	HTTPAuthorization string
-	
+	HTTPAuthorization secret.String
+
 	Dataset string
 
 	// DisableText prevents output to stdout for noisy services. Ignored if no other no hosts are supplied
