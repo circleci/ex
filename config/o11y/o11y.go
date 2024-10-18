@@ -41,8 +41,10 @@ type Config struct {
 	RollbarDisabled         bool
 	StatsdTelemetryDisabled bool
 	Writer                  io.Writer
+
 	// Sender allows setting a custom honeycomb sender, Typically the build-in one is preferred.
 	Sender transmission.Sender
+
 	// Metrics allows setting a custom metrics client. Typically setting Statsd/StatsNamespace is preferred
 	Metrics o11y.ClosableMetricsProvider
 }
