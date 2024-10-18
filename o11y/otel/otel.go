@@ -28,9 +28,13 @@ import (
 )
 
 type Config struct {
-	Dataset            string
-	GrpcHostAndPort    string
-	HTTPHostAndPort    string
+	Dataset         string
+	GrpcHostAndPort string
+	HTTPHostAndPort string
+
+	// HTTPAuthorization is the authorization token to send with http requests
+	HTTPAuthorization string
+
 	ResourceAttributes []attribute.KeyValue
 
 	SampleTraces  bool
@@ -65,7 +69,7 @@ func New(conf Config) (o11y.Provider, error) {
 	}
 
 	if conf.HTTPHostAndPort != "" {
-		http, err := newHTTP(context.Background(), conf.HTTPHostAndPort, conf.Dataset)
+		http, err := newHTTP(context.Background(), conf.HTTPHostAndPort, conf.Dataset, conf.HTTPAuthorization)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +142,7 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 	return sdktrace.NewTracerProvider(traceOptions...)
 }
 
-func newHTTP(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter, error) {
+func newHTTP(ctx context.Context, endpoint, dataset, token string) (*otlptrace.Exporter, error) {
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpointURL(endpoint),
 		otlptracehttp.WithInsecure(),
@@ -147,6 +151,10 @@ func newHTTP(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter
 		// expect a resource attribute instead.
 		otlptracehttp.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
 	}
+	if token != "" {
+		opts = append(opts, otlptracehttp.WithHeaders(map[string]string{"Authorization": token}))
+	}
+
 	return otlptrace.New(ctx, otlptracehttp.NewClient(opts...))
 }
 

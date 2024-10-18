@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	coltracepb "go.opentelemetry.io/proto/otlp/collector/trace/v1"
 	v1 "go.opentelemetry.io/proto/otlp/common/v1"
@@ -23,10 +26,13 @@ import (
 	"gotest.tools/v3/poll"
 
 	o11yconfig "github.com/circleci/ex/config/o11y"
+	"github.com/circleci/ex/httpserver/ginrouter"
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/testing/fakestatsd"
+	"github.com/circleci/ex/testing/httprecorder"
+	"github.com/circleci/ex/testing/httprecorder/ginrecorder"
 	"github.com/circleci/ex/testing/jaeger"
 	"github.com/circleci/ex/testing/testcontext"
 )
@@ -64,6 +70,18 @@ func TestO11y(t *testing.T) {
 				Service:         "http-path-main",
 				Version:         "dev-test",
 				StatsNamespace:  "test-app",
+			},
+		},
+		{
+			// We can't assert HTTPAuthorization is sent with the jaeger set up. TestO11y_Auth tests the token is sent
+			name: "http with token",
+			cfg: o11yconfig.OtelConfig{
+				Dataset:           "local-testing",
+				HTTPHostAndPort:   "http://127.0.0.1:4318",
+				Service:           "http-token-main",
+				HTTPAuthorization: "my-token",
+				Version:           "dev-test",
+				StatsNamespace:    "test-app",
 			},
 		},
 	}
@@ -141,6 +159,32 @@ func TestO11y(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestO11y_Auth(t *testing.T) {
+	ctx := testcontext.Background()
+	r := httprecorder.New()
+	srv := httptest.NewServer(newOtelCollector(r))
+	t.Cleanup(srv.Close)
+
+	cfg := o11yconfig.OtelConfig{
+		Dataset:           "local-testing",
+		HTTPHostAndPort:   srv.URL,
+		Service:           "http-token-main",
+		HTTPAuthorization: "my-token",
+		Version:           "dev-test",
+		StatsNamespace:    "test-app",
+	}
+	ctx, closeProvider, err := o11yconfig.Otel(ctx, cfg)
+	assert.NilError(t, err)
+
+	o := o11y.FromContext(ctx)
+	ctx, span := o.StartSpan(ctx, "span")
+	span.End()
+	closeProvider(ctx) // force a flush
+
+	assert.Check(t, cmp.Equal(r.LastRequest().Header.Get("Authorization"), "my-token"))
+
 }
 
 func TestProvider(t *testing.T) {
@@ -794,4 +838,15 @@ func TestOtel_Writer(t *testing.T) {
 	o11y.End(span, nil)
 	op.Close(ctx)
 	assert.Check(t, cmp.Contains(b.String(), "a span"))
+}
+
+func newOtelCollector(recorder *httprecorder.RequestRecorder) http.Handler {
+	ctx := testcontext.Background()
+	r := ginrouter.Default(ctx, "fake-otel-collector")
+	r.Use(ginrecorder.Middleware(ctx, recorder))
+
+	r.POST("/v1/traces", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	return r
 }
