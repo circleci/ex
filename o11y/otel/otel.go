@@ -152,7 +152,7 @@ func newHTTP(ctx context.Context, endpoint, dataset, token string) (*otlptrace.E
 		otlptracehttp.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
 	}
 	if token != "" {
-		opts = append(opts, otlptracehttp.WithHeaders(map[string]string{"Authorization": token}))
+		opts = append(opts, otlptracehttp.WithHeaders(map[string]string{"Authorization": fmt.Sprintf("Bearer %s", token)}))
 	}
 
 	return otlptrace.New(ctx, otlptracehttp.NewClient(opts...))
