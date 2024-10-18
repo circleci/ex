@@ -183,7 +183,7 @@ func TestO11y_Auth(t *testing.T) {
 	span.End()
 	closeProvider(ctx) // force a flush
 
-	assert.Check(t, cmp.Equal(r.LastRequest().Header.Get("Authorization"), "my-token"))
+	assert.Check(t, cmp.Equal(r.LastRequest().Header.Get("Authorization"), "Bearer my-token"))
 
 }
 
