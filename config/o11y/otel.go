@@ -21,8 +21,13 @@ import (
 type OtelConfig struct {
 	GrpcHostAndPort string
 	HTTPHostAndPort string
-	Dataset         string
 
+	// HTTPAuthorization is the authorization token to send with http requests
+	HTTPAuthorization string
+	
+	Dataset string
+
+	// DisableText prevents output to stdout for noisy services. Ignored if no other no hosts are supplied
 	DisableText bool
 
 	Test bool
@@ -55,9 +60,10 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 	}
 
 	cfg := otel.Config{
-		GrpcHostAndPort: o.GrpcHostAndPort,
-		HTTPHostAndPort: o.HTTPHostAndPort,
-		Dataset:         o.Dataset,
+		GrpcHostAndPort:   o.GrpcHostAndPort,
+		HTTPHostAndPort:   o.HTTPHostAndPort,
+		HTTPAuthorization: o.HTTPAuthorization,
+		Dataset:           o.Dataset,
 		ResourceAttributes: []attribute.KeyValue{
 			semconv.ServiceNameKey.String(o.Service),
 			semconv.ServiceVersionKey.String(o.Version),
