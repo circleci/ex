@@ -31,7 +31,9 @@ import (
 type Config struct {
 	Dataset         string
 	GrpcHostAndPort string
-	HTTPHostAndPort string
+
+	// HTTPTracesURL configures a host for exporting traces to http[s]://host[:port][/path]
+	HTTPTracesURL string
 
 	// HTTPAuthorization is the authorization token to send with http requests
 	HTTPAuthorization secret.String
@@ -69,8 +71,8 @@ func New(conf Config) (o11y.Provider, error) {
 		exporters = append(exporters, grpc)
 	}
 
-	if conf.HTTPHostAndPort != "" {
-		http, err := newHTTP(context.Background(), conf.HTTPHostAndPort, conf.Dataset, conf.HTTPAuthorization)
+	if conf.HTTPTracesURL != "" {
+		http, err := newHTTP(context.Background(), conf.HTTPTracesURL, conf.Dataset, conf.HTTPAuthorization)
 		if err != nil {
 			return nil, err
 		}

@@ -12,8 +12,8 @@ import (
 )
 
 type Config struct {
-	// BaseURL the URL to post metrics too
-	BaseURL string
+	// URL configures a host for exporting metrics to http[s]://host[:port][/path]
+	URL string
 	// AuthToken is included as a bearer token on requests
 	AuthToken secret.String
 	// GlobalTags are added to each metric. Be aware of high cardinality issues
@@ -64,7 +64,7 @@ func New(cfg Config) *Provider {
 		client: httpclient.New(
 			httpclient.Config{
 				Name:       cfg.ClientName,
-				BaseURL:    cfg.BaseURL,
+				BaseURL:    cfg.URL,
 				UserAgent:  fmt.Sprintf("%s, ex", cfg.ClientName),
 				AcceptType: httpclient.JSON,
 				Timeout:    time.Millisecond * 500,
@@ -159,7 +159,7 @@ func (m *Provider) Publish(ctx context.Context) {
 		return
 	}
 
-	err := m.client.Call(ctx, httpclient.NewRequest("PUT", "/metric",
+	err := m.client.Call(ctx, httpclient.NewRequest("PUT", "",
 		httpclient.Timeout(sendTimeout),
 		httpclient.Body(
 			struct {
