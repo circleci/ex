@@ -49,7 +49,8 @@ type OtelConfig struct {
 	Service string
 	Mode    string
 
-	// Metrics allows setting a custom metrics client. Typically, setting Statsd/StatsNamespace is preferred
+	// Metrics allows setting a custom metrics client. Typically, the default Statsd provider is preferred.
+	// The provided value will be closed by the cleanup function
 	Metrics o11y.ClosableMetricsProvider
 }
 
