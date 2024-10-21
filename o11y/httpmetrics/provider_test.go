@@ -207,7 +207,7 @@ func TestProvider_Publish(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := Config{
-				BaseURL:    server.URL,
+				URL:        server.URL + "/metric",
 				AuthToken:  secret.String("foo"),
 				GlobalTags: nil,
 			}
@@ -291,7 +291,7 @@ func TestProvider_StartPublishLoop(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				cfg := Config{
-					BaseURL:         server.URL,
+					URL:             server.URL + "/metric",
 					AuthToken:       secret.String("foo"),
 					GlobalTags:      nil,
 					PublishInterval: 50 * time.Millisecond,
@@ -318,7 +318,7 @@ func TestProvider_StartPublishLoop(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				cfg := Config{
-					BaseURL:         server.URL,
+					URL:             server.URL + "/metric",
 					AuthToken:       secret.String("foo"),
 					GlobalTags:      nil,
 					PublishInterval: 10 * time.Minute, // long to prevent publish before close

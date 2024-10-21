@@ -55,21 +55,21 @@ func TestO11y(t *testing.T) {
 		{
 			name: "http",
 			cfg: o11yconfig.OtelConfig{
-				Dataset:         "local-testing",
-				HTTPHostAndPort: "http://127.0.0.1:4318",
-				Service:         "http-main",
-				Version:         "dev-test",
-				StatsNamespace:  "test-app",
+				Dataset:        "local-testing",
+				HTTPTracesURL:  "http://127.0.0.1:4318",
+				Service:        "http-main",
+				Version:        "dev-test",
+				StatsNamespace: "test-app",
 			},
 		},
 		{
 			name: "http with path",
 			cfg: o11yconfig.OtelConfig{
-				Dataset:         "local-testing",
-				HTTPHostAndPort: "http://127.0.0.1:4318/v1/traces",
-				Service:         "http-path-main",
-				Version:         "dev-test",
-				StatsNamespace:  "test-app",
+				Dataset:        "local-testing",
+				HTTPTracesURL:  "http://127.0.0.1:4318/v1/traces",
+				Service:        "http-path-main",
+				Version:        "dev-test",
+				StatsNamespace: "test-app",
 			},
 		},
 		{
@@ -77,7 +77,7 @@ func TestO11y(t *testing.T) {
 			name: "http with token",
 			cfg: o11yconfig.OtelConfig{
 				Dataset:           "local-testing",
-				HTTPHostAndPort:   "http://127.0.0.1:4318",
+				HTTPTracesURL:     "http://127.0.0.1:4318",
 				Service:           "http-token-main",
 				HTTPAuthorization: "my-token",
 				Version:           "dev-test",
@@ -169,7 +169,7 @@ func TestO11y_Auth(t *testing.T) {
 
 	cfg := o11yconfig.OtelConfig{
 		Dataset:           "local-testing",
-		HTTPHostAndPort:   srv.URL,
+		HTTPTracesURL:     srv.URL,
 		Service:           "http-token-main",
 		HTTPAuthorization: "my-token",
 		Version:           "dev-test",

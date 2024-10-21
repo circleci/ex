@@ -20,7 +20,9 @@ import (
 // OtelConfig contains all the things we need to configure for otel based instrumentation.
 type OtelConfig struct {
 	GrpcHostAndPort string
-	HTTPHostAndPort string
+
+	// HTTPTracesURL configures a host for exporting traces to http[s]://host[:port][/path]
+	HTTPTracesURL string
 
 	// HTTPAuthorization is the authorization token to send with http requests
 	HTTPAuthorization secret.String
@@ -65,7 +67,7 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 
 	cfg := otel.Config{
 		GrpcHostAndPort:   o.GrpcHostAndPort,
-		HTTPHostAndPort:   o.HTTPHostAndPort,
+		HTTPTracesURL:     o.HTTPTracesURL,
 		HTTPAuthorization: o.HTTPAuthorization,
 		Dataset:           o.Dataset,
 		ResourceAttributes: []attribute.KeyValue{
