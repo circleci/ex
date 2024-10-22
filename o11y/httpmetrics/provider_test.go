@@ -107,7 +107,7 @@ func TestProvider_Record(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := New(Config{})
+			m := createProvider(Config{})
 			for _, aMet := range tt.metrics {
 				m.record(aMet.Type, aMet.Name, aMet.Value, aMet.Tags)
 			}
@@ -211,7 +211,7 @@ func TestProvider_Publish(t *testing.T) {
 				AuthToken:  secret.String("foo"),
 				GlobalTags: nil,
 			}
-			m := New(cfg)
+			m := createProvider(cfg)
 			for _, aMet := range tt.metrics {
 				m.record(aMet.Type, aMet.Name, aMet.Value, aMet.Tags)
 			}
@@ -240,7 +240,7 @@ func TestProvider_Publish(t *testing.T) {
 	}
 }
 
-func TestProvider_StartPublishLoop(t *testing.T) {
+func TestProvider_New(t *testing.T) {
 	tests := []struct {
 		name                string
 		metrics             []metricData
@@ -297,7 +297,6 @@ func TestProvider_StartPublishLoop(t *testing.T) {
 					PublishInterval: 50 * time.Millisecond,
 				}
 				m := New(cfg)
-				m.StartPublishLoop(ctx)
 				for i, aMet := range tt.metrics {
 					m.record(aMet.Type, aMet.Name, aMet.Value, aMet.Tags)
 					poll.WaitOn(t, func(t poll.LogT) poll.Result {
@@ -324,7 +323,6 @@ func TestProvider_StartPublishLoop(t *testing.T) {
 					PublishInterval: 10 * time.Minute, // long to prevent publish before close
 				}
 				m := New(cfg)
-				m.StartPublishLoop(ctx)
 				for _, aMet := range tt.metrics {
 					m.record(aMet.Type, aMet.Name, aMet.Value, aMet.Tags)
 				}

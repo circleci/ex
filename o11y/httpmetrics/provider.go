@@ -8,7 +8,6 @@ import (
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/httpclient"
-	"github.com/circleci/ex/recontext"
 )
 
 type Config struct {
@@ -31,7 +30,6 @@ type Provider struct {
 	publishInterval  time.Duration
 	mu               sync.RWMutex
 	data             []metricData
-	ctx              context.Context
 	stop             chan bool
 	stopMu           sync.Mutex
 }
@@ -45,8 +43,14 @@ type metricData struct {
 
 type Tags map[string]string
 
-// New creates a new Provider that implements the ClosableMetricsProvider interface
+// New creates a Provider that implements the ClosableMetricsProvider interface
 func New(cfg Config) *Provider {
+	p := createProvider(cfg)
+	p.startPublishLoop()
+	return p
+}
+
+func createProvider(cfg Config) *Provider {
 	tags := make([]string, 0, len(cfg.GlobalTags))
 	for k, v := range cfg.GlobalTags {
 		tags = append(tags, fmt.Sprintf("%s:%s", k, v))
@@ -104,7 +108,7 @@ func (m *Provider) Close() error {
 		close(m.stop)
 		m.stop = nil
 
-		ctx, done := recontext.WithNewTimeout(m.ctx, sendTimeout)
+		ctx, done := context.WithTimeout(context.Background(), sendTimeout)
 		defer done()
 		m.Publish(ctx)
 	}
@@ -126,12 +130,13 @@ func (m *Provider) record(metricType, metricName string, metricValue float64, me
 
 const sendTimeout = 10 * time.Second
 
-// StartPublishLoop starts a loop which will publish metrics on an interval. It will attempt to flush data
-// on close or context cancellation.
-func (m *Provider) StartPublishLoop(ctx context.Context) {
+// startPublishLoop starts a loop which will publish metrics on an interval. It will attempt to flush data
+// on close.
+func (m *Provider) startPublishLoop() {
 	m.stop = make(chan bool)
-	m.ctx = ctx
+
 	go func() {
+		ctx := context.Background()
 		ticker := time.NewTicker(m.publishInterval)
 
 		defer ticker.Stop()
