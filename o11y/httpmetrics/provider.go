@@ -21,11 +21,14 @@ type Config struct {
 	ClientName string
 	// PublishInterval how often to publish metrics, defaults to 1 minute
 	PublishInterval time.Duration
+	// Namespace gets prepended to all stat names
+	Namespace string
 }
 
 // Provider is a struct that implements the CloseableMetricsProvider interface
 type Provider struct {
 	client           *httpclient.Client
+	namespace        string
 	globalMetricTags []string
 	publishInterval  time.Duration
 	mu               sync.RWMutex
@@ -65,6 +68,7 @@ func createProvider(cfg Config) *Provider {
 		data:             []metricData{},
 		globalMetricTags: tags,
 		publishInterval:  cfg.PublishInterval,
+		namespace:        cfg.Namespace,
 		client: httpclient.New(
 			httpclient.Config{
 				Name:       cfg.ClientName,
@@ -120,9 +124,13 @@ func (m *Provider) record(metricType, metricName string, metricValue float64, me
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	name := metricName
+	if m.namespace != "" {
+		name = fmt.Sprintf("%s.%s", m.namespace, name)
+	}
 	m.data = append(m.data, metricData{
 		Type:  metricType,
-		Name:  metricName,
+		Name:  name,
 		Value: metricValue,
 		Tags:  metricTags,
 	})

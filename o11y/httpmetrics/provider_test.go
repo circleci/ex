@@ -20,6 +20,7 @@ func TestProvider_Record(t *testing.T) {
 	tests := []struct {
 		name string
 
+		namespace           string
 		metrics             []metricData
 		expectedMetricsData []metricData
 	}{
@@ -37,6 +38,26 @@ func TestProvider_Record(t *testing.T) {
 				{
 					Type:  "gauge",
 					Name:  "test",
+					Value: 1,
+					Tags:  []string{"foo:bar"},
+				},
+			},
+		},
+		{
+			name:      "records a metric with a namespace",
+			namespace: "ex",
+			metrics: []metricData{
+				{
+					Type:  "gauge",
+					Name:  "test",
+					Value: 1,
+					Tags:  []string{"foo:bar"},
+				},
+			},
+			expectedMetricsData: []metricData{
+				{
+					Type:  "gauge",
+					Name:  "ex.test",
 					Value: 1,
 					Tags:  []string{"foo:bar"},
 				},
@@ -107,7 +128,7 @@ func TestProvider_Record(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := createProvider(Config{})
+			m := createProvider(Config{Namespace: tt.namespace})
 			for _, aMet := range tt.metrics {
 				m.record(aMet.Type, aMet.Name, aMet.Value, aMet.Tags)
 			}
