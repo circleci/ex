@@ -197,6 +197,54 @@ func (o Provider) StartSpan(ctx context.Context, name string) (context.Context, 
 	return ctx, s
 }
 
+type golden struct {
+	ctx  context.Context
+	span *span
+}
+
+const metaGolden = "meta.golden"
+
+func (o Provider) StartGoldenTrace(ctx context.Context, name string) context.Context {
+	spec := o.getGolden(ctx)
+	if spec != nil {
+		return ctx
+	}
+	// first golden span - so use a clean context for the golden root span.
+	sCtx, ssp := o.tracer.Start(context.Background(), name)
+	spec = &golden{
+		ctx:  sCtx,
+		span: o.wrapSpan(ssp, nil),
+	}
+	spec.span.AddRawField(metaGolden, true)
+	return context.WithValue(ctx, goldenCtxKey{}, spec)
+}
+
+func (o Provider) EndGoldenTrace(ctx context.Context) {
+	s := o.getGolden(ctx)
+	if s == nil {
+		return
+	}
+	s.span.End()
+}
+
+func (o Provider) StartGoldenSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
+	spec := o.getGolden(ctx)
+	if spec == nil {
+		ctx = o.StartGoldenTrace(ctx, "unknown-golden-trace")
+		spec = o.getGolden(ctx)
+	}
+	// Start the normal span
+	ctx, _ = o.StartSpan(ctx, name)
+	sp := o.getSpan(ctx)
+
+	// Start the golden span
+	spec.ctx, _ = o.StartSpan(spec.ctx, name)
+	sp.golden = o.getSpan(spec.ctx)
+	sp.golden.AddRawField(metaGolden, true)
+	sp.link(sp.golden)
+	return ctx, sp
+}
+
 // GetSpan returns the active span in the given context. It will return nil if there is no span available.
 func (o Provider) GetSpan(ctx context.Context) o11y.Span {
 	s := o.getSpan(ctx) // N.B returning s would mean the returned interface is not nil
@@ -209,6 +257,16 @@ func (o Provider) GetSpan(ctx context.Context) o11y.Span {
 // getSpan returns the active span in the given context. It will return nil if there is no span available.
 func (o Provider) getSpan(ctx context.Context) *span {
 	if s, ok := ctx.Value(spanCtxKey{}).(*span); ok {
+		return s
+	}
+	return nil
+}
+
+type goldenCtxKey struct{}
+
+// getGolden returns the active span in the given context. It will return nil if there is no span available.
+func (o Provider) getGolden(ctx context.Context) *golden {
+	if s, ok := ctx.Value(goldenCtxKey{}).(*golden); ok {
 		return s
 	}
 	return nil
@@ -309,6 +367,7 @@ type span struct {
 	parent          *span
 	flattenPrefix   string
 	flattenDepth    int
+	golden          *span
 	span            trace.Span
 	metrics         []o11y.Metric
 	metricsProvider o11y.ClosableMetricsProvider
@@ -316,6 +375,23 @@ type span struct {
 
 	mu     sync.RWMutex // mu is a write mutex for the map below (concurrent reads are safe)
 	fields map[string]any
+}
+
+func (s *span) link(sp *span) {
+	attrs := []attribute.KeyValue{
+		{
+			Key:   "meta.link.type",
+			Value: attribute.StringValue("golden"),
+		}}
+	s.span.AddLink(trace.Link{
+		SpanContext: sp.span.SpanContext(),
+		Attributes:  attrs,
+	})
+
+	sp.span.AddLink(trace.Link{
+		SpanContext: s.span.SpanContext(),
+		Attributes:  attrs,
+	})
 }
 
 func (s *span) AddField(key string, val any) {
@@ -382,6 +458,10 @@ func (s *span) End() {
 		return
 	}
 	s.span.End()
+
+	if s.golden != nil {
+		s.golden.End()
+	}
 }
 
 func (s *span) Flatten(prefix string) {

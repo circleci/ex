@@ -383,73 +383,79 @@ func doSomething(ctx context.Context, flatten bool) {
 	}(ctx)
 }
 
-type wrappedProvider struct {
-	o11y.Provider
-}
-
-func (p wrappedProvider) RawProvider() *otel.Provider {
-	return p.Provider.(*otel.Provider)
-}
-
 func TestHelpers(t *testing.T) {
-	op, err := otel.New(otel.Config{
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Dataset:         "local-testing",
 		GrpcHostAndPort: "127.0.0.1:4317",
+		Service:         "app-main",
+		Version:         "dev-test",
+	})
+	assert.NilError(t, err)
+	provider := o11y.FromContext(ctx)
+
+	start := time.Now()
+	h := provider.Helpers()
+	assert.Check(t, h != nil)
+
+	doSomething(ctx, false)
+
+	t.Run("ids", func(t *testing.T) {
+		traceID, parentID := h.TraceIDs(ctx)
+		assert.Check(t, cmp.Equal(len(traceID), 32))
+		assert.Check(t, cmp.Equal(len(parentID), 0))
 	})
 
-	runTest := func(t *testing.T, provider o11y.Provider) {
-		h := provider.Helpers()
-		assert.Check(t, h != nil)
-
-		ctx := o11y.WithProvider(context.Background(), provider)
-		defer provider.Close(ctx)
-
-		doSomething(ctx, false)
-
-		t.Run("ids", func(t *testing.T) {
-			traceID, parentID := h.TraceIDs(ctx)
-			assert.Check(t, cmp.Equal(len(traceID), 32))
-			assert.Check(t, cmp.Equal(len(parentID), 0))
+	t.Run("extract and inject", func(t *testing.T) {
+		ctx, span := o11y.StartSpan(ctx, "test")
+		ctx = o11y.WithBaggage(ctx, o11y.Baggage{
+			"bg1": "bgv1",
+			"bg2": "bgv2",
 		})
 
-		t.Run("extract and inject", func(t *testing.T) {
-			ctx, span := o11y.StartSpan(ctx, "test")
-			defer span.End()
-			ctx = o11y.WithBaggage(ctx, o11y.Baggage{
-				"bg1": "bgv1",
-				"bg2": "bgv2",
-			})
+		ctx = provider.StartGoldenTrace(ctx, "gi")
+		ctx, gsp := provider.StartGoldenSpan(ctx, "important")
+		gsp.End()
 
-			svc1Propagation := h.ExtractPropagation(ctx)
+		svc1Propagation := h.ExtractPropagation(ctx)
 
-			// Make a new context for a second "service"
-			service2Context := o11y.WithProvider(context.Background(), provider)
+		// Make a new context for a second "service"
+		service2Context := o11y.WithProvider(context.Background(), provider)
 
-			// Confirm it has not got a context
-			svc2Propagation := h.ExtractPropagation(service2Context)
-			assert.Check(t, cmp.Equal(len(svc2Propagation.Headers), 0))
+		// Confirm it has not extracted any headers yet
+		svc2Propagation := h.ExtractPropagation(service2Context)
+		assert.Check(t, cmp.Equal(len(svc2Propagation.Headers), 0))
 
-			// Inject the propagation stuff into the new context
-			service2Context, svc2Span := h.InjectPropagation(service2Context, svc1Propagation)
-			defer svc2Span.End()
+		// Inject the propagation stuff into the new context
+		service2Context, svc2Span := h.InjectPropagation(service2Context, svc1Propagation)
+		defer svc2Span.End()
 
-			// and make sure the two contexts have the same tracID
-			traceID1, _ := h.TraceIDs(ctx)
-			traceID2, _ := h.TraceIDs(service2Context)
-			assert.Check(t, cmp.Equal(traceID1, traceID2))
+		// and make sure the two contexts have the same tracID
+		traceID1, _ := h.TraceIDs(ctx)
+		traceID2, _ := h.TraceIDs(service2Context)
+		assert.Check(t, cmp.Equal(traceID1, traceID2))
 
-			// and that svc2 context has baggage
-			b := o11y.GetBaggage(ctx)
-			assert.Check(t, cmp.Equal(b["bg1"], "bgv1"))
-			assert.Check(t, cmp.Equal(b["bg2"], "bgv2"))
+		// and that svc2 context has baggage
+		b := o11y.GetBaggage(ctx)
+		assert.Check(t, cmp.Equal(b["bg1"], "bgv1"))
+		assert.Check(t, cmp.Equal(b["bg2"], "bgv2"))
+
+		ctx, gsp2 := provider.StartGoldenSpan(service2Context, "important-2")
+		gsp2.End()
+
+		provider.EndGoldenTrace(service2Context)
+
+		span.End()
+
+		closeProvider(ctx)
+		t.Run("check", func(t *testing.T) {
+			jc := jaeger.New("http://localhost:16686", "app-main")
+			traces, err := jc.Traces(ctx, start)
+			assert.NilError(t, err)
+
+			// We should have two normal traces and one golden trace
+			// if propagation of the golden trace is bad  - this will be 4
+			assert.Assert(t, cmp.Len(traces, 3))
 		})
-	}
-
-	t.Run("raw", func(t *testing.T) {
-		runTest(t, op)
-	})
-
-	t.Run("wrapped", func(t *testing.T) {
-		runTest(t, wrappedProvider{Provider: op})
 	})
 
 	assert.NilError(t, err)
@@ -638,6 +644,110 @@ func TestFlatten(t *testing.T) {
 	jaeger.AssertTag(t, s.Tags, "opp.l2.app.lemons", "five")
 	jaeger.AssertTag(t, s.Tags, "opp.l2.app.good", "true")
 	jaeger.AssertTag(t, s.Tags, "opp.l2.app.events", "22")
+}
+
+func TestGolden(t *testing.T) {
+	start := time.Now()
+	s := fakestatsd.New(t)
+	ctx := testcontext.Background()
+	t.Run("trace", func(t *testing.T) {
+		ctx, closeProvider, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
+			Dataset:         "local-testing",
+			GrpcHostAndPort: "127.0.0.1:4317",
+			Service:         "app-main",
+			Version:         "dev-test",
+			Statsd:          s.Addr(),
+			StatsNamespace:  "test-app",
+		})
+
+		o := o11y.FromContext(ctx)
+		assert.NilError(t, err)
+		o.AddGlobalField("a_global_key", "a-global-value")
+
+		func() {
+			ctx, span := o.StartSpan(ctx, "fun")
+			time.Sleep(time.Millisecond)
+			span.End()
+
+			ctx, span = o.StartSpan(ctx, "fun2")
+			time.Sleep(time.Millisecond)
+			span.End()
+
+			// need to close the provider to be sure traces flushed
+			defer closeProvider(ctx)
+			defer func() {
+				o.EndGoldenTrace(ctx)
+				time.Sleep(time.Millisecond * 2)
+
+				_, span := o.StartGoldenSpan(ctx, "key-event")
+				time.Sleep(time.Millisecond)
+				span.End()
+			}()
+
+			ctx = o.StartGoldenTrace(ctx, "trigger")
+
+			ctx, span = o.StartGoldenSpan(ctx, "trigger-event")
+			defer span.End()
+
+			doSomething(ctx, false)
+
+			poll.WaitOn(t, func(t poll.LogT) poll.Result {
+				if len(s.Metrics()) > 2 {
+					return poll.Success()
+				}
+				return poll.Continue("not enough metrics yet")
+			})
+
+			// inject a brand-new trace
+			newCtx := context.Background()
+			_, newSpan := o.StartSpan(newCtx, "new-trace")
+			time.Sleep(time.Millisecond)
+			newSpan.End()
+		}()
+
+		t.Run("check", func(t *testing.T) {
+			jc := jaeger.New("http://localhost:16686", "app-main")
+			traces, err := jc.Traces(ctx, start)
+			assert.NilError(t, err)
+
+			// We should have two normal traces and one golden trace
+			assert.Assert(t, cmp.Len(traces, 3))
+
+			var spans []jaeger.Span
+			for _, trc := range traces {
+				spans = append(spans, trc.Spans...)
+			}
+			assert.Check(t, cmp.Len(spans, 10))
+
+			cnt := 0
+			cntG := 0
+			golden := []string{"trigger", "trigger-event", "key-event"}
+			for _, sp := range spans {
+				isGold := jaeger.HasTag(sp.Tags, "meta.golden", "true")
+				if isGold {
+					cntG++
+					// Make sure a golden span has one of the expected span names
+					expectedGoldName := false
+					for _, g := range golden {
+						if sp.OperationName == g {
+							expectedGoldName = true
+						}
+					}
+					assert.Check(t, expectedGoldName)
+				}
+				// count the spans with the golden names
+				for _, g := range golden {
+					if sp.OperationName == g {
+						cnt++
+					}
+				}
+			}
+
+			// Check golden spans are duplicated as non-golden (except the start span)
+			assert.Check(t, cmp.Equal(cnt, 5))
+			assert.Check(t, cmp.Equal(cntG, 3))
+		})
+	})
 }
 
 func TestSpan(t *testing.T) {

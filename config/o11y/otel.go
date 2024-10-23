@@ -75,6 +75,7 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 			semconv.ServiceVersionKey.String(o.Version),
 			// Other Config specific fields
 			attribute.String("service.mode", o.Mode),
+			attribute.Bool("meta.environments", true),
 
 			// HC Backwards compatible fields - can remove once boards are updated
 			attribute.String("service", o.Service),
