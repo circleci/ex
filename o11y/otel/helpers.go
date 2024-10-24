@@ -22,12 +22,19 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 		return o11y.PropagationContext{}
 	}
 
+	// Add stuff to the baggage in the context, so it can be injected into the propagation context.
+	flattenDepth := 0
 	sp := h.p.getSpan(ctx)
 	if sp != nil {
-		if sp.flattenDepth > 0 {
-			ctx = o11y.AddFlattenDepthToBaggage(ctx, sp.flattenDepth)
-		}
+		flattenDepth = sp.flattenDepth
 	}
+	sm := http.Header{}
+	gs := h.p.getGolden(ctx)
+	if gs != nil {
+		otel.GetTextMapPropagator().Inject(gs.ctx, propagation.HeaderCarrier(sm))
+	}
+	ctx = o11y.AddExtrasToBaggage(ctx, flattenDepth, sm)
+
 	m := http.Header{}
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(m))
 
@@ -52,10 +59,19 @@ func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationConte
 	ctx, sp := h.p.StartSpan(ctx, "root")
 
 	// Check if the baggage indicates this span should be flattened
-	fd := o11y.FlattenDepthFromBaggage(ctx)
+	fd, goldHeaders := o11y.ExtrasFromBaggage(ctx)
 	if fd > 0 {
 		os := h.p.getSpan(ctx)
 		os.flatten("", fd)
+	}
+	if len(goldHeaders) > 0 {
+		gCtx := otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(goldHeaders))
+		spec := &golden{
+			ctx:  gCtx,
+			span: h.p.wrapSpan(trace.SpanFromContext(gCtx), nil),
+		}
+		spec.span.AddRawField(metaGolden, true)
+		ctx = context.WithValue(ctx, goldenCtxKey{}, spec)
 	}
 	return ctx, sp
 }
@@ -64,4 +80,8 @@ func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationConte
 func (h helpers) TraceIDs(ctx context.Context) (traceID, parentID string) {
 	sc := trace.SpanFromContext(ctx).SpanContext()
 	return sc.TraceID().String(), "" // TODO - do we ever use parent
+}
+
+func (h helpers) GoldenTraceID(_ context.Context) string {
+	return ""
 }

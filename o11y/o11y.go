@@ -61,6 +61,20 @@ type Provider interface {
 
 	// Helpers returns some specific helper functions. Temporary optional param during the cutover to otel
 	Helpers(disableW3c ...bool) Helpers
+
+	// StartGoldenTrace starts the golden trace.
+	// TODO - more notes / docs about what a golden trace is.
+	StartGoldenTrace(ctx context.Context, name string) context.Context
+
+	// EndGoldenTrace should be called when the golden trace has ended. This ends the root golden span, but the
+	// golden trace id will still be used for other golden spans.
+	// This does not need to be called, but it is better if something does call it, to avoid missing spans in the
+	// visualisation tools.
+	EndGoldenTrace(ctx context.Context)
+
+	// StartGoldenSpan Starts a normal span and an associated golden span attached to the golden trace.
+	// If the golden trace does not exist it will be started.
+	StartGoldenSpan(ctx context.Context, name string) (context.Context, Span)
 }
 
 // PropagationContext contains trace context values that are propagated from service to service.
@@ -91,6 +105,8 @@ type Helpers interface {
 
 	// TraceIDs return standard o11y ids - used for testing
 	TraceIDs(ctx context.Context) (traceID, parentID string)
+	// GoldenTraceID returns the golden trace id - for testing
+	//GoldenTraceID(ctx context.Context) string
 }
 
 type Span interface {
@@ -347,9 +363,18 @@ var defaultProvider = &noopProvider{}
 
 type noopProvider struct{}
 
+func (c *noopProvider) StartGoldenTrace(ctx context.Context, name string) context.Context {
+	return ctx
+}
+
 func (c *noopProvider) AddGlobalField(key string, val interface{}) {}
 
 func (c *noopProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
+	return ctx, &noopSpan{}
+}
+
+func (c *noopProvider) EndGoldenTrace(context.Context) {}
+func (c *noopProvider) StartGoldenSpan(ctx context.Context, name string) (context.Context, Span) {
 	return ctx, &noopSpan{}
 }
 
@@ -389,15 +414,11 @@ func (n noopHelpers) TraceIDs(_ context.Context) (traceID, parentID string) {
 
 type noopSpan struct{}
 
-func (s *noopSpan) AddField(key string, val interface{}) {}
-
+func (s *noopSpan) AddField(key string, val interface{})    {}
 func (s *noopSpan) AddRawField(key string, val interface{}) {}
-
-func (s *noopSpan) RecordMetric(metric Metric) {}
-
-func (s *noopSpan) End() {}
-
-func (s *noopSpan) Flatten(string) {}
+func (s *noopSpan) RecordMetric(metric Metric)              {}
+func (s *noopSpan) End()                                    {}
+func (s *noopSpan) Flatten(string)                          {}
 
 func HandlePanic(ctx context.Context, span Span, panic interface{}, r *http.Request) (err error) {
 	err = fmt.Errorf("panic handled: %+v", panic)
@@ -422,17 +443,38 @@ func HandlePanic(ctx context.Context, span Span, panic interface{}, r *http.Requ
 
 const flattenDepthBaggageKey = "flatten"
 
-func FlattenDepthFromBaggage(ctx context.Context) int {
+func ExtrasFromBaggage(ctx context.Context) (flatten int, gold http.Header) {
 	b := GetBaggage(ctx)
+	depth := 0
 	if v, ok := b[flattenDepthBaggageKey]; ok {
-		d, _ := strconv.Atoi(v)
-		return d
+		depth, _ = strconv.Atoi(v)
 	}
-	return 0
+	gold = http.Header{}
+	for k, v := range b {
+		gk := strings.TrimPrefix(k, goldenTracePrefix)
+		if gk != k {
+			gold.Add(gk, v)
+		}
+	}
+	return depth, gold
 }
 
-func AddFlattenDepthToBaggage(ctx context.Context, d int) context.Context {
-	return WithBaggage(ctx, Baggage{flattenDepthBaggageKey: strconv.Itoa(d)})
+const goldenTracePrefix = "golden-"
+
+func AddExtrasToBaggage(ctx context.Context, flatten int, gold http.Header) context.Context {
+	bag := Baggage{}
+	if flatten > 0 {
+		bag[flattenDepthBaggageKey] = strconv.Itoa(flatten)
+	}
+	for k, v := range gold {
+		if len(v) > 0 {
+			bag[goldenTracePrefix+k] = v[0]
+		}
+	}
+	if len(bag) == 0 {
+		return ctx
+	}
+	return WithBaggage(ctx, bag)
 }
 
 type rollbarAble interface {

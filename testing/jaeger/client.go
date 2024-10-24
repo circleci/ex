@@ -73,10 +73,17 @@ func (j *Client) Traces(ctx context.Context, since time.Time) ([]Trace, error) {
 
 func AssertTag(t *testing.T, tags []Tag, k, v string) {
 	t.Helper()
-	for _, tag := range tags {
-		if tag.Key == k && fmt.Sprintf("%v", tag.Value) == v {
-			return
-		}
+	if HasTag(tags, k, v) {
+		return
 	}
 	t.Errorf("key:%q with value %q was not found", k, v)
+}
+
+func HasTag(tags []Tag, k, v string) bool {
+	for _, tag := range tags {
+		if tag.Key == k && fmt.Sprintf("%v", tag.Value) == v {
+			return true
+		}
+	}
+	return false
 }
