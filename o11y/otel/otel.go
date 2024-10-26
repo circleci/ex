@@ -186,15 +186,30 @@ func (o Provider) AddGlobalField(key string, val any) {
 	globalFields.addField(key, val)
 }
 
-func (o Provider) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
-	ctx, span := o.tracer.Start(ctx, name)
+func (o Provider) StartSpan(ctx context.Context, name string, opts ...o11y.SpanOpt) (context.Context, o11y.Span) {
+	so := toOtelOpts(opts)
 
-	s := o.wrapSpan(span, o.getSpan(ctx))
+	ctx, span := o.tracer.Start(ctx, name, so...)
+
+	s := o.wrapSpan(name, opts, span, o.getSpan(ctx))
 	if s != nil {
 		ctx = context.WithValue(ctx, spanCtxKey{}, s)
 	}
 
 	return ctx, s
+}
+
+func toOtelOpts(opts []o11y.SpanOpt) []trace.SpanStartOption {
+	cfg := o11y.SpanConfig{}
+	for _, opt := range opts {
+		cfg = opt(cfg)
+	}
+	if cfg.Kind == 0 {
+		cfg.Kind = o11y.SpanKindInternal
+	}
+	var so []trace.SpanStartOption
+	so = append(so, trace.WithSpanKind(trace.SpanKind(cfg.Kind)))
+	return so
 }
 
 type golden struct {
@@ -213,7 +228,7 @@ func (o Provider) StartGoldenTrace(ctx context.Context, name string) context.Con
 	sCtx, ssp := o.tracer.Start(context.Background(), name)
 	spec = &golden{
 		ctx:  sCtx,
-		span: o.wrapSpan(ssp, nil),
+		span: o.wrapSpan(name, nil, ssp, nil),
 	}
 	spec.span.AddRawField(metaGolden, true)
 	return context.WithValue(ctx, goldenCtxKey{}, spec)
@@ -227,18 +242,18 @@ func (o Provider) EndGoldenTrace(ctx context.Context) {
 	s.span.End()
 }
 
-func (o Provider) StartGoldenSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
+func (o Provider) StartGoldenSpan(ctx context.Context, name string, opts ...o11y.SpanOpt) (context.Context, o11y.Span) {
 	spec := o.getGolden(ctx)
 	if spec == nil {
 		ctx = o.StartGoldenTrace(ctx, "unknown-golden-trace")
 		spec = o.getGolden(ctx)
 	}
 	// Start the normal span
-	ctx, _ = o.StartSpan(ctx, name)
+	ctx, _ = o.StartSpan(ctx, name, opts...)
 	sp := o.getSpan(ctx)
 
 	// Start the golden span
-	spec.ctx, _ = o.StartSpan(spec.ctx, name)
+	spec.ctx, _ = o.StartSpan(spec.ctx, name, opts...)
 	sp.golden = o.getSpan(spec.ctx)
 	sp.golden.AddRawField(metaGolden, true)
 	sp.link(sp.golden)
@@ -318,11 +333,13 @@ func (o Provider) Helpers(disableW3c ...bool) o11y.Helpers {
 	}
 }
 
-func (o Provider) wrapSpan(s trace.Span, p *span) *span {
+func (o Provider) wrapSpan(name string, opts []o11y.SpanOpt, s trace.Span, p *span) *span {
 	if s == nil {
 		return nil
 	}
 	sp := &span{
+		name:            name,
+		opts:            opts,
 		metricsProvider: o.metricsProvider,
 		parent:          p,
 		span:            s,
@@ -372,6 +389,10 @@ type span struct {
 	metrics         []o11y.Metric
 	metricsProvider o11y.ClosableMetricsProvider
 	start           time.Time
+
+	// name and opts are needed to be able to create a matching golden span
+	name string
+	opts []o11y.SpanOpt
 
 	mu     sync.RWMutex // mu is a write mutex for the map below (concurrent reads are safe)
 	fields map[string]any

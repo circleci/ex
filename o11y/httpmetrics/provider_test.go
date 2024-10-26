@@ -4,15 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/testing/fakemetricrec"
 	"github.com/circleci/ex/testing/testcontext"
-
-	"golang.org/x/sync/errgroup"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 )
 
 func TestProvider_Record(t *testing.T) {

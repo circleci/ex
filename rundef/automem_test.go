@@ -6,9 +6,8 @@ import (
 	"testing"
 
 	"github.com/KimMachineGun/automemlimit/memlimit"
-	"gotest.tools/v3/assert/cmp"
-
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 
 	"github.com/circleci/ex/testing/testcontext"

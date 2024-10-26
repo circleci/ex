@@ -307,7 +307,7 @@ func (h *honeycomb) AddGlobalField(key string, val interface{}) {
 	client.AddField(key, val)
 }
 
-func (h *honeycomb) StartSpan(ctx context.Context, name string) (context.Context, o11y.Span) {
+func (h *honeycomb) StartSpan(ctx context.Context, name string, _ ...o11y.SpanOpt) (context.Context, o11y.Span) {
 	span := trace.GetSpanFromContext(ctx)
 	var newSpan *trace.Span
 	if span != nil {
@@ -373,7 +373,7 @@ func (h *honeycomb) Helpers(disableW3c ...bool) o11y.Helpers {
 
 func (h *honeycomb) StartGoldenTrace(ctx context.Context, _ string) context.Context { return ctx }
 func (h *honeycomb) EndGoldenTrace(ctx context.Context)                             {}
-func (h *honeycomb) StartGoldenSpan(ctx context.Context, _ string) (context.Context, o11y.Span) {
+func (h *honeycomb) StartGoldenSpan(ctx context.Context, _ string, _ ...o11y.SpanOpt) (context.Context, o11y.Span) {
 	return ctx, nil
 }
 
@@ -411,7 +411,9 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 
 // InjectPropagation adds propagation info into the ctx from p which will have been populated by other packages
 // that receive trace propagation data from other systems.
-func (h helpers) InjectPropagation(ctx context.Context, p o11y.PropagationContext) (context.Context, o11y.Span) {
+func (h helpers) InjectPropagation(ctx context.Context,
+	p o11y.PropagationContext, _ ...o11y.SpanOpt) (context.Context, o11y.Span) {
+
 	var prop *propagation.PropagationContext
 
 	field := p.Parent

@@ -66,7 +66,7 @@ func (p *PublisherPool) Close(ctx context.Context) (err error) {
 // Publish allows the publication of a message with mandatory routing.
 // This should be your preferred option over PublishOptional
 func (p *PublisherPool) Publish(ctx context.Context, msg publisher.Message) (err error) {
-	ctx, span := o11y.StartSpan(ctx, "pool: publish")
+	ctx, span := o11y.StartSpan(ctx, "pool: publish", o11y.WithSpanKind(o11y.SpanKindProducer))
 	defer o11y.End(span, &err)
 	span.AddField("exchange", msg.Exchange)
 	span.AddField("key", msg.Key)

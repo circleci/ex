@@ -34,7 +34,8 @@ type Provider interface {
 	//
 	//   ctx, span := o11y.StartSpan(ctx, "GET /help")
 	//   defer span.End()
-	StartSpan(ctx context.Context, name string) (context.Context, Span)
+	// Opts are generally expected to be set by other ex packages, rather than application code
+	StartSpan(ctx context.Context, name string, opts ...SpanOpt) (context.Context, Span)
 
 	// GetSpan returns the active span in the given context. It will return nil if there is no span available.
 	GetSpan(ctx context.Context) Span
@@ -74,7 +75,7 @@ type Provider interface {
 
 	// StartGoldenSpan Starts a normal span and an associated golden span attached to the golden trace.
 	// If the golden trace does not exist it will be started.
-	StartGoldenSpan(ctx context.Context, name string) (context.Context, Span)
+	StartGoldenSpan(ctx context.Context, name string, opts ...SpanOpt) (context.Context, Span)
 }
 
 // PropagationContext contains trace context values that are propagated from service to service.
@@ -101,7 +102,7 @@ type Helpers interface {
 	ExtractPropagation(ctx context.Context) PropagationContext
 	// InjectPropagation adds propagation header fields into the returned root span returning
 	// the context carrying that span
-	InjectPropagation(context.Context, PropagationContext) (context.Context, Span)
+	InjectPropagation(context.Context, PropagationContext, ...SpanOpt) (context.Context, Span)
 
 	// TraceIDs return standard o11y ids - used for testing
 	TraceIDs(ctx context.Context) (traceID, parentID string)
@@ -246,8 +247,8 @@ func LogError(ctx context.Context, name string, err error, fields ...Pair) {
 }
 
 // StartSpan starts a span from a context that must contain a provider for this to have any effect.
-func StartSpan(ctx context.Context, name string) (context.Context, Span) {
-	return FromContext(ctx).StartSpan(ctx, name)
+func StartSpan(ctx context.Context, name string, opts ...SpanOpt) (context.Context, Span) {
+	return FromContext(ctx).StartSpan(ctx, name, opts...)
 }
 
 // AddField adds a field to the currently active span
@@ -363,32 +364,32 @@ var defaultProvider = &noopProvider{}
 
 type noopProvider struct{}
 
-func (c *noopProvider) StartGoldenTrace(ctx context.Context, name string) context.Context {
+func (c *noopProvider) StartGoldenTrace(ctx context.Context, _ string) context.Context {
 	return ctx
 }
 
-func (c *noopProvider) AddGlobalField(key string, val interface{}) {}
+func (c *noopProvider) AddGlobalField(string, interface{}) {}
 
-func (c *noopProvider) StartSpan(ctx context.Context, name string) (context.Context, Span) {
+func (c *noopProvider) StartSpan(ctx context.Context, _ string, _ ...SpanOpt) (context.Context, Span) {
 	return ctx, &noopSpan{}
 }
 
 func (c *noopProvider) EndGoldenTrace(context.Context) {}
-func (c *noopProvider) StartGoldenSpan(ctx context.Context, name string) (context.Context, Span) {
+func (c *noopProvider) StartGoldenSpan(ctx context.Context, _ string, _ ...SpanOpt) (context.Context, Span) {
 	return ctx, &noopSpan{}
 }
 
-func (c *noopProvider) GetSpan(ctx context.Context) Span {
+func (c *noopProvider) GetSpan(context.Context) Span {
 	return &noopSpan{}
 }
 
-func (c *noopProvider) AddField(ctx context.Context, key string, val interface{}) {}
+func (c *noopProvider) AddField(context.Context, string, interface{}) {}
 
-func (c *noopProvider) AddFieldToTrace(ctx context.Context, key string, val interface{}) {}
+func (c *noopProvider) AddFieldToTrace(context.Context, string, interface{}) {}
 
-func (c *noopProvider) Close(ctx context.Context) {}
+func (c *noopProvider) Close(context.Context) {}
 
-func (c *noopProvider) Log(ctx context.Context, name string, fields ...Pair) {}
+func (c *noopProvider) Log(context.Context, string, ...Pair) {}
 
 func (c *noopProvider) MetricsProvider() MetricsProvider {
 	return &statsd.NoOpClient{}
@@ -404,7 +405,9 @@ func (n noopHelpers) ExtractPropagation(_ context.Context) PropagationContext {
 	return PropagationContext{}
 }
 
-func (n noopHelpers) InjectPropagation(ctx context.Context, _ PropagationContext) (context.Context, Span) {
+func (n noopHelpers) InjectPropagation(ctx context.Context,
+	_ PropagationContext, _ ...SpanOpt) (context.Context, Span) {
+
 	return ctx, &noopSpan{}
 }
 

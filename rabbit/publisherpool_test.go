@@ -230,7 +230,7 @@ func setupConsumer(ctx context.Context, t *testing.T, consumerDialer *amqpextra.
 		consumer.WithContext(ctx),
 		consumer.WithQueue(queueName),
 		consumer.WithHandler(consumer.HandlerFunc(func(ctx context.Context, msg amqp.Delivery) interface{} {
-			ctx, span := o11y.StartSpan(ctx, "testconsumer")
+			ctx, span := o11y.StartSpan(ctx, "testconsumer", o11y.WithSpanKind(o11y.SpanKindConsumer))
 			defer span.End()
 			body := string(msg.Body)
 			received.Store(body, true)

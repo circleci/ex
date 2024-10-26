@@ -462,7 +462,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 	attemptCounter := 0
 
 	attempt := func() (err error) {
-		ctx, span := o11y.StartSpan(ctx, name)
+		ctx, span := o11y.StartSpan(ctx, name, o11y.WithSpanKind(o11y.SpanKindClient))
 		defer o11y.End(span, &err)
 		before := time.Now()
 
@@ -608,7 +608,6 @@ func (r Request) decodeBody(resp *http.Response, success bool) error {
 
 func addReqToSpan(span o11y.Span, req *http.Request, attempt int) {
 	span.AddRawField("meta.type", "http_client")
-	span.AddRawField("span.kind", "Client")
 	span.AddRawField("http.scheme", req.URL.Scheme)
 	span.AddRawField("http.host", req.URL.Host)
 	span.AddRawField("http.target", req.URL.Path)
