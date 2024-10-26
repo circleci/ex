@@ -376,6 +376,7 @@ func (h *honeycomb) EndGoldenTrace(ctx context.Context)                         
 func (h *honeycomb) StartGoldenSpan(ctx context.Context, _ string, _ ...o11y.SpanOpt) (context.Context, o11y.Span) {
 	return ctx, nil
 }
+func (h *honeycomb) MakeSpanGolden(context.Context) {}
 
 type helpers struct {
 	disableW3c bool

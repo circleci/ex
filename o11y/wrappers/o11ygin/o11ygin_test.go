@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -19,12 +20,15 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
-	"github.com/circleci/ex/httpclient"
+	o11yconfig "github.com/circleci/ex/config/o11y"
+	hc "github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/testing/fakemetrics"
+	"github.com/circleci/ex/testing/jaeger"
+	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestMiddleware(t *testing.T) {
@@ -173,15 +177,15 @@ func TestMiddleware(t *testing.T) {
 		assert.Check(t, g.Wait())
 	})
 
-	client := httpclient.New(httpclient.Config{
+	client := hc.New(hc.Config{
 		Name:    "test-client",
 		BaseURL: "http://" + srv.Addr(),
 	})
 
 	t.Run("Hit an ID that exists", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s",
-			httpclient.RouteParams("exists"),
-			httpclient.ResponseHeader(func(hdr http.Header) {
+		err = client.Call(ctx, hc.NewRequest("POST", "/api/%s",
+			hc.RouteParams("exists"),
+			hc.ResponseHeader(func(hdr http.Header) {
 				assert.Check(t, cmp.Equal(hdr.Get("X-Route"), "/api/:id"))
 			}),
 		))
@@ -189,10 +193,10 @@ func TestMiddleware(t *testing.T) {
 	})
 
 	t.Run("Hit an ID that does not exist", func(t *testing.T) {
-		err = client.Call(ctx, httpclient.NewRequest("POST", "/api/%s",
-			httpclient.RouteParams("does-not-exists"),
+		err = client.Call(ctx, hc.NewRequest("POST", "/api/%s",
+			hc.RouteParams("does-not-exists"),
 		))
-		assert.Check(t, httpclient.HasStatusCode(err, http.StatusNotFound))
+		assert.Check(t, hc.HasStatusCode(err, http.StatusNotFound))
 	})
 
 	t.Run("Hit an ID that panics", func(t *testing.T) {
@@ -207,6 +211,99 @@ func TestMiddleware(t *testing.T) {
 		assert.Assert(t, err)
 		_ = resp.Body.Close()
 		assert.Check(t, cmp.Equal(resp.StatusCode, http.StatusInternalServerError))
+	})
+}
+
+func TestMiddleware_Golden(t *testing.T) {
+	start := time.Now()
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Dataset:         "local-testing",
+		GrpcHostAndPort: "127.0.0.1:4317",
+		Service:         "app-main-golden-route",
+		Version:         "dev-test",
+	})
+	provider := o11y.FromContext(ctx)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	r := gin.New()
+	r.Use(
+		Middleware(provider, "test-server", nil),
+		Recovery(),
+	)
+	r.UseRawPath = true
+
+	r.POST("/api/:id", Golden(provider), func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	srv := httptest.NewServer(r)
+
+	client := hc.New(hc.Config{
+		Name:    "test-client",
+		BaseURL: srv.URL,
+		Timeout: time.Second,
+	})
+
+	t.Run("call", func(t *testing.T) {
+		err = client.Call(ctx, hc.NewRequest("POST", "/api/%s",
+			hc.RouteParams("exists"),
+			hc.ResponseHeader(func(hdr http.Header) {
+				assert.Check(t, cmp.Equal(hdr.Get("X-Route"), "/api/:id"))
+			}),
+		))
+		assert.Assert(t, err)
+	})
+
+	closeProvider(ctx)
+	srv.Close()
+	t.Run("check_spans", func(t *testing.T) {
+		ctx := testcontext.Background()
+		jc := jaeger.New("http://localhost:16686", "app-main-golden-route")
+
+		// one joined up trace
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			traces, err := jc.Traces(ctx, start)
+			if err != nil {
+				return poll.Error(err)
+			}
+			if len(traces) >= 1 {
+				return poll.Success()
+			}
+			return poll.Continue("only got %d traces", len(traces))
+		})
+		traces, err := jc.Traces(ctx, start)
+		assert.NilError(t, err)
+		// Now 2 traces golden and normal
+		assert.Check(t, cmp.Len(traces, 2))
+
+		// work out which trace is gold vs normal
+		goldenTrace := traces[0]
+		normalTrace := traces[1]
+		if len(goldenTrace.Spans) == 2 {
+			goldenTrace = traces[1]
+			normalTrace = traces[0]
+		}
+
+		t.Run("normal", func(t *testing.T) {
+			assert.Check(t, cmp.Len(normalTrace.Spans, 2))
+			spans := normalTrace.Spans
+			sort.Slice(spans, func(i, j int) bool { return spans[i].OperationName < spans[j].OperationName })
+			assert.Check(t, cmp.Equal(spans[0].OperationName, "http-server test-server: POST /api/:id"))
+			jaeger.AssertTag(t, spans[0].Tags, "span.kind", "server")
+			assert.Check(t, cmp.Equal(spans[1].OperationName, "httpclient: test-client /api/%s"))
+			jaeger.AssertTag(t, spans[1].Tags, "span.kind", "client")
+		})
+
+		t.Run("golden", func(t *testing.T) {
+			// we did not mark the client span as golden so we should only expect one
+			assert.Check(t, cmp.Len(goldenTrace.Spans, 1))
+			spans := goldenTrace.Spans
+			assert.Check(t, cmp.Equal(spans[0].OperationName, "http-server test-server: POST /api/:id"))
+			jaeger.AssertTag(t, spans[0].Tags, "span.kind", "server")
+			jaeger.AssertTag(t, spans[0].Tags, "meta.golden", "true")
+		})
 	})
 }
 
@@ -247,7 +344,7 @@ func TestClientCancelled(t *testing.T) {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	client := httpclient.New(httpclient.Config{
+	client := hc.New(hc.Config{
 		Name:    "test",
 		BaseURL: server.URL,
 		Timeout: 10 * time.Millisecond,
@@ -256,7 +353,7 @@ func TestClientCancelled(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		b.Reset()
 		m.Reset()
-		req := httpclient.NewRequest("GET", "/")
+		req := hc.NewRequest("GET", "/")
 		assert.Assert(t, client.Call(ctx, req))
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
 			if !strings.Contains(b.String(), "http.status_code=200") {
@@ -295,7 +392,7 @@ func TestClientCancelled(t *testing.T) {
 	t.Run("cancel", func(t *testing.T) {
 		b.Reset()
 		m.Reset()
-		req := httpclient.NewRequest("GET", "/sleep", httpclient.Timeout(100*time.Millisecond))
+		req := hc.NewRequest("GET", "/sleep", hc.Timeout(100*time.Millisecond))
 		err := client.Call(ctx, req)
 		assert.Check(t, cmp.ErrorIs(err, context.DeadlineExceeded))
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
@@ -353,13 +450,13 @@ func TestRenderError(t *testing.T) {
 	server := httptest.NewServer(r)
 	t.Cleanup(server.Close)
 
-	client := httpclient.New(httpclient.Config{
+	client := hc.New(hc.Config{
 		Name:    "test",
 		BaseURL: server.URL,
 		Timeout: 10 * time.Millisecond,
 	})
 
-	req := httpclient.NewRequest("GET", "/")
+	req := hc.NewRequest("GET", "/")
 	assert.Check(t, client.Call(ctx, req))
 
 	// check that the middleware added an error field

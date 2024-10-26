@@ -143,6 +143,13 @@ func Recovery() func(c *gin.Context) {
 	})
 }
 
+func Golden(p o11y.Provider) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		p.MakeSpanGolden(c.Request.Context())
+		c.Next()
+	}
+}
+
 func startSpanOrTraceFromHTTP(ctx context.Context,
 	c *gin.Context, p o11y.Provider, serverName string) (context.Context, o11y.Span) {
 
@@ -159,7 +166,7 @@ func startSpanOrTraceFromHTTP(ctx context.Context,
 		// we had a parent! let's make a new child for this handler
 		ctx, span = o11y.StartSpan(ctx,
 			fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()),
-			spanKindOpt,
+			o11y.WithSpanKind(o11y.SpanKindServer),
 		)
 	}
 	return ctx, span
