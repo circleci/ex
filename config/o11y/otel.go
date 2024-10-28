@@ -28,6 +28,8 @@ type OtelConfig struct {
 	HTTPAuthorization secret.String
 
 	Dataset string
+	// UseEnvironments will cause spans to be sent to the new honeycomb environments
+	UseEnvironments bool
 
 	// DisableText prevents output to stdout for noisy services. Ignored if no other no hosts are supplied
 	DisableText bool
@@ -60,39 +62,13 @@ type OtelConfig struct {
 func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Context), error) {
 	hostname, _ := os.Hostname()
 
+	cfg := o.otel()
+
 	mProv, err := metricsProvider(ctx, o, hostname)
 	if err != nil {
 		return ctx, nil, fmt.Errorf("metrics provider failed: %w", err)
 	}
-
-	cfg := otel.Config{
-		GrpcHostAndPort:   o.GrpcHostAndPort,
-		HTTPTracesURL:     o.HTTPTracesURL,
-		HTTPAuthorization: o.HTTPAuthorization,
-		Dataset:           o.Dataset,
-		ResourceAttributes: []attribute.KeyValue{
-			semconv.ServiceNameKey.String(o.Service),
-			semconv.ServiceVersionKey.String(o.Version),
-			// Other Config specific fields
-			attribute.String("service.mode", o.Mode),
-			attribute.Bool("meta.environments", true),
-
-			// HC Backwards compatible fields - can remove once boards are updated
-			attribute.String("service", o.Service),
-			attribute.String("mode", o.Mode),
-			attribute.String("version", o.Version),
-		},
-
-		DisableText: o.DisableText,
-
-		SampleTraces:  o.SampleTraces,
-		SampleKeyFunc: o.SampleKeyFunc,
-		SampleRates:   o.SampleRates,
-
-		Test: o.Test,
-
-		Metrics: mProv,
-	}
+	cfg.Metrics = mProv
 
 	o11yProvider, err := otel.New(cfg)
 	if err != nil {
@@ -118,6 +94,38 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 	ctx = o11y.WithProvider(ctx, o11yProvider)
 
 	return ctx, o11yProvider.Close, nil
+}
+
+func (o *OtelConfig) otel() otel.Config {
+	cfg := otel.Config{
+		GrpcHostAndPort:   o.GrpcHostAndPort,
+		HTTPTracesURL:     o.HTTPTracesURL,
+		HTTPAuthorization: o.HTTPAuthorization,
+		Dataset:           o.Dataset,
+		ResourceAttributes: []attribute.KeyValue{
+			semconv.ServiceNameKey.String(o.Service),
+			semconv.ServiceVersionKey.String(o.Version),
+			// Other Config specific fields
+			attribute.String("service.mode", o.Mode),
+
+			// HC Backwards compatible fields - can remove once boards are updated
+			attribute.String("service", o.Service),
+			attribute.String("mode", o.Mode),
+			attribute.String("version", o.Version),
+		},
+
+		DisableText: o.DisableText,
+
+		SampleTraces:  o.SampleTraces,
+		SampleKeyFunc: o.SampleKeyFunc,
+		SampleRates:   o.SampleRates,
+
+		Test: o.Test,
+	}
+	if o.UseEnvironments {
+		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.environments", true))
+	}
+	return cfg
 }
 
 // N.B this copies the block from Setup, but don't factor that out since the HC stuff will be removed soon
