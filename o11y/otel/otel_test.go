@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"gotest.tools/v3/poll"
 
 	o11yconfig "github.com/circleci/ex/config/o11y"
+	hc "github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/httpserver/ginrouter"
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
@@ -105,7 +107,7 @@ func TestO11y(t *testing.T) {
 				// need to close the provider to be sure traces flushed
 				defer closeProvider(ctx)
 
-				ctx, span := o.StartSpan(ctx, "root")
+				ctx, span := o.StartSpan(ctx, "root", o11y.WithSpanKind(o11y.SpanKindClient))
 				defer span.End()
 
 				doSomething(ctx, false)
@@ -583,6 +585,87 @@ func TestSampling(t *testing.T) {
 	})
 }
 
+func TestKind(t *testing.T) {
+	var (
+		srvURL              string
+		closeServerProvider func()
+		closeClientProvider func()
+		closeServer         func()
+		start               = time.Now()
+	)
+
+	t.Run("server", func(t *testing.T) {
+		ctx, clp, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+			Dataset:         "local-testing",
+			GrpcHostAndPort: "127.0.0.1:4317",
+			Service:         "app-main-server",
+			Version:         "dev-test",
+		})
+		assert.NilError(t, err)
+		closeServerProvider = func() {
+			clp(ctx)
+		}
+		r := ginrouter.Default(ctx, "main-server")
+		r.GET("/", func(c *gin.Context) {
+			c.JSON(200, gin.H{})
+		})
+		srv := httptest.NewServer(r)
+		srvURL = srv.URL
+		closeServer = srv.Close
+	})
+
+	t.Run("client", func(t *testing.T) {
+		ctx, clp, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+			Dataset:         "local-testing",
+			GrpcHostAndPort: "127.0.0.1:4317",
+			Service:         "app-main-client",
+			Version:         "dev-test",
+		})
+		assert.NilError(t, err)
+		closeClientProvider = func() {
+			clp(ctx)
+		}
+
+		cl := hc.New(hc.Config{
+			BaseURL:   srvURL,
+			Name:      "test-client",
+			UserAgent: "test-main",
+		})
+		assert.NilError(t, cl.Call(ctx, hc.NewRequest(http.MethodGet, "/")))
+	})
+
+	closeServerProvider()
+	closeServer()
+	closeClientProvider()
+
+	t.Run("check_spans", func(t *testing.T) {
+		ctx := testcontext.Background()
+		jc := jaeger.New("http://localhost:16686", "app-main-server")
+
+		// one joined up trace
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			traces, err := jc.Traces(ctx, start)
+			if err != nil {
+				return poll.Error(err)
+			}
+			if len(traces) >= 1 {
+				return poll.Success()
+			}
+			return poll.Continue("only got %d traces", len(traces))
+		})
+		traces, err := jc.Traces(ctx, start)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Len(traces, 1))
+		assert.Check(t, cmp.Len(traces[0].Spans, 2))
+		spans := traces[0].Spans
+		sort.Slice(spans, func(i, j int) bool { return spans[i].OperationName < spans[j].OperationName })
+		assert.Check(t, cmp.Equal(spans[0].OperationName, "http-server main-server: GET /"))
+		jaeger.AssertTag(t, spans[0].Tags, "span.kind", "server")
+		assert.Check(t, cmp.Equal(spans[1].OperationName, "httpclient: test-client /"))
+		jaeger.AssertTag(t, spans[1].Tags, "span.kind", "client")
+	})
+}
+
 func TestFlatten(t *testing.T) {
 	start := time.Now()
 	statsd := fakestatsd.New(t)
@@ -686,7 +769,7 @@ func TestGolden(t *testing.T) {
 
 			ctx = o.StartGoldenTrace(ctx, "trigger")
 
-			ctx, span = o.StartGoldenSpan(ctx, "trigger-event")
+			ctx, span = o.StartGoldenSpan(ctx, "trigger-event", o11y.WithSpanKind(o11y.SpanKindServer))
 			defer span.End()
 
 			doSomething(ctx, false)
@@ -723,6 +806,10 @@ func TestGolden(t *testing.T) {
 			cntG := 0
 			golden := []string{"trigger", "trigger-event", "key-event"}
 			for _, sp := range spans {
+				// check for the span kind
+				if sp.OperationName == "trigger-event" {
+					jaeger.AssertTag(t, sp.Tags, "span.kind", "server")
+				}
 				isGold := jaeger.HasTag(sp.Tags, "meta.golden", "true")
 				if isGold {
 					cntG++
@@ -775,7 +862,7 @@ func TestSpan(t *testing.T) {
 
 	assert.NilError(t, err)
 
-	ctx, span := o11y.StartSpan(ctx, "span")
+	ctx, span := o11y.StartSpan(ctx, "span", o11y.WithSpanKind(o11y.SpanKindClient))
 
 	var (
 		nilTime *time.Time
@@ -824,6 +911,7 @@ func TestSpan(t *testing.T) {
 
 	closeProvider(ctx)
 
+	assert.Check(t, cmp.Equal(col.spans[0].Kind, "SPAN_KIND_CLIENT"))
 	for _, tt := range attrs {
 		assert.Check(t, cmp.Equal(tt.expected, col.spans[0].Attrs["app."+tt.name]), tt.name)
 	}
@@ -846,6 +934,7 @@ type CollectSpan struct {
 	Name   string
 	Code   string
 	Desc   string
+	Kind   string
 	Attrs  map[string]string
 	Events []CollectEvent
 }
@@ -907,6 +996,7 @@ func (c *testTraceCollector) Export(ctx context.Context,
 					Name:  span.GetName(),
 					Code:  span.GetStatus().GetCode().String(),
 					Desc:  span.GetStatus().GetMessage(),
+					Kind:  span.GetKind().String(),
 					Attrs: map[string]string{},
 				}
 				for _, kv := range span.GetAttributes() {

@@ -47,16 +47,18 @@ func (h helpers) ExtractPropagation(ctx context.Context) o11y.PropagationContext
 // the context carrying that span. This should always return a span. If no propagation is
 // found then a new span named root is returned. It is expected that callers of this will
 // rename the returned span.
-func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationContext) (context.Context, o11y.Span) {
+func (h helpers) InjectPropagation(ctx context.Context,
+	ca o11y.PropagationContext, opts ...o11y.SpanOpt) (context.Context, o11y.Span) {
+
 	if h.disableW3c {
-		return h.p.StartSpan(ctx, "root")
+		return h.p.StartSpan(ctx, "root", opts...)
 	}
 
 	ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(ca.Headers))
 
 	// Make a new span - the trace propagation info in the context will be used
 	// N.B we update the name of this span at the calling site.
-	ctx, sp := h.p.StartSpan(ctx, "root")
+	ctx, sp := h.p.StartSpan(ctx, "root", opts...)
 
 	// Check if the baggage indicates this span should be flattened
 	fd, goldHeaders := o11y.ExtrasFromBaggage(ctx)
@@ -68,7 +70,7 @@ func (h helpers) InjectPropagation(ctx context.Context, ca o11y.PropagationConte
 		gCtx := otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(goldHeaders))
 		spec := &golden{
 			ctx:  gCtx,
-			span: h.p.wrapSpan(trace.SpanFromContext(gCtx), nil),
+			span: h.p.wrapSpan("", opts, trace.SpanFromContext(gCtx), nil),
 		}
 		spec.span.AddRawField(metaGolden, true)
 		ctx = context.WithValue(ctx, goldenCtxKey{}, spec)

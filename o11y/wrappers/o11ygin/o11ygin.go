@@ -146,15 +146,21 @@ func Recovery() func(c *gin.Context) {
 func startSpanOrTraceFromHTTP(ctx context.Context,
 	c *gin.Context, p o11y.Provider, serverName string) (context.Context, o11y.Span) {
 
+	spanKindOpt := o11y.WithSpanKind(o11y.SpanKindServer)
 	span := p.GetSpan(ctx)
 	if span == nil {
 		// there is no trace yet. We should make one! and use the root span.
-		ctx, span := p.Helpers().InjectPropagation(ctx, o11y.PropagationContextFromHeader(c.Request.Header))
+		ctx, span := p.Helpers().InjectPropagation(ctx,
+			o11y.PropagationContextFromHeader(c.Request.Header), spanKindOpt)
+
 		span.AddRawField("name", fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()))
 		return ctx, span
 	} else {
 		// we had a parent! let's make a new child for this handler
-		ctx, span = o11y.StartSpan(ctx, fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()))
+		ctx, span = o11y.StartSpan(ctx,
+			fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()),
+			spanKindOpt,
+		)
 	}
 	return ctx, span
 }

@@ -17,6 +17,6 @@ func Defaults(ctx context.Context) (err error) {
 		MemLimit(ctx),
 		MaxProcs(ctx),
 	)
-	
+
 	return err
 }

@@ -280,7 +280,6 @@ func TestClient_Call_Propagates(t *testing.T) {
 			"version":                             true,
 			"app.flatten":                         true,
 			"hc_tcl.meta.type":                    true,
-			"hc_tcl.span.kind":                    true,
 			"hc_tcl.http.url":                     true,
 			"hc_tcl.http.request_content_length":  true,
 			"hc_tcl.http.base_url":                true,
