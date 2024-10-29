@@ -260,6 +260,23 @@ func (o Provider) StartGoldenSpan(ctx context.Context, name string, opts ...o11y
 	return ctx, sp
 }
 
+func (o Provider) MakeSpanGolden(ctx context.Context) {
+	spec := o.getGolden(ctx)
+	if spec == nil {
+		ctx = o.StartGoldenTrace(ctx, "unknown-golden-trace")
+		spec = o.getGolden(ctx)
+	}
+
+	// get the existing span
+	sp := o.getSpan(ctx)
+
+	// Start the golden span
+	spec.ctx, _ = o.StartSpan(spec.ctx, sp.name, sp.opts...)
+	sp.golden = o.getSpan(spec.ctx)
+	sp.golden.AddRawField(metaGolden, true)
+	sp.link(sp.golden)
+}
+
 // GetSpan returns the active span in the given context. It will return nil if there is no span available.
 func (o Provider) GetSpan(ctx context.Context) o11y.Span {
 	s := o.getSpan(ctx) // N.B returning s would mean the returned interface is not nil
@@ -431,19 +448,19 @@ func (s *span) AddRawField(key string, val any) {
 
 	s.mu.Lock()
 	s.fields[key] = val
-	s.mu.Unlock()
 
 	if err, ok := val.(error); ok {
 		// s.span.RecordError() TODO - maybe this
 		val = err.Error()
 	}
 	// Use otel SetName if we are overriding the name attribute
-	// TODO - should we set the name attribute as well
 	if key == "name" {
 		if v, ok := val.(string); ok {
+			s.name = val.(string)
 			s.span.SetName(v)
 		}
 	}
+	s.mu.Unlock()
 
 	s.span.SetAttributes(attr(key, val))
 }
@@ -480,8 +497,34 @@ func (s *span) End() {
 	}
 	s.span.End()
 
+	// if this span has a golden span the copy over the attributes from the span and end it
 	if s.golden != nil {
+		s.golden.copyAttrsFrom(s)
 		s.golden.End()
+	}
+}
+
+// copy span attributes into s
+func (s *span) copyAttrsFrom(span *span) {
+	// get the span name
+	var spName string
+	s.mu.Lock()
+	spName = s.name
+	s.mu.Unlock()
+
+	attrs := span.snapshotFields()
+
+	span.mu.Lock()
+	defer span.mu.Unlock()
+
+	s.name = spName
+	s.span.SetName(spName)
+	for k, v := range attrs {
+		if k == "name" || k == "duration_ms" {
+			continue
+		}
+		s.fields[k] = v
+		s.span.SetAttributes(attr(k, v))
 	}
 }
 

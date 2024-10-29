@@ -75,7 +75,11 @@ type Provider interface {
 
 	// StartGoldenSpan Starts a normal span and an associated golden span attached to the golden trace.
 	// If the golden trace does not exist it will be started.
+	// Opts are generally expected to be set by other ex packages, rather than application code
 	StartGoldenSpan(ctx context.Context, name string, opts ...SpanOpt) (context.Context, Span)
+
+	// MakeSpanGolden Add a golden span from the span currently in the context
+	MakeSpanGolden(ctx context.Context)
 }
 
 // PropagationContext contains trace context values that are propagated from service to service.
@@ -378,6 +382,7 @@ func (c *noopProvider) EndGoldenTrace(context.Context) {}
 func (c *noopProvider) StartGoldenSpan(ctx context.Context, _ string, _ ...SpanOpt) (context.Context, Span) {
 	return ctx, &noopSpan{}
 }
+func (c *noopProvider) MakeSpanGolden(context.Context) {}
 
 func (c *noopProvider) GetSpan(context.Context) Span {
 	return &noopSpan{}
