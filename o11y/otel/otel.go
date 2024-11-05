@@ -473,7 +473,7 @@ func (s *span) RecordMetric(metric o11y.Metric) {
 func (s *span) End() {
 	// insert the expected field for any timing metric
 	s.mu.Lock()
-	s.fields["duration_ms"] = time.Since(s.start) / time.Millisecond
+	s.fields["duration_ms"] = time.Since(s.start).Milliseconds()
 	s.mu.Unlock()
 
 	if s.tr != nil {

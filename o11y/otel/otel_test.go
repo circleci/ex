@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1049,4 +1050,108 @@ func newOtelCollector(recorder *httprecorder.RequestRecorder) http.Handler {
 		c.Status(http.StatusOK)
 	})
 	return r
+}
+
+func TestMetrics(t *testing.T) {
+	ctx := context.Background()
+	s := fakestatsd.New(t)
+	ns := "test"
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Service:        "app-main",
+		Version:        "dev-test",
+		Statsd:         s.Addr(),
+		StatsNamespace: ns,
+	})
+	assert.NilError(t, err)
+	defer closeProvider(ctx)
+
+	_, span := o11y.StartSpan(ctx, "test")
+	span.RecordMetric(o11y.Timing("timing"))
+
+	span.AddField("count", 22)
+	span.RecordMetric(o11y.Count("count", "count", nil))
+
+	span.AddField("custom_duration", 10000)
+	span.RecordMetric(o11y.Duration("duration", "custom_duration"))
+
+	span.RecordMetric(o11y.Incr("counter"))
+
+	span.AddRawField("gauge", 34)
+	span.RecordMetric(o11y.Gauge("gauge", "gauge"))
+
+	time.Sleep(100 * time.Millisecond)
+	span.End()
+
+	var metrics []fakestatsd.Metric
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		m := s.Metrics()
+		if len(m) > 4 {
+			metrics = m
+			return poll.Success()
+		}
+		return poll.Continue("not enough metrics yet")
+	})
+
+	expected := []struct {
+		name   string
+		assert func(v string)
+	}{
+		{
+			name: "timing",
+			assert: func(v string) {
+				assertDuration(t, v, 100*time.Millisecond)
+			},
+		},
+		{
+			name: "count",
+			assert: func(v string) {
+				assertInt(t, v, 22)
+			},
+		},
+		{
+			name: "duration",
+			assert: func(v string) {
+				assertDuration(t, v, 10000*time.Millisecond)
+			},
+		},
+		{
+			name: "counter",
+			assert: func(v string) {
+				assertInt(t, v, 1)
+			},
+		},
+		{
+			name: "gauge",
+			assert: func(v string) {
+				assertInt(t, v, 34)
+			},
+		},
+	}
+	for _, e := range expected {
+		found := false
+		for _, m := range metrics {
+			if m.Name != ns+"."+e.name {
+				continue
+			}
+
+			found = true
+			valParts := strings.Split(m.Value, "|")
+			assert.Check(t, len(valParts) >= 2)
+			e.assert(valParts[0])
+		}
+		assert.Check(t, found, "no metric named %s", e.name)
+	}
+}
+
+func assertDuration(t *testing.T, v string, expected time.Duration) {
+	d, err := time.ParseDuration(v + "ms")
+	assert.NilError(t, err)
+	delta := d - expected
+	assert.Check(t, delta >= 0)
+}
+
+func assertInt(t *testing.T, v string, expected int) {
+	i, err := strconv.Atoi(v)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(i, expected))
 }
