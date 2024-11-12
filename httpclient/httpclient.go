@@ -629,6 +629,12 @@ func addRespToSpan(span o11y.Span, res *http.Response) {
 	if ce := res.Header.Get("Content-Encoding"); ce != "" {
 		span.AddRawField("http.response_content_encoding", ce)
 	}
+	if rID := res.Header.Get("x-amz-request-id"); rID != "" {
+		span.AddRawField("http.amz_request_id", rID)
+	}
+	if rID2 := res.Header.Get("x-amz-id-2"); rID2 != "" {
+		span.AddRawField("http.amz_id_2", rID2)
+	}
 	span.AddRawField("http.status_code", res.StatusCode)
 }
 
