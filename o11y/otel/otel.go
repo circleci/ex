@@ -235,14 +235,17 @@ func (o Provider) startGoldenTrace(ctx context.Context, name string) context.Con
 }
 
 func (o Provider) MakeSpanGolden(ctx context.Context) context.Context {
+	// Get the existing span, and do nothing if there isn't one.
+	sp := o.getSpan(ctx)
+	if sp == nil {
+		return ctx
+	}
+
 	spec := o.getGolden(ctx)
 	if spec == nil {
 		ctx = o.startGoldenTrace(ctx, "root")
 		spec = o.getGolden(ctx)
 	}
-
-	// get the existing span
-	sp := o.getSpan(ctx)
 
 	// Start the golden span
 	spec.ctx, _ = o.StartSpan(spec.ctx, sp.name, sp.opts...)

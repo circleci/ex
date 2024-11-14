@@ -251,6 +251,12 @@ func AddFieldToTrace(ctx context.Context, key string, val interface{}) {
 	FromContext(ctx).AddFieldToTrace(ctx, key, val)
 }
 
+// MakeSpanGolden Add a golden span from the span currently in the context.
+// If the golden trace does not exist it will be started.
+func MakeSpanGolden(ctx context.Context) context.Context {
+	return FromContext(ctx).MakeSpanGolden(ctx)
+}
+
 // End completes a span, including using AddResultToSpan to set the error and result fields
 //
 // The correct way to capture the returned error is given in the doc example, it is like this..
