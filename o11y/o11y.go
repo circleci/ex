@@ -63,23 +63,9 @@ type Provider interface {
 	// Helpers returns some specific helper functions. Temporary optional param during the cutover to otel
 	Helpers(disableW3c ...bool) Helpers
 
-	// StartGoldenTrace starts the golden trace.
-	// TODO - more notes / docs about what a golden trace is.
-	StartGoldenTrace(ctx context.Context, name string) context.Context
-
-	// EndGoldenTrace should be called when the golden trace has ended. This ends the root golden span, but the
-	// golden trace id will still be used for other golden spans.
-	// This does not need to be called, but it is better if something does call it, to avoid missing spans in the
-	// visualisation tools.
-	EndGoldenTrace(ctx context.Context)
-
-	// StartGoldenSpan Starts a normal span and an associated golden span attached to the golden trace.
+	// MakeSpanGolden Add a golden span from the span currently in the context.
 	// If the golden trace does not exist it will be started.
-	// Opts are generally expected to be set by other ex packages, rather than application code
-	StartGoldenSpan(ctx context.Context, name string, opts ...SpanOpt) (context.Context, Span)
-
-	// MakeSpanGolden Add a golden span from the span currently in the context
-	MakeSpanGolden(ctx context.Context)
+	MakeSpanGolden(ctx context.Context) context.Context
 }
 
 // PropagationContext contains trace context values that are propagated from service to service.
@@ -368,21 +354,13 @@ var defaultProvider = &noopProvider{}
 
 type noopProvider struct{}
 
-func (c *noopProvider) StartGoldenTrace(ctx context.Context, _ string) context.Context {
-	return ctx
-}
-
 func (c *noopProvider) AddGlobalField(string, interface{}) {}
 
 func (c *noopProvider) StartSpan(ctx context.Context, _ string, _ ...SpanOpt) (context.Context, Span) {
 	return ctx, &noopSpan{}
 }
 
-func (c *noopProvider) EndGoldenTrace(context.Context) {}
-func (c *noopProvider) StartGoldenSpan(ctx context.Context, _ string, _ ...SpanOpt) (context.Context, Span) {
-	return ctx, &noopSpan{}
-}
-func (c *noopProvider) MakeSpanGolden(context.Context) {}
+func (c *noopProvider) MakeSpanGolden(ctx context.Context) context.Context { return ctx }
 
 func (c *noopProvider) GetSpan(context.Context) Span {
 	return &noopSpan{}

@@ -370,13 +370,7 @@ func (h *honeycomb) Helpers(disableW3c ...bool) o11y.Helpers {
 }
 
 // N.B. Golden trace will not be implemented in honeycomb provider
-
-func (h *honeycomb) StartGoldenTrace(ctx context.Context, _ string) context.Context { return ctx }
-func (h *honeycomb) EndGoldenTrace(ctx context.Context)                             {}
-func (h *honeycomb) StartGoldenSpan(ctx context.Context, _ string, _ ...o11y.SpanOpt) (context.Context, o11y.Span) {
-	return ctx, nil
-}
-func (h *honeycomb) MakeSpanGolden(context.Context) {}
+func (h *honeycomb) MakeSpanGolden(ctx context.Context) context.Context { return ctx }
 
 type helpers struct {
 	disableW3c bool
