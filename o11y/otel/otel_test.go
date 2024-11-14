@@ -733,6 +733,7 @@ func TestGolden(t *testing.T) {
 	start := time.Now()
 	s := fakestatsd.New(t)
 	ctx := testcontext.Background()
+
 	t.Run("trace", func(t *testing.T) {
 		ctx, closeProvider, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
 			Dataset:         "local-testing",
@@ -743,9 +744,17 @@ func TestGolden(t *testing.T) {
 			StatsNamespace:  "test-app",
 		})
 
+		t.Run("no span", func(t *testing.T) {
+			o11y.MakeSpanGolden(ctx)
+		})
+
 		o := o11y.FromContext(ctx)
 		assert.NilError(t, err)
 		o.AddGlobalField("a_global_key", "a-global-value")
+
+		t.Run("no span provider", func(t *testing.T) {
+			o.MakeSpanGolden(ctx)
+		})
 
 		func() {
 			ctx, span := o.StartSpan(ctx, "fun")
