@@ -415,8 +415,8 @@ func TestHelpers(t *testing.T) {
 			"bg2": "bgv2",
 		})
 
-		ctx = provider.StartGoldenTrace(ctx, "gi")
-		ctx, gsp := provider.StartGoldenSpan(ctx, "important")
+		ctx, gsp := o11y.StartSpan(ctx, "important")
+		ctx = provider.MakeSpanGolden(ctx)
 		gsp.End()
 
 		svc1Propagation := h.ExtractPropagation(ctx)
@@ -442,10 +442,9 @@ func TestHelpers(t *testing.T) {
 		assert.Check(t, cmp.Equal(b["bg1"], "bgv1"))
 		assert.Check(t, cmp.Equal(b["bg2"], "bgv2"))
 
-		ctx, gsp2 := provider.StartGoldenSpan(service2Context, "important-2")
+		ctx, gsp2 := o11y.StartSpan(ctx, "important-2")
+		ctx = provider.MakeSpanGolden(ctx)
 		gsp2.End()
-
-		provider.EndGoldenTrace(service2Context)
 
 		span.End()
 
@@ -738,7 +737,7 @@ func TestGolden(t *testing.T) {
 		ctx, closeProvider, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
 			Dataset:         "local-testing",
 			GrpcHostAndPort: "127.0.0.1:4317",
-			Service:         "app-main",
+			Service:         "app-main-gold",
 			Version:         "dev-test",
 			Statsd:          s.Addr(),
 			StatsNamespace:  "test-app",
@@ -760,17 +759,16 @@ func TestGolden(t *testing.T) {
 			// need to close the provider to be sure traces flushed
 			defer closeProvider(ctx)
 			defer func() {
-				o.EndGoldenTrace(ctx)
 				time.Sleep(time.Millisecond * 2)
 
-				_, span := o.StartGoldenSpan(ctx, "key-event")
+				ctx, span := o.StartSpan(ctx, "key-event")
+				ctx = o.MakeSpanGolden(ctx)
 				time.Sleep(time.Millisecond)
 				span.End()
 			}()
 
-			ctx = o.StartGoldenTrace(ctx, "trigger")
-
-			ctx, span = o.StartGoldenSpan(ctx, "trigger-event", o11y.WithSpanKind(o11y.SpanKindServer))
+			ctx, span = o.StartSpan(ctx, "trigger-event", o11y.WithSpanKind(o11y.SpanKindServer))
+			ctx = o.MakeSpanGolden(ctx)
 			defer span.End()
 
 			doSomething(ctx, false)
@@ -790,7 +788,7 @@ func TestGolden(t *testing.T) {
 		}()
 
 		t.Run("check", func(t *testing.T) {
-			jc := jaeger.New("http://localhost:16686", "app-main")
+			jc := jaeger.New("http://localhost:16686", "app-main-gold")
 			traces, err := jc.Traces(ctx, start)
 			assert.NilError(t, err)
 
@@ -801,7 +799,7 @@ func TestGolden(t *testing.T) {
 			for _, trc := range traces {
 				spans = append(spans, trc.Spans...)
 			}
-			assert.Check(t, cmp.Len(spans, 10))
+			assert.Check(t, cmp.Len(spans, 9))
 
 			cnt := 0
 			cntG := 0
@@ -832,8 +830,8 @@ func TestGolden(t *testing.T) {
 			}
 
 			// Check golden spans are duplicated as non-golden (except the start span)
-			assert.Check(t, cmp.Equal(cnt, 5))
-			assert.Check(t, cmp.Equal(cntG, 3))
+			assert.Check(t, cmp.Equal(cnt, 4))
+			assert.Check(t, cmp.Equal(cntG, 2))
 		})
 	})
 }

@@ -219,7 +219,7 @@ type golden struct {
 
 const metaGolden = "meta.golden"
 
-func (o Provider) StartGoldenTrace(ctx context.Context, name string) context.Context {
+func (o Provider) startGoldenTrace(ctx context.Context, name string) context.Context {
 	spec := o.getGolden(ctx)
 	if spec != nil {
 		return ctx
@@ -234,36 +234,10 @@ func (o Provider) StartGoldenTrace(ctx context.Context, name string) context.Con
 	return context.WithValue(ctx, goldenCtxKey{}, spec)
 }
 
-func (o Provider) EndGoldenTrace(ctx context.Context) {
-	s := o.getGolden(ctx)
-	if s == nil {
-		return
-	}
-	s.span.End()
-}
-
-func (o Provider) StartGoldenSpan(ctx context.Context, name string, opts ...o11y.SpanOpt) (context.Context, o11y.Span) {
+func (o Provider) MakeSpanGolden(ctx context.Context) context.Context {
 	spec := o.getGolden(ctx)
 	if spec == nil {
-		ctx = o.StartGoldenTrace(ctx, "unknown-golden-trace")
-		spec = o.getGolden(ctx)
-	}
-	// Start the normal span
-	ctx, _ = o.StartSpan(ctx, name, opts...)
-	sp := o.getSpan(ctx)
-
-	// Start the golden span
-	spec.ctx, _ = o.StartSpan(spec.ctx, name, opts...)
-	sp.golden = o.getSpan(spec.ctx)
-	sp.golden.AddRawField(metaGolden, true)
-	sp.link(sp.golden)
-	return ctx, sp
-}
-
-func (o Provider) MakeSpanGolden(ctx context.Context) {
-	spec := o.getGolden(ctx)
-	if spec == nil {
-		ctx = o.StartGoldenTrace(ctx, "unknown-golden-trace")
+		ctx = o.startGoldenTrace(ctx, "root")
 		spec = o.getGolden(ctx)
 	}
 
@@ -275,6 +249,8 @@ func (o Provider) MakeSpanGolden(ctx context.Context) {
 	sp.golden = o.getSpan(spec.ctx)
 	sp.golden.AddRawField(metaGolden, true)
 	sp.link(sp.golden)
+
+	return ctx
 }
 
 // GetSpan returns the active span in the given context. It will return nil if there is no span available.
