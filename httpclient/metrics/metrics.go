@@ -119,9 +119,6 @@ func (m *Metrics) WithTracer(ctx context.Context, route string) context.Context 
 
 	trace := &httptrace.ClientTrace{
 		GetConn: func(hostPort string) {
-			// This seems to be able to race with GotConn and cause a panic
-			r.mu.Lock()
-			defer r.mu.Unlock()
 			r.con = &con{
 				host:  hostPort,
 				getAt: time.Now(),
@@ -224,10 +221,9 @@ type con struct {
 
 //nolint:funlen
 func (r *request) gotCon(info httptrace.GotConnInfo) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	if r.con == nil {
-		panic("cant have gotCon after getCon")
+		o11y.AddField(r.ctx, "req.got_conn.no_con", true)
+		return // rather than panic, just don't capture metrics for this request
 	}
 	r.conDoneAt = time.Now()
 
