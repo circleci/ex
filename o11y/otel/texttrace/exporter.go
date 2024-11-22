@@ -23,12 +23,12 @@ var zeroTime time.Time
 var _ trace.SpanExporter = &Exporter{}
 
 // New creates an Exporter with the passed options.
-func New(w io.Writer) (*Exporter, error) {
+func New(w io.Writer, colour bool) (*Exporter, error) {
 
 	return &Exporter{
 		w:          w,
 		timestamps: true,
-		colour:     true,
+		colour:     colour,
 	}, nil
 }
 

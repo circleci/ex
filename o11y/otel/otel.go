@@ -95,7 +95,7 @@ func New(conf Config) (o11y.Provider, error) {
 			out = os.Stdout
 		}
 
-		text, err := texttrace.New(out)
+		text, err := texttrace.New(out, conf.Test)
 		if err != nil {
 			return nil, err
 		}
