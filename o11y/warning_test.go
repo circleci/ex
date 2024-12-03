@@ -150,6 +150,11 @@ func TestNewAllWarningError(t *testing.T) {
 		assert.Check(t, !IsWarning(te), "single %q should not a warning", te)
 	})
 
+	t.Run("nil warning is not error", func(t *testing.T) {
+		te := AllWarning(nil)
+		assert.Check(t, cmp.Nil(te), "single %q should be nil", te)
+	})
+
 	t.Run("nested", func(t *testing.T) {
 		we2 := errors.Join(we, err)
 		assert.Check(t, IsWarning(we2))
