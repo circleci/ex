@@ -57,6 +57,9 @@ type allWarningError struct {
 // AllWarning returns the err wrapped such that if it has Joined errors, then each error must be a warning
 // for the returned err to respond true to IsWarning.
 func AllWarning(err error) error {
+	if err == nil {
+		return nil
+	}
 	return &allWarningError{
 		err: err,
 	}
