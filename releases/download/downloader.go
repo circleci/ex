@@ -4,7 +4,6 @@ Package download helps download releases of binaries.
 package download
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -130,18 +129,18 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 	}
 	defer closer.ErrorHandler(out, &err)
 
-	var resp []byte
 	err = d.client.Call(ctx, httpclient.NewRequest("GET", url,
 		httpclient.Timeout(30*time.Second),
-		httpclient.BytesDecoder(&resp)))
+		httpclient.SuccessDecoder(func(r io.Reader) error {
+			_, err := io.Copy(out, r)
+			if err != nil {
+				return fmt.Errorf("could not write file %q: %w", target, err)
+			}
+			return nil
+		})))
 
 	if err != nil {
 		return fmt.Errorf("could not get URL %q: %w", url, err)
-	}
-
-	_, err = io.Copy(out, bytes.NewBuffer(resp))
-	if err != nil {
-		return fmt.Errorf("could not write file %q: %w", target, err)
 	}
 
 	return nil
