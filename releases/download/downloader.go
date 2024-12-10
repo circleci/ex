@@ -26,12 +26,6 @@ type Downloader struct {
 
 type Option func(d *Downloader)
 
-type Config struct {
-	MaxElapsedTime time.Duration
-	AttemptTimeout time.Duration
-	TargetDir      string
-}
-
 func NewDownloader(timeout time.Duration, dir string, options ...Option) (*Downloader, error) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
