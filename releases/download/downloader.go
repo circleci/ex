@@ -19,11 +19,20 @@ import (
 )
 
 type Downloader struct {
-	dir    string
-	client *httpclient.Client
+	dir                    string
+	client                 *httpclient.Client
+	downloadAttemptTimeout time.Duration
 }
 
-func NewDownloader(timeout time.Duration, dir string) (*Downloader, error) {
+type Option func(d *Downloader)
+
+type Config struct {
+	MaxElapsedTime time.Duration
+	AttemptTimeout time.Duration
+	TargetDir      string
+}
+
+func NewDownloader(timeout time.Duration, dir string, options ...Option) (*Downloader, error) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, fmt.Errorf("could not absolutify downloader dir: %w", err)
@@ -34,13 +43,25 @@ func NewDownloader(timeout time.Duration, dir string) (*Downloader, error) {
 		return nil, fmt.Errorf("could not create e2e-test dir: %w", err)
 	}
 
-	return &Downloader{
+	downloader := &Downloader{
 		dir: dir,
 		client: httpclient.New(httpclient.Config{
 			Name:    "downloader",
 			Timeout: timeout,
 		}),
-	}, nil
+	}
+
+	for _, option := range options {
+		option(downloader)
+	}
+
+	return downloader, nil
+}
+
+func AttemptTimeout(timeout time.Duration) Option {
+	return func(d *Downloader) {
+		d.downloadAttemptTimeout = timeout
+	}
 }
 
 // Download downloads the file from the rawURL, to a location rooted at the location specified when constructing
@@ -129,8 +150,13 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 	}
 	defer closer.ErrorHandler(out, &err)
 
+	timeout := 30 * time.Second
+	if d.downloadAttemptTimeout != 0 {
+		timeout = d.downloadAttemptTimeout
+	}
+
 	err = d.client.Call(ctx, httpclient.NewRequest("GET", url,
-		httpclient.Timeout(30*time.Second),
+		httpclient.Timeout(timeout),
 		httpclient.SuccessDecoder(func(r io.Reader) error {
 			_, err := io.Copy(out, r)
 			if err != nil {
