@@ -278,7 +278,6 @@ func TestClient_Call_Propagates(t *testing.T) {
 		expected := map[string]bool{
 			"service":                             true,
 			"version":                             true,
-			"app.flatten":                         true,
 			"hc_tcl.meta.type":                    true,
 			"hc_tcl.http.url":                     true,
 			"hc_tcl.http.request_content_length":  true,
@@ -287,7 +286,6 @@ func TestClient_Call_Propagates(t *testing.T) {
 			"hc_tcl.http.retry":                   true,
 			"hc_tcl.result":                       true,
 			"hc_tcl.flattened":                    true,
-			"hc_tcl.app.flatten":                  true,
 			"hc_tcl.http.client_name":             true,
 			"hc_tcl.duration_ms":                  true,
 			"hc_tcl.http.attempt":                 true,

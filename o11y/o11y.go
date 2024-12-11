@@ -313,6 +313,9 @@ type Baggage map[string]string
 func (b Baggage) addToTrace(ctx context.Context) {
 	o := FromContext(ctx)
 	for k, v := range b {
+		if isInternalBaggage(k) {
+			continue
+		}
 		k := strings.ReplaceAll(k, "-", "_")
 		o.AddFieldToTrace(ctx, k, v)
 	}
@@ -467,6 +470,16 @@ func AddExtrasToBaggage(ctx context.Context, flatten int, gold http.Header) cont
 		return ctx
 	}
 	return WithBaggage(ctx, bag)
+}
+
+func isInternalBaggage(key string) bool {
+	if key == flattenDepthBaggageKey {
+		return true
+	}
+	if strings.HasPrefix(key, goldenTracePrefix) {
+		return true
+	}
+	return false
 }
 
 type rollbarAble interface {
