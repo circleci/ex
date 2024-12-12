@@ -3,7 +3,7 @@ package mongoex
 import (
 	"testing"
 
-	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
