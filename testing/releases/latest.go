@@ -22,6 +22,8 @@ type DownloadConfig struct {
 	Pinned string
 	// Dir is the directory to download into, if empty will default to ../bin
 	Dir string
+	// AttemptTimeout is the maximum amount of time for a single download attempt
+	AttemptTimeout time.Duration
 }
 
 // DownloadLatest is a helper that will download the latest test binary
@@ -62,7 +64,8 @@ func DownloadLatest(ctx context.Context, conf DownloadConfig) (string, error) {
 		conf.Dir = "../bin"
 	}
 
-	dl, err := download.NewDownloader(time.Minute, conf.Dir)
+	dl, err := download.NewDownloader(time.Minute, conf.Dir,
+		download.AttemptTimeout(conf.AttemptTimeout))
 	if err != nil {
 		return "", fmt.Errorf("download failed: %w", err)
 	}

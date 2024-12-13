@@ -48,6 +48,11 @@ d7045e25ab522bdc057b6626e7a566409b369d65836cc1cd4e16038c2f4cb573 *linux/arm/publ
 dd6c2a3230952f4cec6190ca030372a3a1a6d04d6d483d81bb06c506032b0eba *windows/amd64/internal.exe
 2986031acbd08d930c06131e64f68fe9c32fdaac32d028e53f178afc2dd4889b *windows/amd64/public.exe
 3064327451adf87ed823410e23837a2843f1cb823480be3909db91ef85c79141 *windows/amd64/receiver.exe
+67f0361eca538aee7708be61b6f0d84aeece5634af5b35a09c0c80b40712e675 *darwin/amd64/slow
+67f0361eca538aee7708be61b6f0d84aeece5634af5b35a09c0c80b40712e675 *darwin/arm64/slow
+67f0361eca538aee7708be61b6f0d84aeece5634af5b35a09c0c80b40712e675 *linux/amd64/slow
+67f0361eca538aee7708be61b6f0d84aeece5634af5b35a09c0c80b40712e675 *linux/arm64/slow
+67f0361eca538aee7708be61b6f0d84aeece5634af5b35a09c0c80b40712e675 *windows/amd64/slow.exe
 `
 
 func TestReleases_ResolveURL(t *testing.T) {
@@ -137,12 +142,14 @@ func TestReleases_ResolveURLs(t *testing.T) {
 				"internal": baseURL + "internal",
 				"public":   baseURL + "public",
 				"receiver": baseURL + "receiver",
+				"slow":     baseURL + "slow",
 			}
 			if tt.OS == "windows" {
 				expect = map[string]string{
 					"internal": baseURL + "internal.exe",
 					"public":   baseURL + "public.exe",
 					"receiver": baseURL + "receiver.exe",
+					"slow":     baseURL + "slow.exe",
 				}
 			}
 			assert.Check(t, cmp.DeepEqual(urls, expect))
