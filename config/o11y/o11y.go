@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/rollbar/rollbar-go"
 
