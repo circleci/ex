@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"go.mongodb.org/mongo-driver/event"
+	"go.mongodb.org/mongo-driver/v2/event"
 )
 
 type poolMetrics struct {
