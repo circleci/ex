@@ -57,5 +57,5 @@ func New(ctx context.Context, appName string, cfg Config) (client *mongo.Client,
 		})
 	}
 
-	return mongo.Connect(ctx, opts)
+	return mongo.Connect(opts)
 }

@@ -37,7 +37,7 @@ func Setup(ctx context.Context, t testing.TB, con Connection) *Fixture {
 		ApplyURI(con.URI).
 		SetAppName("test")
 
-	client, err := mongo.Connect(ctx, opts)
+	client, err := mongo.Connect(opts)
 	assert.Assert(t, err)
 
 	t.Cleanup(func() {
