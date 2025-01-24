@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"gotest.tools/v3/assert"
 
 	"github.com/circleci/ex/o11y"
@@ -37,7 +37,7 @@ func Setup(ctx context.Context, t testing.TB, con Connection) *Fixture {
 		ApplyURI(con.URI).
 		SetAppName("test")
 
-	client, err := mongo.Connect(ctx, opts)
+	client, err := mongo.Connect(opts)
 	assert.Assert(t, err)
 
 	t.Cleanup(func() {

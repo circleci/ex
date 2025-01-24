@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/rootcerts"
@@ -57,5 +57,5 @@ func New(ctx context.Context, appName string, cfg Config) (client *mongo.Client,
 		})
 	}
 
-	return mongo.Connect(ctx, opts)
+	return mongo.Connect(opts)
 }

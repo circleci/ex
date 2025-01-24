@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"go.mongodb.org/mongo-driver/event"
+	"go.mongodb.org/mongo-driver/v2/event"
 )
 
 type poolMetrics struct {
@@ -70,19 +70,19 @@ func (c *poolMetrics) updateStats(e *event.PoolEvent) {
 	switch e.Type {
 	case event.ConnectionClosed:
 		c.connClosed++
-	case event.PoolCreated:
+	case event.ConnectionPoolCreated:
 		c.poolCreated++
 	case event.ConnectionCreated:
 		c.connCreated++
-	case event.GetFailed:
+	case event.ConnectionCheckOutFailed:
 		c.getFailed++
-	case event.GetSucceeded:
+	case event.ConnectionCheckedOut:
 		c.getSucceeded++
-	case event.ConnectionReturned:
+	case event.ConnectionCheckedIn:
 		c.connReturned++
-	case event.PoolCleared:
+	case event.ConnectionPoolCleared:
 		c.poolCleared++
-	case event.PoolClosedEvent:
+	case event.ConnectionPoolClosed:
 		c.poolClosed++
 	}
 
