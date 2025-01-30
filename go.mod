@@ -11,8 +11,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.34.0
 	github.com/aws/aws-sdk-go-v2/config v1.29.2
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.55
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.54
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.74.1
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.55
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.75.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/go-cmp v0.6.0
