@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
+
 	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/o11y"
@@ -21,6 +23,7 @@ import (
 type Downloader struct {
 	dir                    string
 	client                 *httpclient.Client
+	downloadTimeout        time.Duration
 	downloadAttemptTimeout time.Duration
 }
 
@@ -38,7 +41,8 @@ func NewDownloader(timeout time.Duration, dir string, options ...Option) (*Downl
 	}
 
 	downloader := &Downloader{
-		dir: dir,
+		dir:             dir,
+		downloadTimeout: timeout,
 		client: httpclient.New(httpclient.Config{
 			Name:    "downloader",
 			Timeout: timeout,
@@ -149,19 +153,49 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 		timeout = d.downloadAttemptTimeout
 	}
 
-	err = d.client.Call(ctx, httpclient.NewRequest("GET", url,
-		httpclient.Timeout(timeout),
-		httpclient.SuccessDecoder(func(r io.Reader) error {
-			_, err := io.Copy(out, r)
-			if err != nil {
-				return fmt.Errorf("could not write file %q: %w", target, err)
-			}
-			return nil
-		})))
+	// We've observed instances of the HTTP client hitting a context.DeadlineExceeded error whilst reading the response
+	// body in the decoder. Anywhere else in the call this would (likely) lead to the client retrying the request but, in
+	// this case, it doesn't because decoder errors are always treated as non-retryable. Therefore we wrap this HTTP call
+	// in our own retry mechanism (that only retries for context.DeadlineExceeded errors) to ensure we retry as expected
+	// in this case, also ensuring that we clear the file we're downloading to before retrying so that we have a clean
+	// slate on the retry. This retry mechanism also respects the timeout set on the HTTP client itself, so that we never
+	// retry for longer than requested by the caller.
+	download := func() error {
+		err := d.client.Call(ctx, httpclient.NewRequest("GET", url,
+			httpclient.Timeout(timeout),
+			httpclient.SuccessDecoder(func(r io.Reader) error {
+				_, err := io.Copy(out, r)
+				if err != nil {
+					return fmt.Errorf("could not write file %q: %w", target, err)
+				}
+				return nil
+			})))
 
+		if errors.Is(err, context.DeadlineExceeded) {
+			if err := d.clearFile(out); err != nil {
+				return backoff.Permanent(err)
+			}
+			return err
+		}
+
+		return backoff.Permanent(err)
+	}
+
+	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(d.downloadTimeout)), ctx)
+	err = backoff.Retry(download, bo)
 	if err != nil {
 		return fmt.Errorf("could not get URL %q: %w", url, err)
 	}
 
 	return nil
+}
+
+func (d *Downloader) clearFile(file *os.File) error {
+	err := file.Truncate(0)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.Seek(0, 0)
+	return err
 }
