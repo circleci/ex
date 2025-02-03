@@ -2,6 +2,7 @@ package download
 
 import (
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,13 +12,16 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/circleci/ex/httpserver/ginrouter"
 	"github.com/circleci/ex/testing/httprecorder"
 	"github.com/circleci/ex/testing/testcontext"
 )
@@ -270,6 +274,54 @@ func TestDownloader_AttemptTimeout(t *testing.T) {
 	})
 }
 
+func TestDownloader_Retry(t *testing.T) {
+	tests := []struct {
+		name           string
+		attemptTimeout time.Duration
+		expectErr      bool
+	}{
+		{
+			name: "succeeds after retry",
+		},
+		{
+			name:           "fails after timeout",
+			attemptTimeout: 10 * time.Second,
+			expectErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := testcontext.Background()
+			dir := t.TempDir()
+
+			attemptTimeout := 2 * time.Second
+			if tt.attemptTimeout != 0 {
+				attemptTimeout = tt.attemptTimeout
+			}
+
+			contents := "abcdef1234567890"
+			s := newFakeBucket(ctx, []byte(contents), attemptTimeout*2)
+
+			timeout := 10 * time.Second
+			d, err := NewDownloader(timeout, dir, AttemptTimeout(attemptTimeout))
+			assert.NilError(t, err)
+
+			start := time.Now()
+			target, err := d.Download(ctx, s.URL+"/file", os.ModePerm)
+			assert.Check(t, time.Since(start) < timeout+(500*time.Millisecond))
+
+			if tt.expectErr {
+				assert.Check(t, err != nil)
+			} else {
+				assert.NilError(t, err)
+				assertFileContents(t, target, contents)
+				assert.Check(t, cmp.Equal(s.DownloadAttempts(), 2))
+			}
+		})
+	}
+}
+
 func assertFileContents(t *testing.T, path, contents string) {
 	t.Helper()
 
@@ -290,3 +342,68 @@ func assertFileContents(t *testing.T, path, contents string) {
 var ignoreO11yCombHeaders = cmpopts.IgnoreMapEntries(func(key string, values []string) bool {
 	return key == "X-Honeycomb-Trace" || key == "Traceparent" || key == "Tracestate"
 })
+
+type fakeBucket struct {
+	URL   string
+	Close func()
+
+	fileContents []byte
+
+	downloadDelay time.Duration
+	downloadCount atomic.Int32
+}
+
+func newFakeBucket(ctx context.Context, file []byte, delay time.Duration) *fakeBucket {
+	d := &fakeBucket{
+		fileContents:  file,
+		downloadDelay: delay,
+	}
+	d.start(ctx)
+	return d
+}
+
+func (b *fakeBucket) DownloadAttempts() int {
+	return int(b.downloadCount.Load())
+}
+
+func (b *fakeBucket) start(ctx context.Context) {
+	r := ginrouter.Default(ctx, "fake-bucket")
+
+	r.GET("/:file", b.downloadFile)
+
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		r.ServeHTTP(w, req)
+	}))
+	b.URL = s.URL
+	b.Close = s.Close
+}
+
+func (b *fakeBucket) downloadFile(c *gin.Context) {
+	defer func() {
+		b.downloadCount.Add(1)
+	}()
+
+	count := len(b.fileContents)
+
+	// Write half of the response bytes
+	wrote, err := c.Writer.Write(b.fileContents[:count/2])
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Writer.Flush()
+
+	// If we've got a delay then hang on the first request to simulate a misbehaving server, but don't
+	// on subsequent requests, so we can validate retry behaviour
+	if b.downloadDelay != 0 && b.downloadCount.Load() < 1 {
+		time.Sleep(b.downloadDelay)
+	}
+
+	// Write the rest of the response bytes
+	_, err = c.Writer.Write(b.fileContents[wrote:])
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Status(http.StatusOK)
+}
