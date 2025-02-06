@@ -44,7 +44,7 @@ require (
 	golang.org/x/net v0.34.0
 	golang.org/x/sync v0.11.0
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.36.4
+	google.golang.org/protobuf v1.36.5
 	gotest.tools/v3 v3.5.1
 )
 
