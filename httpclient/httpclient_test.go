@@ -297,7 +297,6 @@ func TestClient_Call_Propagates(t *testing.T) {
 			"hc_tcl.http.host":                    true,
 			"hc_tcl.http.method":                  true,
 			"span.kind":                           true,
-			"internal.span.format":                true,
 
 			// N.B. these are added by the jaegertracing/all-in-one:latest image. If you see different results than CI,
 			// it's best to do a docker-compose pull to ensure you're using the latest image.
