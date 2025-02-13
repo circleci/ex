@@ -33,8 +33,9 @@ type Provider struct {
 	publishInterval  time.Duration
 	mu               sync.RWMutex
 	data             []metricData
-	stop             chan bool
-	stopMu           sync.Mutex
+
+	stop     chan bool
+	stopOnce sync.Once // only close the chanel once
 }
 
 type metricData struct {
@@ -105,18 +106,12 @@ func (m *Provider) Count(n string, v int64, t []string, rate float64) error {
 }
 
 func (m *Provider) Close() error {
-	m.stopMu.Lock()
-	defer m.stopMu.Unlock()
-
-	if m.stop != nil {
+	m.stopOnce.Do(func() {
 		close(m.stop)
-		m.stop = nil
-
 		ctx, done := context.WithTimeout(context.Background(), sendTimeout)
 		defer done()
 		m.Publish(ctx)
-	}
-
+	})
 	return nil
 }
 
