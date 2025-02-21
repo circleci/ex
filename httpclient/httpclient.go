@@ -174,11 +174,6 @@ type Request struct {
 	query          url.Values
 	rawquery       string
 
-	// We want to prevent HTTP GETs with body or rawBody due to incompatibilities with CloudFront WAF which API Infra
-	// are introducing. In order to facilitate a migration for runner we need to be able to override this. This can be
-	// removed once RT-724 is completed.
-	allowGETWithBody bool
-
 	propagation bool
 	flatten     string
 
@@ -215,14 +210,6 @@ func NewRequest(method, route string, opts ...func(*Request)) Request {
 func RouteParams(routeParams ...interface{}) func(*Request) {
 	return func(r *Request) {
 		r.url = fmt.Sprintf(r.route, routeParams...)
-	}
-}
-
-// AllowGETWithBody will allow the client to send a GET request with a body, which we error on by default. We should
-// remove this once RT-724 is completed.
-func AllowGETWithBody() func(*Request) {
-	return func(r *Request) {
-		r.allowGETWithBody = true
 	}
 }
 
@@ -793,7 +780,6 @@ func doneRetrying(err error) error {
 func (r Request) validate() error {
 	// We do not allow GET requests with Body as they are not supported by CloudFront WAF, which requests are routed
 	// through. - https://circleci.slack.com/archives/C03M4P0Q4GH/p1659566842825159
-	// This can be overridden with httpclient.AllowGETWithBody() if required for legacy or third-party compatibility
 	if !r.validateGetWithBody() {
 		return errors.New("cannot have GET request with body or raw body")
 	}
@@ -814,7 +800,7 @@ func (r Request) validateOnlyRawBodyOrBody() bool {
 }
 
 func (r Request) validateGetWithBody() bool {
-	if !r.allowGETWithBody && (r.method == "GET" && r.hasBody()) {
+	if r.method == "GET" && r.hasBody() {
 		return false
 	}
 
