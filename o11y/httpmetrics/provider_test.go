@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	gcmp "github.com/google/go-cmp/cmp"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -132,7 +133,11 @@ func TestProvider_Record(t *testing.T) {
 				m.record(aMet.Type, aMet.Name, aMet.Value, aMet.Tags)
 			}
 
-			assert.Check(t, cmp.DeepEqual(m.data, tt.expectedMetricsData))
+			for i := range tt.expectedMetricsData {
+				tt.expectedMetricsData[i].Timestamp = time.Now().Unix()
+			}
+
+			assert.Check(t, cmp.DeepEqual(m.data, tt.expectedMetricsData, equateApproxUnixTime(1)))
 		})
 	}
 }
@@ -255,7 +260,11 @@ func TestProvider_Publish(t *testing.T) {
 			err := eg.Wait()
 			assert.NilError(t, err)
 
-			assert.Check(t, cmp.DeepEqual(m.data, tt.expectedMetricsData))
+			for i := range tt.expectedMetricsData {
+				tt.expectedMetricsData[i].Timestamp = time.Now().Unix()
+			}
+
+			assert.Check(t, cmp.DeepEqual(m.data, tt.expectedMetricsData, equateApproxUnixTime(1)))
 		})
 	}
 }
@@ -352,4 +361,29 @@ func TestProvider_New(t *testing.T) {
 			})
 		})
 	}
+}
+
+func equateApproxUnixTime(marginSec int64) gcmp.Option {
+	if marginSec < 0 {
+		panic("margin must be a non-negative number")
+	}
+	a := timeApproximator{marginSec}
+	return gcmp.FilterValues(areNonZeroTimes, gcmp.Comparer(a.compare))
+}
+
+func areNonZeroTimes(x, y int64) bool {
+	return x > 0 && y > 0
+}
+
+type timeApproximator struct {
+	marginSec int64
+}
+
+func (a timeApproximator) compare(x, y int64) bool {
+	if x > y {
+		// Ensure x is always before y
+		x, y = y, x
+	}
+	// We're within the margin if x+margin >= y.
+	return x+a.marginSec >= y
 }

@@ -39,10 +39,11 @@ type Provider struct {
 }
 
 type metricData struct {
-	Type  string   `json:"type"`
-	Name  string   `json:"name"`
-	Value float64  `json:"value"`
-	Tags  []string `json:"tags"`
+	Type      string   `json:"type"`
+	Name      string   `json:"name"`
+	Timestamp int64    `json:"timestamp"`
+	Value     float64  `json:"value"`
+	Tags      []string `json:"tags"`
 }
 
 type Tags map[string]string
@@ -124,10 +125,11 @@ func (m *Provider) record(metricType, metricName string, metricValue float64, me
 		name = fmt.Sprintf("%s.%s", m.namespace, name)
 	}
 	m.data = append(m.data, metricData{
-		Type:  metricType,
-		Name:  name,
-		Value: metricValue,
-		Tags:  metricTags,
+		Type:      metricType,
+		Name:      name,
+		Timestamp: time.Now().Unix(),
+		Value:     metricValue,
+		Tags:      metricTags,
 	})
 }
 
