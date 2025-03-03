@@ -6,7 +6,7 @@ toolchain go1.24.0
 
 require (
 	github.com/golangci/golangci-lint v1.64.6
-	github.com/gwatts/rootcerts v0.0.0-20250101202213-6b948e2b3fef
+	github.com/gwatts/rootcerts v0.0.0-20250301185136-8180986b1a75
 	github.com/rinchsan/gosimports v0.3.8
 	gotest.tools/gotestsum v1.12.0
 )
