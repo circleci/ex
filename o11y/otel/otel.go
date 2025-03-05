@@ -251,7 +251,6 @@ func (o Provider) MakeSpanGolden(ctx context.Context) context.Context {
 	spec.ctx, _ = o.StartSpan(spec.ctx, sp.name, sp.opts...)
 	sp.golden = o.getSpan(spec.ctx)
 	sp.golden.AddRawField(metaGolden, true)
-	sp.link(sp.golden)
 
 	return ctx
 }
@@ -392,23 +391,6 @@ type span struct {
 
 	mu     sync.RWMutex // mu is a write mutex for the map below (concurrent reads are safe)
 	fields map[string]any
-}
-
-func (s *span) link(sp *span) {
-	attrs := []attribute.KeyValue{
-		{
-			Key:   "meta.link.type",
-			Value: attribute.StringValue("golden"),
-		}}
-	s.span.AddLink(trace.Link{
-		SpanContext: sp.span.SpanContext(),
-		Attributes:  attrs,
-	})
-
-	sp.span.AddLink(trace.Link{
-		SpanContext: s.span.SpanContext(),
-		Attributes:  attrs,
-	})
 }
 
 func (s *span) AddField(key string, val any) {
