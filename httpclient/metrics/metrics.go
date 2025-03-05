@@ -227,7 +227,7 @@ func (r *request) gotCon(info httptrace.GotConnInfo) {
 	}
 	r.conDoneAt = time.Now()
 
-	commonTags := append(r.commonTags, "host:"+r.con.host)
+	commonTags := append(r.commonTags, "hostport:"+r.con.host)
 
 	tags := map[string]string{
 		"reused":  "false",
