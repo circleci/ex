@@ -3,11 +3,16 @@ package otel
 import (
 	"fmt"
 	"reflect"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 )
 
 func attr(key string, vi any) attribute.KeyValue {
+	// errors are best handled as strings
+	if e, ok := vi.(error); ok {
+		return attribute.Key(key).String(e.Error())
+	}
 	val := deref(vi)
 	switch v := val.(type) {
 	case string:
@@ -28,6 +33,8 @@ func attr(key string, vi any) attribute.KeyValue {
 		return attribute.Key(key).Float64(float64(v))
 	case float64:
 		return attribute.Key(key).Float64(v)
+	case time.Duration:
+		return attribute.Key(key).Int64(v.Milliseconds())
 	default:
 		if s, ok := val.(fmt.Stringer); ok {
 			if isNil(s) {
