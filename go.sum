@@ -115,8 +115,9 @@ github.com/go-playground/universal-translator v0.18.1 h1:Bcnm0ZwsGyWbCzImXv+pAJn
 github.com/go-playground/universal-translator v0.18.1/go.mod h1:xekY+UJKNuX9WP91TpwSH2VMlDf28Uj24BCp08ZFTUY=
 github.com/go-playground/validator/v10 v10.22.0 h1:k6HsTZ0sTnROkhS//R0O+55JgM8C4Bx7ia+JlgcnOao=
 github.com/go-playground/validator/v10 v10.22.0/go.mod h1:dbuPbCMFw/DrkbEynArYaCwl3amGuJotoKCe95atGMM=
-github.com/go-sql-driver/mysql v1.8.1 h1:LedoTUt/eveggdHS9qUFC1EFSa8bU2+1pZjSRpvNJ1Y=
 github.com/go-sql-driver/mysql v1.8.1/go.mod h1:wEBSXgmK//2ZFJyE+qWnIsVGmvmEKlqwuVSjsCm7DZg=
+github.com/go-sql-driver/mysql v1.9.1 h1:FrjNGn/BsJQjVRuSa8CBrM5BWA9BWoXXat3KrtSb/iI=
+github.com/go-sql-driver/mysql v1.9.1/go.mod h1:qn46aNg1333BRMNU69Lq93t8du/dwxI64Gl8i5p1WMU=
 github.com/go-test/deep v1.0.2 h1:onZX1rnHT3Wv6cqNgYyFOOlgVKJrksuCMCRvJStbMYw=
 github.com/go-test/deep v1.0.2/go.mod h1:wGDj63lr65AM2AQyKZd/NYHGb0R+1RLqB8NKt3aSFNA=
 github.com/goccy/go-json v0.10.2 h1:CrxCmQqYDkv1z7lO7Wbh2HN93uovUHgrECaO5ZrCXAU=
@@ -165,8 +166,8 @@ github.com/hellofresh/health-go/v5 v5.5.3 h1:i+mfJcA8te/QhBzrBZxOw344XgIvHrc9IQz
 github.com/hellofresh/health-go/v5 v5.5.3/go.mod h1:maWprKoK7N9zno7l2ubFEGVF2SDmTHq5D9sV+lCFmGs=
 github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUqJM=
 github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
-github.com/honeycombio/beeline-go v1.18.0 h1:usCoLWAX0kMHPOd9+4sVM8MH0FZTTKaBm3UuVTb4ypg=
-github.com/honeycombio/beeline-go v1.18.0/go.mod h1:EQ+Wz76mVNAT98hwahTqna61y/XVVxEqWyh4k87BXSM=
+github.com/honeycombio/beeline-go v1.19.0 h1:FikgbX3PgivINs5kQHby6aVzhXZt6RtKvH6TGDSWV4c=
+github.com/honeycombio/beeline-go v1.19.0/go.mod h1:NsFeKTliw5xrG4s1/P3sOCaip+gcBYZktY5SuS4xKao=
 github.com/honeycombio/dynsampler-go v0.6.0 h1:fs4mrfeFGU5V+ClwpblFzbWqn4Apb+lKlE7Ja5zL22I=
 github.com/honeycombio/dynsampler-go v0.6.0/go.mod h1:pJqWFeoMN3syX74PEvlusieyGBbtIBjmTVjLc3thmK4=
 github.com/honeycombio/libhoney-go v1.25.0 h1:r33tlX90HtafK0bgRcjfNnsrJ9ZMTKuI/1DYaOFCc1o=
