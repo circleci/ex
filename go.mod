@@ -2,7 +2,7 @@ module github.com/circleci/ex
 
 go 1.23.0
 
-toolchain go1.24.1
+toolchain go1.24.2
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
