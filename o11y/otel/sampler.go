@@ -18,6 +18,8 @@ func (s deterministicSampler) shouldSample(p sdktrace.ReadOnlySpan) (bool, uint)
 	for _, attr := range p.Attributes() {
 		fields[string(attr.Key)] = attr.Value.AsInterface()
 	}
+	// fields used in the existing sample key func
+	fields["duration_ms"] = int(p.EndTime().Sub(p.StartTime()).Milliseconds())
 	fields["name"] = p.Name()
 
 	key := s.sampleKeyFunc(fields)

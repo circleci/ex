@@ -17,29 +17,28 @@ func TestSetup(t *testing.T) {
 	s := fakestatsd.New(t)
 
 	ctx := context.Background()
-	ctx, cleanup, err := o11yconfig.Setup(ctx, o11yconfig.Config{
+	ctx, cleanup, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
 		Statsd:            s.Addr(),
 		RollbarToken:      "qwertyuiop",
 		RollbarDisabled:   true,
 		RollbarEnv:        "production",
 		RollbarServerRoot: "github.com/circleci/ex",
-		HoneycombEnabled:  false,
-		HoneycombDataset:  "does-not-exist",
-		HoneycombKey:      "1234567890",
 		SampleTraces:      false,
-		Format:            "color",
+		Test:              true,
 		Version:           "1.2.3",
 		Service:           "test-service",
 		StatsNamespace:    "test.service",
 		Mode:              "banana",
-		Debug:             true,
 	})
 	assert.Assert(t, err)
 
-	t.Run("Send metric", func(t *testing.T) {
+	t.Run("Add some telemetry", func(t *testing.T) {
 		p := o11y.FromContext(ctx)
 		err = p.MetricsProvider().Count("my_count", 1, []string{"mytag:myvalue"}, 1)
 		assert.Check(t, err)
+
+		_, sp := p.StartSpan(ctx, "my_span")
+		sp.End()
 	})
 
 	t.Run("Cleanup provider", func(t *testing.T) {

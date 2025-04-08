@@ -527,6 +527,9 @@ func TestSampling(t *testing.T) {
 			GrpcHostAndPort: lis.Addr().String(),
 			SampleTraces:    true,
 			SampleKeyFunc: func(m map[string]any) string {
+				if _, ok := m["duration_ms"].(int); !ok {
+					t.Error("duration_ms is not an int or does not exist")
+				}
 				return fmt.Sprintf("%s", m["name"])
 			},
 			SampleRates: map[string]uint{
