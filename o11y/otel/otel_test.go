@@ -206,11 +206,12 @@ func TestProvider(t *testing.T) {
 	defer grpcServer.Stop()
 
 	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
-		Service:         "app-main",
-		Version:         "dev-test",
-		Dataset:         "execyooshun",
-		GrpcHostAndPort: lis.Addr().String(),
-		StatsNamespace:  "test-app",
+		Service:             "app-main",
+		Version:             "dev-test",
+		Dataset:             "execyooshun",
+		GrpcHostAndPort:     lis.Addr().String(),
+		StatsNamespace:      "test-app",
+		DisableTailSampling: true,
 	})
 	assert.NilError(t, err)
 	defer closeProvider(ctx)
@@ -246,6 +247,7 @@ func TestProvider(t *testing.T) {
 	assert.Check(t, cmp.Equal(len(col.spans), 1))
 	assert.Check(t, cmp.Equal(col.spans[0].Attrs["app.cc_key"], "cc_val"))
 	assert.Check(t, cmp.Equal(col.spans[0].Attrs["app.p_key"], "p_val"))
+	assert.Check(t, cmp.Equal(col.resourceAttr["meta.sampling.disabled"], "true"))
 }
 
 func TestConcurrentSpanAccess(t *testing.T) {
