@@ -31,6 +31,9 @@ type OtelConfig struct {
 	// UseEnvironments will cause spans to be sent to the new honeycomb environments
 	UseEnvironments bool
 
+	// This will tell the collectors to bypass the server side tail based sampler
+	DisableTailSampling bool
+
 	// DisableText prevents output to stdout for noisy services. Ignored if no other no hosts are supplied
 	DisableText bool
 
@@ -124,6 +127,9 @@ func (o *OtelConfig) otel() otel.Config {
 	}
 	if o.UseEnvironments {
 		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.environments", true))
+	}
+	if o.DisableTailSampling {
+		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.sampling.disabled", true))
 	}
 	return cfg
 }
