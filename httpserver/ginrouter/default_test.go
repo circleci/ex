@@ -90,7 +90,7 @@ func checkO11yHasStatus(t *testing.T, b *syncbuffer.SyncBuffer, needle string) {
 		scanner := bufio.NewScanner(strings.NewReader(s))
 		for scanner.Scan() {
 			text := scanner.Text()
-			if !strings.Contains(text, "http-server test server") {
+			if !strings.Contains(text, "GET /") {
 				continue
 			}
 			if strings.Contains(text, needle) {

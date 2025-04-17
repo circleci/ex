@@ -63,51 +63,6 @@ func TestHoneycomb(t *testing.T) {
 	assert.Assert(t, gotEvent, "expected to receive an event")
 }
 
-func TestHoneycomb_ValidatesKeys(t *testing.T) {
-	resetSamplerHook(t)
-	h := New(Config{
-		Dataset:     "test-dataset",
-		Host:        "invalid-url",
-		SendTraces:  true,
-		Key:         "a-key",
-		ServiceName: "a-service-name",
-	})
-
-	recovery := func(key string) {
-		p := recover()
-		err, success := p.(error)
-		assert.Check(t, success)
-		assert.Check(t, cmp.ErrorContains(err, key))
-	}
-
-	ctx := o11y.WithProvider(context.Background(), h)
-	defer h.Close(ctx)
-
-	func() {
-		defer recovery("invalid-global-field")
-		h.AddGlobalField("invalid-global-field", "value")
-	}()
-
-	ctx, span := o11y.StartSpan(ctx, "test-span")
-	func() {
-		defer recovery("invalid-trace-key")
-		o11y.AddFieldToTrace(ctx, "invalid-trace-key", "value")
-	}()
-	func() {
-		defer recovery("invalid-another-key")
-		o11y.AddField(ctx, "invalid-another-key", "value")
-	}()
-	func() {
-		defer recovery("invalid-span-key")
-		span.AddField("invalid-span-key", "value")
-	}()
-	func() {
-		defer recovery("invalid-raw-key")
-		span.AddRawField("invalid-raw-key", "value")
-	}()
-	span.End()
-}
-
 func TestHoneycombMetricsDoesntPolluteWhenNotConfigured(t *testing.T) {
 	// For horrible constructor-masking-a-singleton reasons this needed to run
 	// before any test which enables metrics

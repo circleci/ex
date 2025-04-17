@@ -26,7 +26,7 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 
 		ctx := o11y.WithProvider(c.Request.Context(), provider)
 		ctx = o11y.WithBaggage(ctx, baggage.Get(ctx, c.Request))
-		ctx, span := startSpanOrTraceFromHTTP(ctx, c, provider, serverName)
+		ctx, span := startSpanOrTraceFromHTTP(ctx, c, provider)
 		defer span.End()
 
 		c.Request = c.Request.WithContext(ctx)
@@ -63,6 +63,7 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 		// Server OTEL attributes
 		span.AddRawField("meta.type", "http_server")
 		span.AddRawField("http.server_name", serverName)
+		span.AddRawField("http.server.name", serverName)
 		span.AddRawField("http.route", c.FullPath())
 		span.AddRawField("http.client_ip", c.ClientIP())
 
@@ -75,6 +76,12 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 		span.AddRawField("http.user_agent", c.Request.UserAgent())
 		span.AddRawField("http.request_content_length", c.Request.ContentLength)
 
+		semconvServerRequest(span, requestVals{
+			Req:      c.Request,
+			Route:    c.FullPath(),
+			ClientIP: c.ClientIP(),
+		})
+
 		defer func() {
 			// Common OTEL attributes
 			o11yStatus := c.Writer.Status()
@@ -83,6 +90,7 @@ func Middleware(provider o11y.Provider, serverName string, queryParams map[strin
 			}
 			span.AddRawField("http.status_code", o11yStatus)
 			span.AddRawField("http.response_content_length", c.Writer.Size())
+			semconvServerResponse(span, o11yStatus)
 
 			if m != nil {
 				_ = m.TimeInMilliseconds("handler",
@@ -150,9 +158,7 @@ func Golden(p o11y.Provider) gin.HandlerFunc {
 	}
 }
 
-func startSpanOrTraceFromHTTP(ctx context.Context,
-	c *gin.Context, p o11y.Provider, serverName string) (context.Context, o11y.Span) {
-
+func startSpanOrTraceFromHTTP(ctx context.Context, c *gin.Context, p o11y.Provider) (context.Context, o11y.Span) {
 	spanKindOpt := o11y.WithSpanKind(o11y.SpanKindServer)
 	span := p.GetSpan(ctx)
 	if span == nil {
@@ -160,12 +166,12 @@ func startSpanOrTraceFromHTTP(ctx context.Context,
 		ctx, span := p.Helpers().InjectPropagation(ctx,
 			o11y.PropagationContextFromHeader(c.Request.Header), spanKindOpt)
 
-		span.AddRawField("name", fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()))
+		span.AddRawField("name", fmt.Sprintf("%s %s", c.Request.Method, c.FullPath()))
 		return ctx, span
 	} else {
 		// we had a parent! let's make a new child for this handler
 		ctx, span = o11y.StartSpan(ctx,
-			fmt.Sprintf("http-server %s: %s %s", serverName, c.Request.Method, c.FullPath()),
+			fmt.Sprintf("%s %s", c.Request.Method, c.FullPath()),
 			o11y.WithSpanKind(o11y.SpanKindServer),
 		)
 	}

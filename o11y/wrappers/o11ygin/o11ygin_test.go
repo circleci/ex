@@ -104,7 +104,7 @@ func TestMiddleware(t *testing.T) {
 					Metric: "count",
 					Name:   "panics",
 					Tags: []string{
-						"name:http-server test-server: POST /api/:id",
+						"name:POST /api/:id",
 					},
 					Rate: 1,
 				},
@@ -289,10 +289,10 @@ func TestMiddleware_Golden(t *testing.T) {
 		t.Run("normal", func(t *testing.T) {
 			assert.Check(t, cmp.Len(normalTrace.Spans, 2))
 			spans := normalTrace.Spans
-			sort.Slice(spans, func(i, j int) bool { return spans[i].OperationName < spans[j].OperationName })
-			assert.Check(t, cmp.Equal(spans[0].OperationName, "http-server test-server: POST /api/:id"))
+			sort.Slice(spans, func(i, j int) bool { return spans[i].OperationName > spans[j].OperationName })
+			assert.Check(t, cmp.Equal(spans[0].OperationName, "POST /api/:id"))
 			jaeger.AssertTag(t, spans[0].Tags, "span.kind", "server")
-			assert.Check(t, cmp.Equal(spans[1].OperationName, "httpclient: test-client /api/%s"))
+			assert.Check(t, cmp.Equal(spans[1].OperationName, "POST /api/%s"))
 			jaeger.AssertTag(t, spans[1].Tags, "span.kind", "client")
 		})
 
@@ -300,7 +300,7 @@ func TestMiddleware_Golden(t *testing.T) {
 			// we did not mark the client span as golden so we should only expect one
 			assert.Check(t, cmp.Len(goldenTrace.Spans, 1))
 			spans := goldenTrace.Spans
-			assert.Check(t, cmp.Equal(spans[0].OperationName, "http-server test-server: POST /api/:id"))
+			assert.Check(t, cmp.Equal(spans[0].OperationName, "POST /api/:id"))
 			jaeger.AssertTag(t, spans[0].Tags, "span.kind", "server")
 			jaeger.AssertTag(t, spans[0].Tags, "meta.golden", "true")
 		})
