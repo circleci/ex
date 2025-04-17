@@ -375,7 +375,7 @@ func (c *Client) Call(ctx context.Context, r Request) (err error) {
 	if err := r.validate(); err != nil {
 		return err
 	}
-	spanName := fmt.Sprintf("httpclient: %s %s", c.name, r.route)
+	spanName := fmt.Sprintf("%s %s", r.method, r.route)
 	// most clients should use NewRequest, but if they created a Request directly
 	// use the raw route
 	if r.url == "" {
@@ -490,6 +490,12 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 		span.AddRawField("http.route", r.route)
 		span.AddRawField("http.base_url", c.baseURL)
 		addReqToSpan(span, req, attemptCounter)
+		addSemconvRequestAttrs(span, requestVals{
+			Req:        req,
+			Route:      r.route,
+			Attempt:    attemptCounter,
+			ClientName: c.name,
+		})
 
 		res, err := c.httpClient.Do(req)
 		if err != nil {
@@ -523,6 +529,7 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 			)
 		}
 		addRespToSpan(span, res)
+		addSemconvResponseAttrs(span, res)
 
 		err = extractHTTPError(req, res, attemptCounter, r.route)
 		if err != nil {

@@ -16,7 +16,7 @@ import (
 
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/honeycomb"
+	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/system"
 	"github.com/circleci/ex/testing/fakestatsd"
 	"github.com/circleci/ex/testing/testcontext"
@@ -236,8 +236,9 @@ func setupMetrics(t *testing.T, ctx context.Context) (context.Context, func() []
 		return metrics
 	}
 
-	return o11y.WithProvider(ctx, honeycomb.New(honeycomb.Config{
-		Format:  "color",
+	p, err := otel.New(otel.Config{
 		Metrics: stats,
-	})), done
+	})
+	assert.NilError(t, err)
+	return o11y.WithProvider(ctx, p), done
 }

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
@@ -182,7 +181,6 @@ func (o *Provider) RawProvider() *Provider {
 }
 
 func (o Provider) AddGlobalField(key string, val any) {
-	mustValidateKey(key)
 	globalFields.addField(key, val)
 }
 
@@ -367,7 +365,6 @@ func (t *tr) addField(key string, val any) {
 	if val == nil {
 		return
 	}
-	mustValidateKey(key)
 
 	t.mu.Lock()
 	t.fields[key] = val
@@ -405,7 +402,6 @@ func (s *span) AddRawField(key string, val any) {
 	if val == nil {
 		return
 	}
-	mustValidateKey(key)
 
 	s.mu.Lock()
 	s.fields[key] = val
@@ -523,12 +519,6 @@ func (s *span) snapshotFields() map[string]any {
 		res[k] = v
 	}
 	return res
-}
-
-func mustValidateKey(key string) {
-	if strings.Contains(key, "-") {
-		panic(fmt.Errorf("key %q cannot contain '-'", key))
-	}
 }
 
 type multipleExporter struct {

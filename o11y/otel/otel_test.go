@@ -664,9 +664,9 @@ func TestKind(t *testing.T) {
 		assert.Check(t, cmp.Len(traces[0].Spans, 2))
 		spans := traces[0].Spans
 		sort.Slice(spans, func(i, j int) bool { return spans[i].OperationName < spans[j].OperationName })
-		assert.Check(t, cmp.Equal(spans[0].OperationName, "http-server main-server: GET /"))
+		assert.Check(t, cmp.Equal(spans[0].OperationName, "GET /"))
 		jaeger.AssertTag(t, spans[0].Tags, "span.kind", "server")
-		assert.Check(t, cmp.Equal(spans[1].OperationName, "httpclient: test-client /"))
+		assert.Check(t, cmp.Equal(spans[1].OperationName, "GET /"))
 		jaeger.AssertTag(t, spans[1].Tags, "span.kind", "client")
 	})
 }

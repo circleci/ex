@@ -297,6 +297,18 @@ func TestClient_Call_Propagates(t *testing.T) {
 			"hc_tcl.http.host":                    true,
 			"hc_tcl.http.method":                  true,
 			"span.kind":                           true,
+			"hc_tcl.backplane.client.name":        true,
+			"hc_tcl.http.request.body.size":       true,
+			"hc_tcl.http.request.method":          true,
+			"hc_tcl.http.request.resend_count":    true,
+			"hc_tcl.http.response.body.size":      true,
+			"hc_tcl.http.response.status_code":    true,
+			"hc_tcl.server.address":               true,
+			"hc_tcl.server.port":                  true,
+			"hc_tcl.url.full":                     true,
+			"hc_tcl.url.scheme":                   true,
+			"hc_tcl.url.template":                 true,
+			"hc_tcl.user_agent.original":          true,
 
 			// N.B. these are added by the jaegertracing/all-in-one:latest image. If you see different results than CI,
 			// it's best to do a docker-compose pull to ensure you're using the latest image.
