@@ -93,7 +93,7 @@ jobs:
           '/datanv',
           '--address', ':9124',
         ]
-      - image: hashicorp/vault:1.19.1
+      - image: hashicorp/vault:1.19.2
         environment:
           SKIP_SETCAP: skip
           VAULT_DEV_ROOT_TOKEN_ID: dummyroot
