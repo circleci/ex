@@ -77,7 +77,7 @@ services:
       - '127.0.0.1:9001:9001'
 
   vault:
-    image: hashicorp/vault:1.19.1
+    image: hashicorp/vault:1.19.2
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: dummyroot
     ports:
