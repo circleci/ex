@@ -3,6 +3,7 @@ package o11y
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -510,4 +511,25 @@ func DeserializeBaggage(s string) (Baggage, error) {
 		result[k] = v[0]
 	}
 	return result, nil
+}
+
+// Propagation extracts a trace propagation string from the context.
+func Propagation(ctx context.Context) string {
+	pc := FromContext(ctx).Helpers().ExtractPropagation(ctx)
+	b, err := json.Marshal(pc.Headers)
+	if err != nil {
+		return ""
+	}
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+// SpanFromPropagation starts a span in the trace context injected from the propagation string.
+func SpanFromPropagation(ctx context.Context, name, propagation string) (context.Context, Span) {
+	pr := PropagationContext{}
+	// We are ok to fail silently with no propagation
+	b, _ := base64.StdEncoding.DecodeString(propagation)
+	_ = json.Unmarshal(b, &pr.Headers)
+	ctx, span := FromContext(ctx).Helpers().InjectPropagation(ctx, pr)
+	span.AddRawField("name", name)
+	return ctx, span
 }
