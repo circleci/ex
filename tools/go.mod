@@ -8,7 +8,7 @@ require (
 	github.com/golangci/golangci-lint v1.64.8
 	github.com/gwatts/rootcerts v0.0.0-20250301185136-8180986b1a75
 	github.com/rinchsan/gosimports v0.3.8
-	gotest.tools/gotestsum v1.12.1
+	gotest.tools/gotestsum v1.12.2
 )
 
 require (
