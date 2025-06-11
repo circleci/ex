@@ -162,8 +162,8 @@ github.com/hashicorp/hcl v1.0.1-vault-7 h1:ag5OxFVy3QYTFTJODRzTKVZ6xvdfLLCA1cy/Y
 github.com/hashicorp/hcl v1.0.1-vault-7/go.mod h1:XYhtn6ijBSAj6n4YqAaf7RBPS4I06AItNorpy+MoQNM=
 github.com/hashicorp/vault/api v1.20.0 h1:KQMHElgudOsr+IbJgmbjHnCTxEpKs9LnozA1D3nozU4=
 github.com/hashicorp/vault/api v1.20.0/go.mod h1:GZ4pcjfzoOWpkJ3ijHNpEoAxKEsBJnVljyTe3jM2Sms=
-github.com/hashicorp/vault/api/auth/kubernetes v0.9.0 h1:xV3xXMtSV8tq5iefueAw3OOdhhXyjnyhrQkIFM5fh54=
-github.com/hashicorp/vault/api/auth/kubernetes v0.9.0/go.mod h1:3K6uEUKZLBQ3d+eXAa4Ubp4UocswU90zY4QP5Az3Vw8=
+github.com/hashicorp/vault/api/auth/kubernetes v0.10.0 h1:5rqWmUFxnu3S7XYq9dafURwBgabYDFzo2Wv+AMopPHs=
+github.com/hashicorp/vault/api/auth/kubernetes v0.10.0/go.mod h1:cZZmhF6xboMDmDbMY52oj2DKW6gS0cQ9g0pJ5XIXQ5U=
 github.com/hellofresh/health-go/v5 v5.5.4 h1:aOCIf1eHSRrPegRUJ2rzc7avck/lFSFLn+Zl3qKJcjc=
 github.com/hellofresh/health-go/v5 v5.5.4/go.mod h1:W+6uiWHS/m9jaB0aYBVlUBTeyE98yom6f+0ewLoBPYQ=
 github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUqJM=
