@@ -170,8 +170,8 @@ github.com/hexops/gotextdiff v1.0.3 h1:gitA9+qJrrTCsiCl7+kh75nPqQt1cx4ZkudSTLoUq
 github.com/hexops/gotextdiff v1.0.3/go.mod h1:pSWU5MAI3yDq+fZBTazCSJysOMbxWL1BSow5/V2vxeg=
 github.com/honeycombio/beeline-go v1.19.0 h1:FikgbX3PgivINs5kQHby6aVzhXZt6RtKvH6TGDSWV4c=
 github.com/honeycombio/beeline-go v1.19.0/go.mod h1:NsFeKTliw5xrG4s1/P3sOCaip+gcBYZktY5SuS4xKao=
-github.com/honeycombio/dynsampler-go v0.6.0 h1:fs4mrfeFGU5V+ClwpblFzbWqn4Apb+lKlE7Ja5zL22I=
-github.com/honeycombio/dynsampler-go v0.6.0/go.mod h1:pJqWFeoMN3syX74PEvlusieyGBbtIBjmTVjLc3thmK4=
+github.com/honeycombio/dynsampler-go v0.6.3 h1:myYNnqVbcJWac/dFfACWjobQFQcZXwkGL5o27eOm/o0=
+github.com/honeycombio/dynsampler-go v0.6.3/go.mod h1:mqCYD3JbAEgRvxu52Q0doTO3wKEUvEott8H8VMEpnQ0=
 github.com/honeycombio/libhoney-go v1.25.0 h1:r33tlX90HtafK0bgRcjfNnsrJ9ZMTKuI/1DYaOFCc1o=
 github.com/honeycombio/libhoney-go v1.25.0/go.mod h1:Fc0HjqlwYf5xy6H34EItpOverAGbCixnYOX3YTUQovg=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
