@@ -8,7 +8,8 @@ import (
 )
 
 // Recommendations for naming here are taken from
-// https://github.com/open-telemetry/opentelemetry-specification/blob/7ae3d066c95c716ef3086228ef955d84ba03ac88/specification/trace/semantic_conventions/database.md
+// https://github.com/open-telemetry/opentelemetry-specification/blob/
+// 7ae3d066c95c716ef3086228ef955d84ba03ac88/specification/trace/semantic_conventions/database.md
 
 func Span(ctx context.Context, entity, queryName string) (context.Context, o11y.Span) {
 	ctx, span := o11y.StartSpan(ctx, fmt.Sprintf("db: %s.%s", entity, queryName))

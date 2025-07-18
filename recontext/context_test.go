@@ -11,6 +11,7 @@ import (
 )
 
 func TestContextValues(t *testing.T) {
+	//nolint:staticcheck // SA1029: using string key for testing purposes
 	ctx := context.WithValue(context.Background(), "testkey", "testvalue")
 	derivedCtx, cancel := WithNewDeadline(ctx, time.Now())
 	defer cancel()

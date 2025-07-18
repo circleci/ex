@@ -73,7 +73,10 @@ func CertsByTrust(t TrustLevel) (result []Cert) {
 func UpdateDefaultTransport() error {
 	if t, ok := http.DefaultTransport.(*http.Transport); ok {
 		if t.TLSClientConfig == nil {
-			t.TLSClientConfig = &tls.Config{RootCAs: ServerCertPool()}
+			t.TLSClientConfig = &tls.Config{
+				RootCAs:    ServerCertPool(),
+				MinVersion: tls.VersionTLS12,
+			}
 		} else {
 			t.TLSClientConfig.RootCAs = ServerCertPool()
 		}

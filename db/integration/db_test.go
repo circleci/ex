@@ -1,3 +1,4 @@
+//nolint:funlen
 package integration
 
 import (

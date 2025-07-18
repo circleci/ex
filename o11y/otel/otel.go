@@ -295,7 +295,7 @@ func (o Provider) AddFieldToTrace(ctx context.Context, key string, val any) {
 }
 
 func (o Provider) Log(ctx context.Context, name string, fields ...o11y.Pair) {
-	ctx, s := o.StartSpan(ctx, name)
+	_, s := o.StartSpan(ctx, name)
 	for _, f := range fields {
 		s.AddField(f.Key, f.Value)
 	}

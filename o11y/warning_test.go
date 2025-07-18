@@ -1,3 +1,4 @@
+//nolint:funlen
 package o11y
 
 import (

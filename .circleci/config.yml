@@ -1,24 +1,17 @@
 version: 2.1
 
-x-data:
-  go_versions: &go_versions
-    - '1.21'
-    - '1.22'
-    - '1.23'
-    - '1.24'
-
 workflows:
   main:
     jobs:
       - lint:
           matrix:
             parameters:
-              go_version: *go_versions
+              go_version: ['1.21', '1.22', '1.23', '1.24']
       - test:
           name: test-<< matrix.go_version >>
           matrix:
             parameters:
-              go_version: *go_versions
+              go_version: ['1.21', '1.22', '1.23', '1.24']
       - release:
           requires:
             - lint
@@ -34,7 +27,7 @@ jobs:
       go_version:
         type: string
     docker:
-      - image: cimg/go:<<parameters.go_version>>
+      - image: cimg/go:<< parameters.go_version >>
     resource_class: large
     environment:
       GOMAXPROCS: 4
@@ -57,7 +50,7 @@ jobs:
       go_version:
         type: string
     docker:
-      - image: cimg/go:<<parameters.go_version>>
+      - image: cimg/go:<< parameters.go_version >>
       - image: circleci/postgres:13.3-ram
         environment:
           POSTGRES_USER: user

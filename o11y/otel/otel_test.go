@@ -1,3 +1,4 @@
+//nolint:funlen
 package otel_test
 
 import (
@@ -230,7 +231,9 @@ func TestProvider(t *testing.T) {
 
 		t.Run("context_key_conflict", func(t *testing.T) {
 			// If the context uses this key form this will conflict and the span will not be available
+			//nolint:staticcheck // SA1029: intentionally using empty struct for testing context key conflicts
 			var key = struct{}{}
+			//nolint:staticcheck // SA1029: intentionally using empty struct for testing context key conflicts
 			ctx = context.WithValue(ctx, key, "")
 
 			o11y.AddField(ctx, "cc_key", "cc_val")

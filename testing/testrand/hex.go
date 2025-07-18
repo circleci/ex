@@ -1,8 +1,8 @@
 package testrand
 
 import (
+	"crypto/rand"
 	"encoding/hex"
-	"math/rand"
 )
 
 // Hex produces an insecure random number hex encoded to a string of b characters.
