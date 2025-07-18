@@ -36,7 +36,7 @@ type Config struct {
 }
 
 func New(ctx context.Context, cfg Config) (s *HTTPServer, err error) {
-	ctx, span := o11y.StartSpan(ctx, "server: new-server "+cfg.Name)
+	_, span := o11y.StartSpan(ctx, "server: new-server "+cfg.Name)
 	defer o11y.End(span, &err)
 	if cfg.Network == "" {
 		cfg.Network = "tcp"

@@ -113,7 +113,8 @@ type Span interface {
 	// eg. result, http.status_code, db.system etc
 	//
 	// Refer to the opentelemetry draft spec for naming inspiration
-	// https://github.com/open-telemetry/opentelemetry-specification/tree/7ae3d066c95c716ef3086228ef955d84ba03ac88/specification/trace/semantic_conventions
+	// https://github.com/open-telemetry/opentelemetry-specification/tree/
+	// 7ae3d066c95c716ef3086228ef955d84ba03ac88/specification/trace/semantic_conventions
 	AddRawField(key string, val interface{})
 
 	// RecordMetric tells the provider to emit a metric to its metric backend when the span ends
@@ -307,7 +308,8 @@ func Field(key string, value interface{}) Pair {
 }
 
 // Baggage is a map of values used for telemetry purposes.
-// See: https://github.com/open-telemetry/opentelemetry-specification/blob/14b5b6a944e390e368dd2e2ef234d220d8287d19/specification/baggage/api.md
+// See: https://github.com/open-telemetry/opentelemetry-specification/blob/
+// 14b5b6a944e390e368dd2e2ef234d220d8287d19/specification/baggage/api.md
 type Baggage map[string]string
 
 // AddToTrace adds all entries in the Baggage to the root span.

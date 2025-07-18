@@ -28,7 +28,7 @@ func traceMetrics(ctx context.Context, producers []MetricProducer) {
 }
 
 func traceMetric(ctx context.Context, provider o11y.MetricsProvider, producer MetricProducer) {
-	producerName := strings.Replace(producer.MetricName(), "-", "_", -1)
+	producerName := strings.ReplaceAll(producer.MetricName(), "-", "_")
 	for f, v := range producer.Gauges(ctx) {
 		scopedField := fmt.Sprintf("gauge.%s.%s", producerName, f)
 		_ = provider.Gauge(scopedField, v, []string{}, 1)

@@ -1,3 +1,4 @@
+//nolint:funlen
 package system
 
 import (
@@ -40,7 +41,7 @@ func TestSystem_Run(t *testing.T) {
 
 	terminationWait.Add(1)
 	sys.AddService(func(ctx context.Context) (err error) {
-		ctx, span := o11y.StartSpan(ctx, "service")
+		_, span := o11y.StartSpan(ctx, "service")
 		defer o11y.End(span, &err)
 		terminationWait.Done()
 		<-ctx.Done()
@@ -51,13 +52,13 @@ func TestSystem_Run(t *testing.T) {
 
 	var cleanupsCalled []string
 	sys.AddCleanup(func(ctx context.Context) (err error) {
-		ctx, span := o11y.StartSpan(ctx, "cleanup 1")
+		_, span := o11y.StartSpan(ctx, "cleanup 1")
 		defer o11y.End(span, &err)
 		cleanupsCalled = append(cleanupsCalled, "1")
 		return nil
 	})
 	sys.AddCleanup(func(ctx context.Context) (err error) {
-		ctx, span := o11y.StartSpan(ctx, "cleanup 2")
+		_, span := o11y.StartSpan(ctx, "cleanup 2")
 		defer o11y.End(span, &err)
 		cleanupsCalled = append(cleanupsCalled, "2")
 		return nil

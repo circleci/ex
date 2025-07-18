@@ -173,7 +173,9 @@ func BucketName(t testing.TB) string {
 }
 
 func newAWSConfig(fix *Fixture) aws.Config {
+	//nolint:staticcheck // SA1019: using deprecated aws.Endpoint for test fixture
 	resolveFn := func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		//nolint:staticcheck // SA1019: using deprecated aws.Endpoint for test fixture
 		return aws.Endpoint{
 			PartitionID:       "aws",
 			URL:               fix.URL,
@@ -183,8 +185,9 @@ func newAWSConfig(fix *Fixture) aws.Config {
 	}
 
 	return aws.Config{
-		Region:                      fix.Region,
-		Credentials:                 credentials.NewStaticCredentialsProvider(fix.Key.Raw(), fix.Secret.Raw(), ""),
+		Region:      fix.Region,
+		Credentials: credentials.NewStaticCredentialsProvider(fix.Key.Raw(), fix.Secret.Raw(), ""),
+		//nolint:staticcheck // SA1019: using deprecated endpoint resolver for test fixture
 		EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(resolveFn),
 	}
 }

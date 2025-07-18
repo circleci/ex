@@ -19,7 +19,7 @@ func TestNew(t *testing.T) {
 		Port: 6379,
 		DB:   1,
 	})
-	defer client1.Close()
+	defer client1.Close() //nolint:errcheck // redis close errors in test context are not critical
 
 	t.Run("simple connection", func(t *testing.T) {
 		err := client1.Ping(ctx).Err()
@@ -41,7 +41,7 @@ func TestNew(t *testing.T) {
 				Port: 6379,
 				DB:   2,
 			})
-			defer client2.Close()
+			defer client2.Close() //nolint:errcheck // redis close errors in test context are not critical
 
 			err := client2.Get(ctx, "foo").Err()
 			assert.Check(t, errors.Is(err, redis.Nil))

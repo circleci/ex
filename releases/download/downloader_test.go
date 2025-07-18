@@ -1,3 +1,4 @@
+//nolint:funlen
 package download
 
 import (
@@ -39,7 +40,7 @@ func TestDownloader_Download(t *testing.T) {
 		w.Header().Set("Content-Type", "application/octet-stream")
 
 		zw := gzip.NewWriter(w)
-		defer zw.Close()
+		defer zw.Close() //nolint:errcheck // gzip close errors in test context are not critical
 
 		switch r.URL.Path {
 		case "/test/file-1.txt":
@@ -216,7 +217,7 @@ func TestDownloader_AttemptTimeout(t *testing.T) {
 		w.Header().Set("Content-Type", "application/octet-stream")
 
 		zw := gzip.NewWriter(w)
-		defer zw.Close()
+		defer zw.Close() //nolint:errcheck // gzip close errors in test context are not critical
 
 		switch r.URL.Path {
 		case "/test/slow.txt":

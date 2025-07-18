@@ -209,7 +209,7 @@ func (r *Result) Stop() error {
 
 	select {
 	case <-time.After(11 * time.Second):
-		r.cmd.Process.Kill() //nolint: errcheck
+		r.cmd.Process.Kill() //nolint: errcheck,gosec
 		return fmt.Errorf("SIGINT timed out: %w", err)
 	case err := <-r.Wait():
 		return err
