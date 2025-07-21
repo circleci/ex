@@ -155,3 +155,30 @@ type fakeSpan struct {
 func (s *fakeSpan) AddRawField(key string, val interface{}) {
 	s.fields[key] = val
 }
+
+type fakeProvider struct {
+	Provider
+	span *fakeSpan
+}
+
+func (p *fakeProvider) StartSpan(ctx context.Context, name string, opts ...SpanOpt) (context.Context, Span) {
+	span := newFakeSpan()
+	p.span = span
+	return ctx, span
+}
+
+func (p *fakeProvider) GetSpan(ctx context.Context) Span {
+	return p.span
+}
+
+func TestSetSpanSampledIn(t *testing.T) {
+	ctx := context.Background()
+	ctx = WithProvider(ctx, &fakeProvider{})
+	ctx, span := StartSpan(ctx, "foo")
+	SetSpanSampledIn(ctx)
+
+	fs, ok := span.(*fakeSpan)
+	assert.Assert(t, ok)
+
+	assert.Check(t, fs.fields["meta.keep.span"], true)
+}
