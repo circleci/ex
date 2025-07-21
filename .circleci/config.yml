@@ -2,7 +2,6 @@ version: 2.1
 
 x-data:
   go_versions: &go_versions
-    - '1.21'
     - '1.22'
     - '1.23'
     - '1.24'
