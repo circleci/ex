@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -663,12 +664,24 @@ func TestKind(t *testing.T) {
 		assert.Check(t, cmp.Len(traces, 1))
 		assert.Check(t, cmp.Len(traces[0].Spans, 2))
 		spans := traces[0].Spans
+
+		slices.SortFunc(spans, serverSpanFirst)
 		sort.Slice(spans, func(i, j int) bool { return spans[i].OperationName < spans[j].OperationName })
 		assert.Check(t, cmp.Equal(spans[0].OperationName, "GET /"))
 		jaeger.AssertTag(t, spans[0].Tags, "span.kind", "server")
 		assert.Check(t, cmp.Equal(spans[1].OperationName, "GET /"))
 		jaeger.AssertTag(t, spans[1].Tags, "span.kind", "client")
 	})
+}
+
+func serverSpanFirst(a, b jaeger.Span) int {
+	if jaeger.HasTag(a.Tags, "span.kind", "server") && !jaeger.HasTag(b.Tags, "span.kind", "server") {
+		return -1
+	}
+	if jaeger.HasTag(a.Tags, "span.kind", "server") && jaeger.HasTag(b.Tags, "span.kind", "server") {
+		return 0
+	}
+	return 1
 }
 
 func TestFlatten(t *testing.T) {
