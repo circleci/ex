@@ -258,6 +258,13 @@ func MakeSpanGolden(ctx context.Context) context.Context {
 	return FromContext(ctx).MakeSpanGolden(ctx)
 }
 
+// SetSpanSampledIn causes this span to be sampled in during tail sampling, even if the overall trace is sampled out.
+func SetSpanSampledIn(ctx context.Context) {
+	// This 'magic' attribute is used by the open telemetry collector to ensure that the span is never sampled out.
+	s := FromContext(ctx).GetSpan(ctx)
+	s.AddRawField("meta.keep.span", true)
+}
+
 // End completes a span, including using AddResultToSpan to set the error and result fields
 //
 // The correct way to capture the returned error is given in the doc example, it is like this..
