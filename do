@@ -23,7 +23,7 @@ check-gomod() {
 help_check_rootcerts="Check rootcerts is up to date"
 check-rootcerts() {
     generate
-    git diff --ignore-matching-lines='Generated on ' --exit-code -- ./rootcerts
+    git diff --ignore-matching-lines='Generated on ' --ignore-matching-lines='Input file SHA1:' --exit-code -- ./rootcerts
 }
 
 # This variable is used, but shellcheck can't tell.
