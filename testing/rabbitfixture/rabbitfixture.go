@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/makasim/amqpextra"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"gotest.tools/v3/assert"
