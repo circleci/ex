@@ -560,12 +560,17 @@ func (c *Client) retryRequest(ctx context.Context, name string, r Request, newRe
 
 	bo := backoff.NewExponentialBackOff()
 	bo.InitialInterval = time.Millisecond * 50
-	bo.MaxElapsedTime = c.backOffMaxElapsedTime
+	maxElapsedTime := c.backOffMaxElapsedTime
 	if r.maxElapsedTime > 0 {
-		bo.MaxElapsedTime = r.maxElapsedTime
+		maxElapsedTime = r.maxElapsedTime
 	}
 
-	return backoff.Retry(attempt, backoff.WithContext(bo, ctx))
+	_, err := backoff.Retry(ctx, func() (any, error) {
+		err := attempt()
+		return nil, err
+	}, backoff.WithBackOff(bo), backoff.WithMaxElapsedTime(maxElapsedTime))
+
+	return err
 }
 
 func (c *Client) addPropagationHeader(ctx context.Context, req *http.Request) {

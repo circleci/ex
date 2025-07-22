@@ -86,8 +86,6 @@ func defaultBackOff() backoff.BackOff {
 		InitialInterval: time.Millisecond * 50,
 		Multiplier:      2,
 		MaxInterval:     time.Second * 5,
-		MaxElapsedTime:  0,
-		Clock:           backoff.SystemClock,
 	}
 	b.Reset()
 	return b

@@ -5,10 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"os"
-	"time"
 
-	"github.com/cenkalti/backoff/v5"
 	"github.com/makasim/amqpextra"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"gotest.tools/v3/assert"
@@ -65,11 +62,6 @@ func NewWithConnection(ctx context.Context, t types.TestingTB, con Connection) (
 
 	client := rabbit.NewClient(fmt.Sprintf("http://%s:15672", con.Host), con.User, con.Password)
 
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 5 * time.Second
-	if os.Getenv("CI") == "true" {
-		bo.MaxElapsedTime = 32 * time.Second
-	}
 	_, err := client.ListVHosts(ctx)
 	assert.Assert(t, err)
 

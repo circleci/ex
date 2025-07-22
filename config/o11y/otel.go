@@ -161,12 +161,9 @@ func metricsProvider(ctx context.Context, o OtelConfig, hostname string) (o11y.C
 		statsdOpts = append(statsdOpts, statsd.WithoutTelemetry())
 	}
 
-	var stats *statsd.Client
-	bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30)
-	err := backoff.Retry(func() (err error) {
-		stats, err = statsd.New(o.Statsd, statsdOpts...)
-		return err
-	}, backoff.WithContext(bo, ctx))
+	stats, err := backoff.Retry(ctx, func() (*statsd.Client, error) {
+		return statsd.New(o.Statsd, statsdOpts...)
+	}, backoff.WithBackOff(backoff.NewConstantBackOff(time.Second)), backoff.WithMaxTries(31))
 	if err != nil {
 		return nil, err
 	}
