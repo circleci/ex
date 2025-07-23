@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	"github.com/honeycombio/libhoney-go/transmission"
 	"github.com/rollbar/rollbar-go"
 
@@ -82,12 +82,9 @@ func Setup(ctx context.Context, o Config) (context.Context, func(context.Context
 			statsdOpts = append(statsdOpts, statsd.WithoutTelemetry())
 		}
 
-		var stats *statsd.Client
-		bo := backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 30)
-		err := backoff.Retry(func() (err error) {
-			stats, err = statsd.New(o.Statsd, statsdOpts...)
-			return err
-		}, backoff.WithContext(bo, ctx))
+		stats, err := backoff.Retry(ctx, func() (*statsd.Client, error) {
+			return statsd.New(o.Statsd, statsdOpts...)
+		}, backoff.WithBackOff(backoff.NewConstantBackOff(time.Second)), backoff.WithMaxTries(31))
 		if err != nil {
 			return ctx, nil, err
 		}

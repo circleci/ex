@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 
 	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/httpclient"
@@ -181,8 +181,10 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 		return backoff.Permanent(err)
 	}
 
-	bo := backoff.WithContext(backoff.NewExponentialBackOff(backoff.WithMaxElapsedTime(d.downloadTimeout)), ctx)
-	err = backoff.Retry(download, bo)
+	_, err = backoff.Retry(ctx, func() (any, error) {
+		err := download()
+		return nil, err
+	}, backoff.WithBackOff(backoff.NewExponentialBackOff()), backoff.WithMaxElapsedTime(d.downloadTimeout))
 	if err != nil {
 		return fmt.Errorf("could not get URL %q: %w", url, err)
 	}

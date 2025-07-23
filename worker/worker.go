@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 
 	"github.com/circleci/ex/o11y"
 )
@@ -86,8 +86,6 @@ func defaultBackOff() backoff.BackOff {
 		InitialInterval: time.Millisecond * 50,
 		Multiplier:      2,
 		MaxInterval:     time.Second * 5,
-		MaxElapsedTime:  0,
-		Clock:           backoff.SystemClock,
 	}
 	b.Reset()
 	return b
