@@ -57,7 +57,7 @@ jobs:
         type: string
     docker:
       - image: cimg/go:<<parameters.go_version>>
-      - image: circleci/postgres:13.3-ram
+      - image: circleci/postgres:13.5-ram
         environment:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
