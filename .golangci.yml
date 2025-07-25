@@ -9,6 +9,7 @@ linters:
     - depguard
     - errcheck
     - errorlint
+    - funlen
     - gochecknoinits
     - goconst
     - gocyclo
@@ -57,6 +58,9 @@ linters:
       min-occurrences: 8
     gocyclo:
       min-complexity: 15
+    govet:
+      enable:
+        - shadow
     lll:
       line-length: 120
     nakedret:
@@ -73,11 +77,9 @@ linters:
       - linters:
           - staticcheck
         path: _test\.go
-        text: SA1019
       - linters:
           - staticcheck
         path: testing
-        text: SA1019
       - linters:
           - golint
         text: should have( a package)? comment
