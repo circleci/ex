@@ -58,9 +58,6 @@ linters:
       min-occurrences: 8
     gocyclo:
       min-complexity: 15
-    govet:
-      enable:
-        - shadow
     lll:
       line-length: 120
     nakedret:
