@@ -67,7 +67,7 @@ run-goimports () {
 # shellcheck disable=SC2034
 help_lint="Run golanci-lint to lint go files."
 lint() {
-    ./bin/golangci-lint run --timeout=2m "${@:-./...}"
+    ./bin/golangci-lint run --timeout=4m "${@:-./...}"
 
     local files
     files=$(find . \( -name '*.go' -not -path "./example*" \))
