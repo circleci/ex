@@ -67,7 +67,7 @@ run-goimports () {
 # shellcheck disable=SC2034
 help_lint="Run golanci-lint to lint go files."
 lint() {
-    ./bin/golangci-lint run --timeout=2m "${@:-./...}"
+    ./bin/golangci-lint run --timeout=4m "${@:-./...}"
 
     local files
     files=$(find . \( -name '*.go' -not -path "./example*" \))
@@ -83,7 +83,7 @@ lint-report() {
     echo "Storing results as Junit XML in '${output}'" >&2
     mkdir -p "${reportDir}"
 
-    lint --out-format junit-xml | tee "${output}"
+    lint --output.junit-xml.path="${output}"
 }
 
 help_test="Run the tests"

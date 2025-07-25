@@ -29,7 +29,7 @@ func emitGauges(ctx context.Context, producers []GaugeProducer) {
 }
 
 func emitGauge(ctx context.Context, provider o11y.MetricsProvider, producer GaugeProducer) {
-	producerName := strings.Replace(producer.GaugeName(), "-", "_", -1)
+	producerName := strings.ReplaceAll(producer.GaugeName(), "-", "_")
 	for f, tvs := range producer.Gauges(ctx) {
 		for _, tv := range tvs {
 			scopedField := fmt.Sprintf("gauge.%s.%s", producerName, f)

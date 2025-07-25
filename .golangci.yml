@@ -1,120 +1,19 @@
+version: "2"
 run:
   build-tags:
     - e2e
-
-# Do not treat these as gospel, adjust as appropriate
-linters-settings:
-  govet:
-    check-shadowing: false
-  golint:
-    min-confidence: 0
-  gocyclo:
-    min-complexity: 15
-  maligned:
-    suggest-new: true
-  depguard:
-    rules:
-      main:
-        deny:
-          - pkg: github.com/davecgh/go-spew
-          - pkg: log
-          - pkg: github.com/pkg/errors
-            desc: use Go stdlib errors instead
-          - pkg: github.com/cenkalti/backof[f]
-            desc: use github.com/cenkalti/backoff/v4 instead
-          - pkg: gotest.tools/assert
-            desc: use gotest.tools/v3/assert instead
-          - pkg: gotest.tools/skip
-            desc: use gotest.tools/v3/skip instead
-          - pkg: gotest.tools/assert/cmp
-            desc: use gotest.tools/v3/assert/cmp instead
-          - pkg: gotest.tools/env
-            desc: use gotest.tools/v3/env instead
-          - pkg: gotest.tools/fs
-            desc: use gotest.tools/v3/fs instead
-          - pkg: gotest.tools/golden
-            desc: use gotest.tools/v3/golden instead
-          - pkg: gotest.tools/icmd
-            desc: use gotest.tools/v3/icmd instead
-          - pkg: gotest.tools/poll
-            desc: use gotest.tools/v3/poll instead
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 6
-    min-occurrences: 8
-  lll:
-    line-length: 120
-  goimports:
-    local-prefixes: github.com/circleci/ex
-  nakedret:
-    max-func-lines: 0
-
-issues:
-  # The default exclude list seems rather aggresive, opt-in when needed instead
-  exclude-use-default: false
-
-  exclude-rules:
-    # Duplicated errcheck checks
-    - linters: [gosec]
-      text: G104
-    # Duplicated errcheck checks
-    - linters: [staticcheck]
-      text: SA5001
-    - linters: [staticcheck]
-      test: SA1019
-      path: _test\.go
-    - linters: [staticcheck]
-      test: SA1019
-      path: testing
-    # We don't require comments on everything
-    - linters: [golint]
-      text: should have( a package)? comment
-    # very long lines are ok if they're URLs
-    - linters: [lll]
-      source: https?://
-    # very long lines are ok if they're in http response message fields
-    - linters: [ lll ]
-      source: '"message":'
-    # Ignore errcheck on deferred Close
-    - linters: [errcheck]
-      source: ^\s*defer .*\.Close(.*)$
-    # Ignore ineffective assignments to ctx
-    - linters: [ineffassign]
-      source: ^\s*ctx.*=.*$
-    - linters: [staticcheck]
-      source: ^\s*ctx.*=.*$
-    # Ignore long tests
-    - linters: [funlen]
-      text: ^Function 'Test.*
-    # We don't require package docs
-    - linters: [stylecheck]
-      text: ST1000
-    # Unparam is allowed in tests
-    - linters: [unparam]
-      path: _test\.go
-    # Rootcerts is generated code
-    - linters: [gochecknoinits]
-      path: /rootcerts
-    # Rootcerts is generated code
-    - linters: [gosec]
-      path: /rootcerts
-
 linters:
-  disable-all: true
+  default: none
   enable:
-    - gochecknoinits
     - bodyclose
     - depguard
     - errcheck
     - errorlint
     - funlen
+    - gochecknoinits
     - goconst
     - gocyclo
-    - gofmt
-    - goimports
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - lll
@@ -122,8 +21,110 @@ linters:
     - nakedret
     - prealloc
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
     - unused
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/davecgh/go-spew
+            - pkg: log
+            - pkg: github.com/pkg/errors
+              desc: use Go stdlib errors instead
+            - pkg: github.com/cenkalti/backof[f]
+              desc: use github.com/cenkalti/backoff/v4 instead
+            - pkg: gotest.tools/assert
+              desc: use gotest.tools/v3/assert instead
+            - pkg: gotest.tools/skip
+              desc: use gotest.tools/v3/skip instead
+            - pkg: gotest.tools/assert/cmp
+              desc: use gotest.tools/v3/assert/cmp instead
+            - pkg: gotest.tools/env
+              desc: use gotest.tools/v3/env instead
+            - pkg: gotest.tools/fs
+              desc: use gotest.tools/v3/fs instead
+            - pkg: gotest.tools/golden
+              desc: use gotest.tools/v3/golden instead
+            - pkg: gotest.tools/icmd
+              desc: use gotest.tools/v3/icmd instead
+            - pkg: gotest.tools/poll
+              desc: use gotest.tools/v3/poll instead
+    dupl:
+      threshold: 100
+    goconst:
+      min-len: 6
+      min-occurrences: 8
+    gocyclo:
+      min-complexity: 15
+    lll:
+      line-length: 120
+    nakedret:
+      max-func-lines: 0
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - gosec
+        text: G104
+      - linters:
+          - staticcheck
+        text: SA5001
+      - linters:
+          - staticcheck
+        path: _test\.go
+      - linters:
+          - staticcheck
+        path: testing
+      - linters:
+          - golint
+        text: should have( a package)? comment
+      - linters:
+          - lll
+        source: https?://
+      - linters:
+          - lll
+        source: '"message":'
+      - linters:
+          - errcheck
+        source: ^\s*defer .*\.Close(.*)$
+      - linters:
+          - ineffassign
+        source: ^\s*ctx.*=.*$
+      - linters:
+          - staticcheck
+        source: ^\s*ctx.*=.*$
+      - linters:
+          - funlen
+        text: ^Function 'Test.*
+      - linters:
+          - staticcheck
+        text: ST1000
+      - linters:
+          - unparam
+        path: _test\.go
+      - linters:
+          - gochecknoinits
+        path: /rootcerts
+      - linters:
+          - gosec
+        path: /rootcerts
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/circleci/ex
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
