@@ -83,7 +83,7 @@ lint-report() {
     echo "Storing results as Junit XML in '${output}'" >&2
     mkdir -p "${reportDir}"
 
-    lint --out-format junit-xml | tee "${output}"
+    lint --output.junit-xml.path="${output}"
 }
 
 help_test="Run the tests"
