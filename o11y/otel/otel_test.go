@@ -130,6 +130,16 @@ func TestO11y(t *testing.T) {
 			t.Run("find trace", func(t *testing.T) {
 
 				jc := jaeger.New("http://localhost:16686", tt.cfg.Service)
+				poll.WaitOn(t, func(t poll.LogT) poll.Result {
+					traces, err := jc.Traces(ctx, start)
+					if err != nil {
+						return poll.Error(err)
+					}
+					if len(traces) >= 1 {
+						return poll.Success()
+					}
+					return poll.Continue("only got %d traces", len(traces))
+				})
 				traces, err := jc.Traces(ctx, start)
 				assert.NilError(t, err)
 				assert.Assert(t, cmp.Len(traces, 1))
