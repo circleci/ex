@@ -62,7 +62,7 @@ jobs:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
           POSTGRES_DB: dbname
-      - image: cimg/redis:8.0
+      - image: cimg/redis:8.2
         command: [
           "redis-server",
           "--protected-mode", "no",
