@@ -598,6 +598,9 @@ func (r Request) decodeBody(resp *http.Response, success bool) error {
 	if decoder != nil {
 		err := decoder(resp.Body)
 		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
 			// do not retry decoding errors
 			return backoff.Permanent(fmt.Errorf("decoder: %w", err))
 		}
