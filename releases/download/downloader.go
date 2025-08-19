@@ -13,8 +13,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/cenkalti/backoff/v5"
-
 	"github.com/circleci/ex/closer"
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/o11y"
@@ -153,38 +151,33 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 		timeout = d.downloadAttemptTimeout
 	}
 
-	// We've observed instances of the HTTP client hitting a context.DeadlineExceeded error whilst reading the response
-	// body in the decoder. Anywhere else in the call this would (likely) lead to the client retrying the request but, in
-	// this case, it doesn't because decoder errors are always treated as non-retryable. Therefore we wrap this HTTP call
-	// in our own retry mechanism (that only retries for context.DeadlineExceeded errors) to ensure we retry as expected
-	// in this case, also ensuring that we clear the file we're downloading to before retrying so that we have a clean
-	// slate on the retry. This retry mechanism also respects the timeout set on the HTTP client itself, so that we never
-	// retry for longer than requested by the caller.
-	download := func() error {
-		err := d.client.Call(ctx, httpclient.NewRequest("GET", url,
-			httpclient.Timeout(timeout),
-			httpclient.SuccessDecoder(func(r io.Reader) error {
-				_, err := io.Copy(out, r)
-				if err != nil {
-					return fmt.Errorf("could not write file %q: %w", target, err)
+	err = d.client.Call(ctx, httpclient.NewRequest("GET", url,
+		httpclient.Timeout(timeout),
+		httpclient.SuccessDecoder(func(r io.Reader) (err error) {
+			defer func() {
+				if err == nil {
+					return
 				}
-				return nil
-			})))
 
-		if errors.Is(err, context.DeadlineExceeded) {
-			if err := d.clearFile(out); err != nil {
-				return backoff.Permanent(err)
+				cErr := clearFile(out)
+				if cErr != nil {
+					// We've failed to clean up the file, so it's now unsafe to retry (because the file potentially contains
+					// data). The HTTP client will retry context.DeadlineExceeded errors from the decoder, so if the original
+					// error was a context.DeadlineExceeded then we need to swallow it to prevent retries. Other errors are not
+					// retried from the decoder so are safe to return.
+					if errors.Is(err, context.DeadlineExceeded) {
+						err = cErr
+					}
+				}
+			}()
+
+			_, err = io.Copy(out, r)
+			if err != nil {
+				return fmt.Errorf("could not write file %q: %w", target, err)
 			}
-			return err
-		}
+			return nil
+		})))
 
-		return backoff.Permanent(err)
-	}
-
-	_, err = backoff.Retry(ctx, func() (any, error) {
-		err := download()
-		return nil, err
-	}, backoff.WithBackOff(backoff.NewExponentialBackOff()), backoff.WithMaxElapsedTime(d.downloadTimeout))
 	if err != nil {
 		return fmt.Errorf("could not get URL %q: %w", url, err)
 	}
@@ -192,7 +185,7 @@ func (d *Downloader) downloadFile(ctx context.Context, url, target string, perm 
 	return nil
 }
 
-func (d *Downloader) clearFile(file *os.File) error {
+func clearFile(file *os.File) error {
 	err := file.Truncate(0)
 	if err != nil {
 		return err
