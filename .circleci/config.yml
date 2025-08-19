@@ -5,6 +5,7 @@ x-data:
     - '1.22'
     - '1.23'
     - '1.24'
+    - '1.25'
 
 workflows:
   main:
@@ -67,7 +68,7 @@ jobs:
           "redis-server",
           "--protected-mode", "no",
           "--databases", "1000000",
-        ]
+          ]
       - image: rabbitmq:4.2-management-alpine
       - image: mongo:8.2
         environment:
@@ -82,7 +83,7 @@ jobs:
           'server',
           '/data/1','/data/2','/data/3','/data/4',
           '--address', ':9123',
-        ]
+          ]
       - image: minio/minio
         environment:
           MINIO_ROOT_USER: 'minio-nv'
@@ -91,7 +92,7 @@ jobs:
           'server',
           '/datanv',
           '--address', ':9124',
-        ]
+          ]
       - image: hashicorp/vault:1.21.0
         environment:
           SKIP_SETCAP: skip
