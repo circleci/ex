@@ -6,7 +6,7 @@ toolchain go1.25.3
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
-	github.com/KimMachineGun/automemlimit v0.7.4
+	github.com/KimMachineGun/automemlimit v0.7.5
 	github.com/alecthomas/kong v1.12.1
 	github.com/aws/aws-sdk-go-v2 v1.39.2
 	github.com/aws/aws-sdk-go-v2/config v1.31.12
