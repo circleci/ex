@@ -29,7 +29,7 @@ require (
 	github.com/klauspost/compress v1.18.1
 	github.com/makasim/amqpextra v1.2.1
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/redis/go-redis/v9 v9.14.1
+	github.com/redis/go-redis/v9 v9.16.0
 	github.com/rollbar/rollbar-go v1.4.8
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.mongodb.org/mongo-driver/v2 v2.3.1
