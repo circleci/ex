@@ -33,7 +33,7 @@ services:
       - '127.0.0.1:6379:6379'
 
   rabbitmq:
-    image: rabbitmq:4.1-management-alpine
+    image: rabbitmq:4.2-management-alpine
     shm_size: '512mb'
     volumes:
       - /dev/shm:/var/lib/rabbitmq
