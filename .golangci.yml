@@ -25,6 +25,9 @@ linters:
     - unparam
     - unused
   settings:
+    govet:
+      disable:
+        - buildtag
     depguard:
       rules:
         main:
