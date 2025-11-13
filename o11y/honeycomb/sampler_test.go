@@ -36,6 +36,17 @@ var samplerTests = []struct {
 		false, 0,
 	},
 	{
+		"sampled in via meta field",
+		map[string]interface{}{
+			"trace.trace_id":       "ede23f67-2048-491b-ba71-749a8a00444f",
+			"app.server_name":      "admin",
+			"request.path":         "/ready",
+			"response.status_code": 200,
+			"meta.keep.span":       true,
+		},
+		true, 1,
+	},
+	{
 		"ready-check with no problems but trace hits sample rate",
 		map[string]interface{}{
 			"trace.trace_id":       "9d45eecd-e447-4418-bd9b-1ac3c32346d5",

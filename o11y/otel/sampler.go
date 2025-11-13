@@ -18,6 +18,14 @@ func (s deterministicSampler) shouldSample(p sdktrace.ReadOnlySpan) (bool, uint)
 	for _, attr := range p.Attributes() {
 		fields[string(attr.Key)] = attr.Value.AsInterface()
 	}
+
+	// Always sample in spans that have been set to do so via the `SetSpanSampledIn` function
+	if v, ok := fields["meta.keep.span"]; ok {
+		if keep, ok := v.(bool); ok && keep {
+			return true, 1
+		}
+	}
+
 	// fields used in the existing sample key func
 	fields["duration_ms"] = int(p.EndTime().Sub(p.StartTime()).Milliseconds())
 	fields["name"] = p.Name()
