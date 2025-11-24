@@ -1,8 +1,13 @@
+/*
+Package o11y is the primary entrypoint for wiring up a standard configuration of the o11y
+observability system.
+*/
 package o11y
 
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
@@ -16,6 +21,9 @@ import (
 	"github.com/circleci/ex/o11y"
 	"github.com/circleci/ex/o11y/otel"
 )
+
+// SampleOut is the maximum value the sample rate can be
+const SampleOut = math.MaxUint32
 
 // OtelConfig contains all the things we need to configure for otel based instrumentation.
 type OtelConfig struct {

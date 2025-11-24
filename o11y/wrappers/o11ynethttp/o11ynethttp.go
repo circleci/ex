@@ -17,8 +17,6 @@ type nethttpRouteRecorderContextKey struct{}
 
 // Middleware returns an http.Handler which wraps an http.Handler and adds
 // an o11y.Provider to the context. A new span is created from the request headers.
-//
-// This code is based on github.com/beeline-go/wrappers/hnynethttp/nethttp.go
 func Middleware(provider o11y.Provider, name string, handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		before := time.Now()
