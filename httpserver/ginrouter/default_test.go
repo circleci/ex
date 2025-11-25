@@ -19,19 +19,18 @@ import (
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/honeycomb"
+	"github.com/circleci/ex/o11y/otel"
 )
 
 func TestMiddleware(t *testing.T) {
 	b := &syncbuffer.SyncBuffer{}
 
-	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		ServiceName: "test-service",
-		Key:         "unused-test-key",
-		Format:      "color",
-		Metrics:     &statsd.NoOpClient{},
-		Writer:      b,
-	}))
+	p, err := otel.New(otel.Config{
+		Metrics: &statsd.NoOpClient{},
+		Writer:  b,
+	})
+	assert.NilError(t, err)
+	ctx := o11y.WithProvider(context.Background(), p)
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
