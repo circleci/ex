@@ -1,6 +1,7 @@
 package o11y_test
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 
 func TestSetup(t *testing.T) {
 	s := fakestatsd.New(t)
+	buf := &bytes.Buffer{}
 
 	ctx := context.Background()
 	ctx, cleanup, err := o11yconfig.Otel(ctx, o11yconfig.OtelConfig{
@@ -29,6 +31,7 @@ func TestSetup(t *testing.T) {
 		Service:           "test-service",
 		StatsNamespace:    "test.service",
 		Mode:              "banana",
+		Writer:            buf,
 	})
 	assert.Assert(t, err)
 
@@ -63,5 +66,9 @@ func TestSetup(t *testing.T) {
 		assert.Check(t, cmp.Contains(metric.Tags, "version:1.2.3"))
 		assert.Check(t, cmp.Contains(metric.Tags, "mode:banana"))
 		assert.Check(t, cmp.Contains(metric.Tags, "mytag:myvalue"))
+	})
+
+	t.Run("Check text traces writer", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(buf.String(), "my_span"))
 	})
 }

@@ -7,6 +7,7 @@ package o11y
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"time"
@@ -67,6 +68,9 @@ type OtelConfig struct {
 	// Metrics allows setting a custom metrics client. Typically, the default Statsd provider is preferred.
 	// The provided value will be closed by the cleanup function
 	Metrics o11y.ClosableMetricsProvider
+
+	// Override the default writer for text span output
+	Writer io.Writer
 }
 
 // Otel is the primary entrypoint to initialize the o11y system for otel.
@@ -132,6 +136,8 @@ func (o *OtelConfig) otel() otel.Config {
 		SampleRates:   o.SampleRates,
 
 		Test: o.Test,
+
+		Writer: o.Writer,
 	}
 	if o.UseEnvironments {
 		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.environments", true))
