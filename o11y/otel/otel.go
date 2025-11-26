@@ -62,7 +62,7 @@ func New(conf Config) (o11y.Provider, error) {
 	var exporters []sdktrace.SpanExporter
 
 	if conf.GrpcHostAndPort != "" {
-		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort, conf.Dataset)
+		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort)
 		if err != nil {
 			return nil, err
 		}
@@ -71,7 +71,7 @@ func New(conf Config) (o11y.Provider, error) {
 	}
 
 	if conf.HTTPTracesURL != "" {
-		http, err := newHTTP(context.Background(), conf.HTTPTracesURL, conf.Dataset, conf.HTTPAuthorization)
+		http, err := newHTTP(context.Background(), conf.HTTPTracesURL, conf.HTTPAuthorization)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func New(conf Config) (o11y.Provider, error) {
 
 func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.TracerProvider {
 	ra := append([]attribute.KeyValue{
-		attribute.String("x-honeycomb-dataset", conf.Dataset),
+		attribute.String("x-honeycomb-dataset", conf.Dataset), // TODO - remove once over to environments
 	}, conf.ResourceAttributes...)
 
 	res := resource.NewWithAttributes(semconv.SchemaURL, ra...)
@@ -144,13 +144,9 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 	return sdktrace.NewTracerProvider(traceOptions...)
 }
 
-func newHTTP(ctx context.Context, endpoint, dataset string, token secret.String) (*otlptrace.Exporter, error) {
+func newHTTP(ctx context.Context, endpoint string, token secret.String) (*otlptrace.Exporter, error) {
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpointURL(endpoint),
-		// This header may be used by honeycomb ingestion pathways in the future, but
-		// it is not currently needed for how the collectors are currently set up, which
-		// expect a resource attribute instead.
-		otlptracehttp.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
 	}
 	if token != "" {
 		opts = append(opts,
@@ -161,14 +157,10 @@ func newHTTP(ctx context.Context, endpoint, dataset string, token secret.String)
 	return otlptrace.New(ctx, otlptracehttp.NewClient(opts...))
 }
 
-func newGRPC(ctx context.Context, endpoint, dataset string) (*otlptrace.Exporter, error) {
+func newGRPC(ctx context.Context, endpoint string) (*otlptrace.Exporter, error) {
 	opts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithInsecure(),
-		// This header may be used by honeycomb ingestion pathways in the future, but
-		// it is not currently needed for how the collectors are currently set up, which
-		// expect a resource attribute instead.
-		otlptracegrpc.WithHeaders(map[string]string{"x-honeycomb-dataset": dataset}),
 	}
 	return otlptrace.New(ctx, otlptracegrpc.NewClient(opts...))
 }

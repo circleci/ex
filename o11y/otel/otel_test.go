@@ -513,10 +513,6 @@ func TestRealCollector_HoneycombDataset(t *testing.T) {
 
 		// Check the resource attributes
 		assert.Check(t, cmp.Equal(col.ResourceAttribute("x-honeycomb-dataset"), "execyooshun"))
-
-		// Headers set on the grpc exporter become collector metadata.
-		// N.B. This is not currently expected by the otel collectors.
-		assert.Check(t, cmp.Contains(col.Metadata("x-honeycomb-dataset"), "execyooshun"))
 	})
 }
 
