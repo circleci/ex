@@ -71,11 +71,10 @@ func New(conf Config) (o11y.Provider, error) {
 	}
 
 	if conf.HTTPTracesURL != "" {
-		http, err := newHTTP(context.Background(), conf.HTTPTracesURL, conf.HTTPAuthorization)
+		http, err := newHttpExporter(conf)
 		if err != nil {
 			return nil, err
 		}
-
 		exporters = append(exporters, http)
 	}
 
@@ -111,13 +110,30 @@ func New(conf Config) (o11y.Provider, error) {
 	propagator := propagation.NewCompositeTextMapPropagator(propagation.Baggage{}, propagation.TraceContext{})
 	otel.SetTextMapPropagator(propagator)
 
-	// TODO check baggage is wired up above
-
 	return &Provider{
 		metricsProvider: conf.Metrics,
 		tp:              tp,
 		tracer:          otel.Tracer(""),
 	}, nil
+}
+
+func newHttpExporter(conf Config) (*otlptrace.Exporter, error) {
+	var serviceName, serviceVersion string
+	for _, a := range conf.ResourceAttributes {
+		switch a.Key {
+		case semconv.ServiceNameKey:
+			serviceName = a.Value.AsString()
+		case semconv.ServiceVersionKey:
+			serviceVersion = a.Value.AsString()
+		}
+	}
+	http, err := newHTTP(context.Background(), httpOpts{
+		endpoint: conf.HTTPTracesURL,
+		token:    conf.HTTPAuthorization,
+		service:  serviceName,
+		version:  serviceVersion,
+	})
+	return http, err
 }
 
 func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.TracerProvider {
@@ -144,15 +160,25 @@ func traceProvider(exporter sdktrace.SpanExporter, conf Config) *sdktrace.Tracer
 	return sdktrace.NewTracerProvider(traceOptions...)
 }
 
-func newHTTP(ctx context.Context, endpoint string, token secret.String) (*otlptrace.Exporter, error) {
-	opts := []otlptracehttp.Option{
-		otlptracehttp.WithEndpointURL(endpoint),
+type httpOpts struct {
+	endpoint string
+	token    secret.String
+	service  string
+	version  string
+}
+
+func newHTTP(ctx context.Context, opt httpOpts) (*otlptrace.Exporter, error) {
+	ua := fmt.Sprintf("CircleCI (%s/%s, ex) via OTel OTLP Exporter Go/%s",
+		opt.service, opt.version, otlptrace.Version())
+
+	headers := map[string]string{
+		"User-Agent": ua,
 	}
-	if token != "" {
-		opts = append(opts,
-			otlptracehttp.WithHeaders(map[string]string{"Authorization": fmt.Sprintf("Bearer %s", token.Raw())}),
-		)
+	opts := []otlptracehttp.Option{otlptracehttp.WithEndpointURL(opt.endpoint)}
+	if opt.token != "" {
+		headers["Authorization"] = fmt.Sprintf("Bearer %s", opt.token.Raw())
 	}
+	opts = append(opts, otlptracehttp.WithHeaders(headers))
 
 	return otlptrace.New(ctx, otlptracehttp.NewClient(opts...))
 }
