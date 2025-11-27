@@ -198,7 +198,9 @@ func TestO11y_Auth(t *testing.T) {
 	closeProvider(ctx) // force a flush
 
 	assert.Check(t, cmp.Equal(r.LastRequest().Header.Get("Authorization"), "Bearer my-token"))
-
+	ua := r.LastRequest().Header.Get("User-Agent")
+	assert.Check(t, cmp.Contains(ua, "http-token-main"))
+	assert.Check(t, cmp.Contains(ua, "dev-test"))
 }
 
 func TestProvider(t *testing.T) {
