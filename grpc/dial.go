@@ -30,6 +30,7 @@ func Dial(conf Config) (*grpc.ClientConn, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultServiceConfig(ServiceConfig(conf.ServiceName)),
+		grpc.WithStatsHandler(newClientHandler()),
 	}
 
 	o11yInterceptor := func(ctx context.Context, method string, req, reply interface{},
