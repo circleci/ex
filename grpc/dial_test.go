@@ -104,7 +104,10 @@ func startGRPCServer(ctx context.Context, host string) (srv *pingPongServer, sto
 		return nil, nil, fmt.Errorf("failed to listen: %w", err)
 	}
 
-	server := grpc.NewServer(grpc.ConnectionTimeout(5 * time.Second))
+	server := grpc.NewServer(
+		grpc.ConnectionTimeout(5*time.Second),
+		grpc.StatsHandler(NewServerHandler(ctx)),
+	)
 	srv = &pingPongServer{}
 	testgrpc.RegisterPingPongServer(server, srv)
 
