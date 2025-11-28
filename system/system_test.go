@@ -14,18 +14,17 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/otel"
+	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/termination"
 	"github.com/circleci/ex/testing/fakemetrics"
 )
 
 func TestSystem_Run(t *testing.T) {
 	metrics := &fakemetrics.Provider{}
-	p, err := otel.New(otel.Config{
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
 		Metrics: metrics,
-	})
-	assert.NilError(t, err)
-	ctx := o11y.WithProvider(context.Background(), p)
+	}))
 
 	// Wait until everything has been exercised before terminating
 	terminationWait := &sync.WaitGroup{}
@@ -64,7 +63,7 @@ func TestSystem_Run(t *testing.T) {
 		return nil
 	})
 
-	err = sys.Run(ctx, 0)
+	err := sys.Run(ctx, 0)
 	assert.Check(t, errors.Is(err, termination.ErrTerminated))
 
 	sys.Cleanup(ctx)

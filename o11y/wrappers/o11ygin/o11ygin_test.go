@@ -25,7 +25,7 @@ import (
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/otel"
+	"github.com/circleci/ex/o11y/honeycomb"
 	"github.com/circleci/ex/testing/fakemetrics"
 	"github.com/circleci/ex/testing/jaeger"
 	"github.com/circleci/ex/testing/testcontext"
@@ -33,12 +33,11 @@ import (
 
 func TestMiddleware(t *testing.T) {
 	m := &fakemetrics.Provider{}
-	p, err := otel.New(otel.Config{
-		Metrics: m,
-	})
-	assert.NilError(t, err)
-	ctx := o11y.WithProvider(context.Background(), p)
 
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
+		Metrics: m,
+	}))
 	provider := o11y.FromContext(ctx)
 	t.Cleanup(func() {
 		provider.Close(ctx)
@@ -313,13 +312,11 @@ func TestClientCancelled(t *testing.T) {
 
 	var b syncbuffer.SyncBuffer
 	w := io.MultiWriter(os.Stdout, &b)
-
-	p, err := otel.New(otel.Config{
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
 		Metrics: m,
 		Writer:  w,
-	})
-	assert.NilError(t, err)
-	ctx := o11y.WithProvider(context.Background(), p)
+	}))
 
 	r := gin.New()
 	r.Use(
@@ -433,12 +430,11 @@ func TestRenderError(t *testing.T) {
 	m := &fakemetrics.Provider{}
 
 	buf := bytes.Buffer{}
-	p, err := otel.New(otel.Config{
+	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
+		Format:  "color",
 		Metrics: m,
 		Writer:  &buf,
-	})
-	assert.NilError(t, err)
-	ctx := o11y.WithProvider(context.Background(), p)
+	}))
 
 	r := gin.New()
 	r.Use(
@@ -462,9 +458,6 @@ func TestRenderError(t *testing.T) {
 
 	req := hc.NewRequest("GET", "/")
 	assert.Check(t, client.Call(ctx, req))
-
-	// Close the provider to flush the o11y
-	p.Close(context.Background())
 
 	// check that the middleware added an error field
 	assert.Check(t, cmp.Contains(buf.String(), "writer failure"))
