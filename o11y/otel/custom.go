@@ -9,6 +9,14 @@ import (
 
 var globalFields = Annotator{}
 
+// GlobalFieldsAnnotator exposes the global fields annotator. When used in conjunction with a Provider, such as the
+// MetricsOnly Provider a custom provider can implement the global fields behaviour.
+func GlobalFieldsAnnotator() *Annotator {
+	return &globalFields
+}
+
+var _ sdktrace.SpanProcessor = &Annotator{}
+
 // Annotator is a SpanProcessor that adds attributes to all started spans.
 type Annotator struct {
 	attrs []attribute.KeyValue

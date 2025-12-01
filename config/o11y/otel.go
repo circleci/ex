@@ -75,6 +75,9 @@ type OtelConfig struct {
 
 	// SpanExporters allows you explicitly provide a set of exporters, as an advanced use-case.
 	SpanExporters []sdktrace.SpanExporter
+
+	// ProviderFunc is used to provide a custom provider.
+	ProviderFunc func(conf otel.Config) (o11y.Provider, error)
 }
 
 // Otel is the primary entrypoint to initialize the o11y system for otel.
@@ -90,7 +93,10 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 	}
 	cfg.Metrics = mProv
 
-	o11yProvider, err := otel.New(cfg)
+	if o.ProviderFunc == nil {
+		o.ProviderFunc = otel.New
+	}
+	o11yProvider, err := o.ProviderFunc(cfg)
 	if err != nil {
 		return ctx, nil, err
 	}

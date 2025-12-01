@@ -22,6 +22,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
@@ -82,11 +83,11 @@ func New(conf Config) (o11y.Provider, error) {
 		exporters = append(exporters, http)
 	}
 
-	var sampler *deterministicSampler
+	var sampler *DeterministicSampler
 	if conf.SampleTraces {
-		sampler = &deterministicSampler{
-			sampleKeyFunc: conf.SampleKeyFunc,
-			sampleRates:   conf.SampleRates,
+		sampler = &DeterministicSampler{
+			SampleKeyFunc: conf.SampleKeyFunc,
+			SampleRates:   conf.SampleRates,
 		}
 	}
 
@@ -104,9 +105,9 @@ func New(conf Config) (o11y.Provider, error) {
 		exporters = append(exporters, text)
 	}
 
-	tp := traceProvider(multipleExporter{
-		exporters: exporters,
-		sampler:   sampler,
+	tp := traceProvider(MultipleExporter{
+		Exporters: exporters,
+		Sampler:   sampler,
 	}, conf)
 
 	// set the global options
@@ -119,6 +120,15 @@ func New(conf Config) (o11y.Provider, error) {
 		tp:              tp,
 		tracer:          otel.Tracer(""),
 	}, nil
+}
+
+// NewMetricsOnly returns a metrics only provider, to capture the span metrics behavior.
+// This can be used to compose with a custom provider to access span based metrics.
+func NewMetricsOnly(metrics o11y.ClosableMetricsProvider) o11y.Provider {
+	return &Provider{
+		metricsProvider: metrics,
+		tracer:          noop.NewTracerProvider().Tracer(""),
+	}
 }
 
 func NewHttpExporter(conf Config) (*otlptrace.Exporter, error) {
@@ -326,7 +336,9 @@ func (o Provider) Log(ctx context.Context, name string, fields ...o11y.Pair) {
 
 func (o Provider) Close(ctx context.Context) {
 	// TODO Handle these errors in a sensible manner where possible
-	_ = o.tp.Shutdown(ctx)
+	if o.tp != nil {
+		_ = o.tp.Shutdown(ctx)
+	}
 	if o.metricsProvider != nil {
 		_ = o.metricsProvider.Close()
 	}
@@ -543,14 +555,14 @@ func (s *span) snapshotFields() map[string]any {
 	return res
 }
 
-type multipleExporter struct {
-	exporters []sdktrace.SpanExporter
-	sampler   *deterministicSampler
+type MultipleExporter struct {
+	Exporters []sdktrace.SpanExporter
+	Sampler   *DeterministicSampler
 }
 
-func (m multipleExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
+func (m MultipleExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	spans = m.sampleSpans(spans)
-	for _, e := range m.exporters {
+	for _, e := range m.Exporters {
 		if err := e.ExportSpans(ctx, spans); err != nil {
 			return err
 		}
@@ -558,8 +570,8 @@ func (m multipleExporter) ExportSpans(ctx context.Context, spans []sdktrace.Read
 	return nil
 }
 
-func (m multipleExporter) Shutdown(ctx context.Context) error {
-	for _, e := range m.exporters {
+func (m MultipleExporter) Shutdown(ctx context.Context) error {
+	for _, e := range m.Exporters {
 		if err := e.Shutdown(ctx); err != nil {
 			return err
 		}
@@ -567,13 +579,13 @@ func (m multipleExporter) Shutdown(ctx context.Context) error {
 	return nil
 }
 
-func (m multipleExporter) sampleSpans(spans []sdktrace.ReadOnlySpan) []sdktrace.ReadOnlySpan {
-	if m.sampler == nil {
+func (m MultipleExporter) sampleSpans(spans []sdktrace.ReadOnlySpan) []sdktrace.ReadOnlySpan {
+	if m.Sampler == nil {
 		return spans
 	}
 	ss := make([]sdktrace.ReadOnlySpan, 0, len(spans))
 	for _, s := range spans {
-		if ok, rate := m.sampler.shouldSample(s); ok {
+		if ok, rate := m.Sampler.shouldSample(s); ok {
 			ss = append(ss, sampleRateSpan{ReadOnlySpan: s, rate: rate})
 		}
 	}
