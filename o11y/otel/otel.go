@@ -22,6 +22,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/circleci/ex/config/secret"
 	"github.com/circleci/ex/o11y"
@@ -119,6 +120,15 @@ func New(conf Config) (o11y.Provider, error) {
 		tp:              tp,
 		tracer:          otel.Tracer(""),
 	}, nil
+}
+
+// NewMetricsOnly returns a metrics only provider, to capture the span metrics behavior.
+// This can be used to compose with a custom provider to access span based metrics.
+func NewMetricsOnly(metrics o11y.ClosableMetricsProvider) o11y.Provider {
+	return &Provider{
+		metricsProvider: metrics,
+		tracer:          noop.NewTracerProvider().Tracer(""),
+	}
 }
 
 func NewHttpExporter(conf Config) (*otlptrace.Exporter, error) {
@@ -326,7 +336,9 @@ func (o Provider) Log(ctx context.Context, name string, fields ...o11y.Pair) {
 
 func (o Provider) Close(ctx context.Context) {
 	// TODO Handle these errors in a sensible manner where possible
-	_ = o.tp.Shutdown(ctx)
+	if o.tp != nil {
+		_ = o.tp.Shutdown(ctx)
+	}
 	if o.metricsProvider != nil {
 		_ = o.metricsProvider.Close()
 	}
