@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/honeycombio/beeline-go/trace"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -15,17 +14,19 @@ import (
 	"github.com/circleci/ex/httpclient"
 	"github.com/circleci/ex/httpserver"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/honeycomb"
+	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/testing/fakemetrics"
 )
 
 func TestMiddleware(t *testing.T) {
 	m := &fakemetrics.Provider{}
 
-	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		Format:  "color",
+	p, err := otel.New(otel.Config{
 		Metrics: m,
-	}))
+	})
+	assert.NilError(t, err)
+	ctx := o11y.WithProvider(context.Background(), p)
+
 	provider := o11y.FromContext(ctx)
 	defer func() {
 		provider.Close(ctx)
@@ -101,7 +102,6 @@ func TestMiddleware(t *testing.T) {
 
 	r := http.NewServeMux()
 	r.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		trace.GetSpanFromContext(r.Context()).AddField("request.route", "/api/%s")
 		switch r.URL.Path {
 		case "/api/exists":
 			_, _ = io.WriteString(w, "exists")
@@ -148,17 +148,19 @@ func TestMiddleware(t *testing.T) {
 func TestMiddleware_with_sampling(t *testing.T) {
 	m := &fakemetrics.Provider{}
 
-	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		Format:       "color",
+	p, err := otel.New(otel.Config{
 		Metrics:      m,
 		SampleTraces: true,
 		SampleKeyFunc: func(m map[string]interface{}) string {
 			return "foo"
 		},
-		SampleRates: map[string]int{
+		SampleRates: map[string]uint{
 			"foo": 1e4,
 		},
-	}))
+	})
+	assert.NilError(t, err)
+	ctx := o11y.WithProvider(context.Background(), p)
+
 	provider := o11y.FromContext(ctx)
 	defer func() {
 		provider.Close(ctx)
