@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -50,6 +51,9 @@ type Config struct {
 
 	Writer  io.Writer
 	Metrics o11y.ClosableMetricsProvider
+
+	// SpanExporters allows you explicitly provide a set of exporters, as an advanced use-case.
+	SpanExporters []sdktrace.SpanExporter
 }
 
 type Provider struct {
@@ -59,7 +63,7 @@ type Provider struct {
 }
 
 func New(conf Config) (o11y.Provider, error) {
-	var exporters []sdktrace.SpanExporter
+	exporters := slices.Clone(conf.SpanExporters)
 
 	if conf.GrpcHostAndPort != "" {
 		grpc, err := newGRPC(context.Background(), conf.GrpcHostAndPort)
@@ -71,7 +75,7 @@ func New(conf Config) (o11y.Provider, error) {
 	}
 
 	if conf.HTTPTracesURL != "" {
-		http, err := newHttpExporter(conf)
+		http, err := NewHttpExporter(conf)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +121,7 @@ func New(conf Config) (o11y.Provider, error) {
 	}, nil
 }
 
-func newHttpExporter(conf Config) (*otlptrace.Exporter, error) {
+func NewHttpExporter(conf Config) (*otlptrace.Exporter, error) {
 	var serviceName, serviceVersion string
 	for _, a := range conf.ResourceAttributes {
 		switch a.Key {

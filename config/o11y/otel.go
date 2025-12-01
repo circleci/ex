@@ -11,6 +11,7 @@ import (
 	"github.com/cenkalti/backoff/v5"
 	"github.com/rollbar/rollbar-go"
 	"go.opentelemetry.io/otel/attribute"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.12.0"
 
 	"github.com/circleci/ex/config/secret"
@@ -63,13 +64,17 @@ type OtelConfig struct {
 
 	// Override the default writer for text span output
 	Writer io.Writer
+
+	// SpanExporters allows you explicitly provide a set of exporters, as an advanced use-case.
+	SpanExporters []sdktrace.SpanExporter
 }
 
 // Otel is the primary entrypoint to initialize the o11y system for otel.
 func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Context), error) {
 	hostname, _ := os.Hostname()
 
-	cfg := o.otel()
+	cfg := o.ToOTEL()
+	cfg.SpanExporters = o.SpanExporters
 
 	mProv, err := metricsProvider(ctx, o, hostname)
 	if err != nil {
@@ -103,7 +108,7 @@ func Otel(ctx context.Context, o OtelConfig) (context.Context, func(context.Cont
 	return ctx, o11yProvider.Close, nil
 }
 
-func (o *OtelConfig) otel() otel.Config {
+func (o *OtelConfig) ToOTEL() otel.Config {
 	cfg := otel.Config{
 		GrpcHostAndPort:   o.GrpcHostAndPort,
 		HTTPTracesURL:     o.HTTPTracesURL,
