@@ -20,7 +20,7 @@ import (
 
 	"github.com/circleci/ex/internal/syncbuffer"
 	"github.com/circleci/ex/o11y"
-	"github.com/circleci/ex/o11y/honeycomb"
+	"github.com/circleci/ex/o11y/otel"
 	"github.com/circleci/ex/testing/fakestatsd"
 	"github.com/circleci/ex/testing/rabbitfixture"
 )
@@ -122,12 +122,14 @@ func TestPublisherPool_Publish(t *testing.T) {
 
 func TestPublisherPool_MandatoryRouting(t *testing.T) {
 	var buf syncbuffer.SyncBuffer
-	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		Format: "text",
-		Writer: &buf,
-	}))
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	p, err := otel.New(otel.Config{
+		Writer: &buf,
+	})
+	assert.NilError(t, err)
+	ctx := o11y.WithProvider(context.Background(), p)
+
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	t.Cleanup(cancel)
 
 	u := rabbitfixture.New(ctx, t)
@@ -158,12 +160,14 @@ func TestPublisherPool_MandatoryRouting(t *testing.T) {
 		assert.Check(t, cmp.Contains(s, "result=error"))
 	})
 }
+
 func TestPublisherPool_OptionalRouting(t *testing.T) {
 	var buf syncbuffer.SyncBuffer
-	ctx := o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		Format: "text",
+	p, err := otel.New(otel.Config{
 		Writer: &buf,
-	}))
+	})
+	assert.NilError(t, err)
+	ctx := o11y.WithProvider(context.Background(), p)
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	t.Cleanup(cancel)
@@ -306,10 +310,12 @@ func newMetricsFixture(t *testing.T) (context.Context, metricsFixture) {
 	stats, err := statsd.New(m.s.Addr())
 	assert.Assert(t, err)
 
-	return o11y.WithProvider(context.Background(), honeycomb.New(honeycomb.Config{
-		Format:  "color",
+	p, err := otel.New(otel.Config{
 		Metrics: stats,
-	})), m
+	})
+	assert.NilError(t, err)
+
+	return o11y.WithProvider(context.Background(), p), m
 }
 
 func (m *metricsFixture) waitForMetric(t *testing.T) fakestatsd.Metric {

@@ -20,9 +20,8 @@ See example / template repo [here](https://github.com/circleci/ex-service-templa
 - `httpserver/ginrouter` A common base for configuring a Gin router instance.
 - `httpserver/healthcheck` A healthcheck HTTP server that can accept all the checks from a `system`.
 - `mongoex` **Experimental** Common patterns using when talking to MongoDB.
-- `o11y` Observability that is currently backed by Honeycomb. It also supports outputting
+- `o11y` Observability that is currently backed by Otel. It also supports outputting
   trace data as JSON and plain or colored text output.
-- `o11y/honeycomb` The honeycomb-backed implementation of `o11y`.
 - `o11y/wrappers/o11ygin` `o11y` middleware for the Gin router.
 - `o11y/wrappers/o11ynethttp` `o11y` middleware for the standard Go HTTP server.
 - `rabbit` **Experimental** RabbitMQ publishing client.
