@@ -25,7 +25,7 @@ require (
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/makasim/amqpextra v1.2.1
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/redis/go-redis/v9 v9.17.1
+	github.com/redis/go-redis/v9 v9.17.2
 	github.com/rollbar/rollbar-go v1.4.8
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.opentelemetry.io/otel v1.38.0
