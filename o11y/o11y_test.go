@@ -182,3 +182,42 @@ func TestSetSpanSampledIn(t *testing.T) {
 
 	assert.Check(t, fs.fields["meta.keep.span"], true)
 }
+
+type fakeEndWithErrSpan struct {
+	*fakeSpan
+
+	endError error
+}
+
+func (s *fakeEndWithErrSpan) EndWithError(err *error) {
+	if err == nil {
+		s.endError = nil
+		return
+	}
+	s.endError = *err
+}
+
+func TestEnd(t *testing.T) {
+	span := &fakeEndWithErrSpan{
+		fakeSpan: newFakeSpan(),
+	}
+
+	err := errors.New("oh no")
+
+	t.Run("has error", func(t *testing.T) {
+		End(span, &err)
+		assert.Check(t, cmp.ErrorIs(err, span.endError))
+	})
+
+	t.Run("nil error", func(t *testing.T) {
+		e := &err
+		*e = nil // make the underlying error nil - the interface won't be nil
+		End(span, e)
+		assert.NilError(t, err)
+	})
+
+	t.Run("nil interface", func(t *testing.T) {
+		End(span, nil)
+		assert.NilError(t, err)
+	})
+}

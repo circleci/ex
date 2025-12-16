@@ -280,6 +280,13 @@ func End(span Span, err *error) {
 		actualErr = *err
 	}
 	AddResultToSpan(span, actualErr)
+
+	// If the span implements EndWithError call that passing in the captured error
+	if sp, ok := span.(interface{ EndWithError(*error) }); ok {
+		sp.EndWithError(err)
+		return
+	}
+
 	span.End()
 }
 
