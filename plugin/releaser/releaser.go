@@ -97,6 +97,7 @@ func New(cfg Config) (Releaser, error) {
 			},
 			"windows": {
 				"amd64",
+				"arm64",
 			},
 		}
 	}
