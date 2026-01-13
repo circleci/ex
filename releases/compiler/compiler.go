@@ -66,14 +66,15 @@ func (c *compiler) Compile(ctx context.Context, work Work) (string, error) {
 		// #nosec - this is fine
 		cmd = exec.CommandContext(ctx, goBin, args...)
 	} else {
-		args := []string{
+		args := make([]string, 0, 9)
+		args = append(args,
 			"test",
 			"-coverpkg=./...",
 			"-c",
 			work.Source,
 			"-o", path,
 			"-tags", "testrunmain",
-		}
+		)
 		if work.Tags != "" {
 			args[len(args)-1] += " " + work.Tags
 		}
