@@ -110,13 +110,14 @@ func (f *fixture) download(ctx context.Context, requirements ...func(*httpclient
 	}
 	var errorResp errorMessage
 
-	options := []func(*httpclient.Request){
+	options := make([]func(*httpclient.Request), 0, 5+len(requirements))
+	options = append(options,
 		httpclient.JSONDecoder(&resp),
 		httpclient.Decoder(http.StatusBadRequest, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.Decoder(http.StatusNotFound, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.Decoder(http.StatusGone, httpclient.NewJSONDecoder(&errorResp)),
 		httpclient.NoRetry(),
-	}
+	)
 	options = append(options, requirements...)
 
 	err := f.Client.Call(ctx, httpclient.NewRequest("GET", "/downloads", options...))
