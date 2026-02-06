@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"golang.org/x/sync/errgroup"
 
@@ -30,7 +30,7 @@ var (
 
 type Releaser struct {
 	s3       *s3.Client
-	uploader *manager.Uploader
+	uploader *transfermanager.Client
 }
 
 func New(ctx context.Context) (*Releaser, error) {
@@ -46,7 +46,7 @@ func New(ctx context.Context) (*Releaser, error) {
 func NewWithClient(client *s3.Client) *Releaser {
 	return &Releaser{
 		s3:       client,
-		uploader: manager.NewUploader(client),
+		uploader: transfermanager.New(client),
 	}
 }
 
@@ -96,11 +96,10 @@ func (r *Releaser) Release(ctx context.Context, params ReleaseParameters) error 
 
 	key := filepath.ToSlash(filepath.Join(params.App, params.Environment+".txt"))
 	fmt.Printf("Releasing: %q - %s\n", key, params.Version)
-	_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
-		Bucket: &params.Bucket,
-		Body:   strings.NewReader(params.Version),
-		Key:    &key,
-
+	_, err := r.uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
+		Bucket:  &params.Bucket,
+		Body:    strings.NewReader(params.Version),
+		Key:     &key,
 		Tagging: encodeTags(params.Tags),
 	})
 	return err
@@ -130,14 +129,13 @@ func (r *Releaser) uploadBinaries(ctx context.Context, params PublishParameters)
 		defer closer.ErrorHandler(pw, &err)
 
 		g.Go(func() error {
-			_, err := r.uploader.Upload(ctx, &s3.PutObjectInput{
+			_, err := r.uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
 				Bucket:          &params.Bucket,
 				Body:            pr,
 				Key:             &key,
 				ContentEncoding: &contentEncodingGZIP,
 				ContentType:     &contentTypeOctetStream,
-
-				Tagging: encodeTags(params.Tags),
+				Tagging:         encodeTags(params.Tags),
 			})
 			if err != nil {
 				_ = pw.CloseWithError(err)
@@ -191,7 +189,7 @@ func (r *Releaser) uploadChecksums(ctx context.Context, params PublishParameters
 
 	key := fileKey(params.App, params.Version, "checksums.txt")
 	fmt.Printf("Uploading: %q\n", key)
-	_, err = r.uploader.Upload(ctx, &s3.PutObjectInput{
+	_, err = r.uploader.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket: &params.Bucket,
 		Key:    &key,
 		Body:   &checksums,
