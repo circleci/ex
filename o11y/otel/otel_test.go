@@ -830,7 +830,7 @@ func TestGolden(t *testing.T) {
 			// We should have two normal traces and one golden trace
 			assert.Assert(t, cmp.Len(traces, 3))
 
-			var spans []jaeger.Span
+			spans := make([]jaeger.Span, 0, 9)
 			for _, trc := range traces {
 				spans = append(spans, trc.Spans...)
 			}

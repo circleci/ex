@@ -188,7 +188,8 @@ func newHTTP(ctx context.Context, opt httpOpts) (*otlptrace.Exporter, error) {
 	headers := map[string]string{
 		"User-Agent": ua,
 	}
-	opts := []otlptracehttp.Option{otlptracehttp.WithEndpointURL(opt.endpoint)}
+	opts := make([]otlptracehttp.Option, 0, 2)
+	opts = append(opts, otlptracehttp.WithEndpointURL(opt.endpoint))
 	if opt.token != "" {
 		headers["Authorization"] = fmt.Sprintf("Bearer %s", opt.token.Raw())
 	}
@@ -237,7 +238,7 @@ func toOtelOpts(opts []o11y.SpanOpt) []trace.SpanStartOption {
 	if cfg.Kind == 0 {
 		cfg.Kind = o11y.SpanKindInternal
 	}
-	var so []trace.SpanStartOption
+	so := make([]trace.SpanStartOption, 0, 1)
 	so = append(so, trace.WithSpanKind(trace.SpanKind(cfg.Kind)))
 	return so
 }
