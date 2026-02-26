@@ -26,7 +26,7 @@ require (
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/makasim/amqpextra v1.2.1
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/redis/go-redis/v9 v9.17.3
+	github.com/redis/go-redis/v9 v9.18.0
 	github.com/rollbar/rollbar-go v1.4.8
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.opentelemetry.io/otel v1.40.0
@@ -110,6 +110,7 @@ require (
 	github.com/ugorji/go/codec v1.3.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/metric v1.40.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/mod v0.32.0 // indirect
