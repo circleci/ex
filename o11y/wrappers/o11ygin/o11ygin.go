@@ -134,21 +134,27 @@ func ClientCancelled() gin.HandlerFunc {
 }
 
 func Recovery() func(c *gin.Context) {
-	return gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, err interface{}) {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		ctx := c.Request.Context()
-		span := o11y.FromContext(ctx).GetSpan(ctx)
+	return func(c *gin.Context) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				ctx := c.Request.Context()
+				span := o11y.FromContext(ctx).GetSpan(ctx)
 
-		// Most likely caused by one side of the proxy disappearing. Not really a panic
-		// https://github.com/golang/go/issues/28239
-		if origErr, ok := err.(error); ok && errors.Is(origErr, http.ErrAbortHandler) {
-			// prevent reporting to rollbar for this expected error, report as an error instead
-			o11y.AddResultToSpan(span, origErr)
-			return
-		}
+				// Most likely caused by one side of the proxy disappearing. Not really a panic
+				// https://github.com/golang/go/issues/28239
+				if origErr, ok := rec.(error); ok && errors.Is(origErr, http.ErrAbortHandler) {
+					c.AbortWithStatus(http.StatusInternalServerError)
+					// prevent reporting to rollbar for this expected error, report as an error instead
+					o11y.AddResultToSpan(span, origErr)
+					return
+				}
 
-		_ = o11y.HandlePanic(ctx, span, err, c.Request)
-	})
+				c.AbortWithStatus(http.StatusInternalServerError)
+				_ = o11y.HandlePanic(ctx, span, rec, c.Request)
+			}
+		}()
+		c.Next()
+	}
 }
 
 func Golden(p o11y.Provider) gin.HandlerFunc {
