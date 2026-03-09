@@ -36,13 +36,6 @@ func TestMetrics(t *testing.T) {
 		ctx, done := setupMetrics(t, ctx)
 		tracer := New(ctx)
 
-		sys := system.New()
-		sys.AddGauges(tracer)
-		go func() {
-			err := sys.Run(ctx, time.Millisecond)
-			assert.Assert(t, err)
-		}()
-
 		concurrentRequests := 100
 		maxConnections := 90 // close to max concurrency, but we should see some waiting
 		cl := httpclient.New(httpclient.Config{
@@ -51,6 +44,14 @@ func TestMetrics(t *testing.T) {
 			MaxConnectionsPerHost: maxConnections,
 			Tracer:                tracer,
 		})
+
+		// Start sys.Run after httpclient.New so Wrap() completes before Gauges() polling begins.
+		sys := system.New()
+		sys.AddGauges(tracer)
+		go func() {
+			err := sys.Run(ctx, time.Millisecond)
+			assert.Assert(t, err)
+		}()
 
 		r := httpclient.NewRequest("GET", "/test/%s",
 			httpclient.RouteParams("foo"),
@@ -128,13 +129,6 @@ func TestMetrics(t *testing.T) {
 		ctx, done := setupMetrics(t, ctx)
 		tracer := New(ctx)
 
-		sys := system.New()
-		sys.AddGauges(tracer)
-		go func() {
-			err := sys.Run(ctx, time.Millisecond)
-			assert.Assert(t, err)
-		}()
-
 		concurrentRequests := 20
 		maxConnections := 70
 		cl := httpclient.New(httpclient.Config{
@@ -143,6 +137,14 @@ func TestMetrics(t *testing.T) {
 			MaxConnectionsPerHost: maxConnections,
 			Tracer:                tracer,
 		})
+
+		// Start sys.Run after httpclient.New so Wrap() completes before Gauges() polling begins.
+		sys := system.New()
+		sys.AddGauges(tracer)
+		go func() {
+			err := sys.Run(ctx, time.Millisecond)
+			assert.Assert(t, err)
+		}()
 
 		var wg sync.WaitGroup
 		wg.Add(concurrentRequests)
