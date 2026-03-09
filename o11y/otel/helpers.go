@@ -75,6 +75,10 @@ func (h helpers) InjectPropagation(ctx context.Context,
 		spec.span.AddRawField(metaGolden, true)
 		ctx = context.WithValue(ctx, goldenCtxKey{}, spec)
 	}
+
+	// Add extracted baggage attributes to the trace so they appear on all spans.
+	ctx = o11y.WithBaggage(ctx, o11y.GetBaggage(ctx))
+
 	return ctx, sp
 }
 

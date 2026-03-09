@@ -54,6 +54,10 @@ func (h *serverHandler) TagRPC(ctx context.Context, info *stats.RPCTagInfo) cont
 	name, attrs := parseFullMethod(info.FullMethodName)
 	attrs = append(attrs, string(semconv.RPCSystemGRPC.Key), semconv.RPCSystemGRPC.Value.AsString())
 	ctx, span := o11y.StartSpan(ctx, name, o11y.WithSpanKind(o11y.SpanKindServer))
+
+	// Add extracted baggage attributes to the trace so they appear on all spans.
+	ctx = o11y.WithBaggage(ctx, o11y.GetBaggage(ctx))
+
 	for i := 0; i < len(attrs); i += 2 {
 		span.AddRawField(attrs[i], attrs[i+1])
 	}

@@ -1060,6 +1060,68 @@ func toString(value *v1.AnyValue) string {
 	return strings.Trim(parts[1], `"`)
 }
 
+func TestBaggageOnAllChildSpans(t *testing.T) {
+	lis, err := net.Listen("tcp", "localhost:0")
+	assert.Assert(t, err)
+
+	col := &testTraceCollector{}
+	grpcServer := grpc.NewServer()
+	defer grpcServer.Stop()
+	coltracepb.RegisterTraceServiceServer(grpcServer, col)
+
+	g := &errgroup.Group{}
+	g.Go(func() error {
+		return grpcServer.Serve(lis)
+	})
+
+	ctx, closeProvider, err := o11yconfig.Otel(context.Background(), o11yconfig.OtelConfig{
+		Service:         "baggage-test",
+		Version:         "dev-test",
+		Dataset:         "test",
+		GrpcHostAndPort: lis.Addr().String(),
+		StatsNamespace:  "test-app",
+		DisableText:     true,
+	})
+	assert.NilError(t, err)
+
+	provider := o11y.FromContext(ctx)
+	h := provider.Helpers()
+
+	headers := http.Header{
+		"Traceparent": {"00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"},
+		"Baggage":     {"bg-org-id=org123,bg-project-id=proj456"},
+	}
+	pc := o11y.PropagationContextFromHeader(headers)
+	ctx, rootSpan := h.InjectPropagation(ctx, pc)
+
+	ctx, childSpan := o11y.StartSpan(ctx, "child-operation")
+	_, grandchildSpan := o11y.StartSpan(ctx, "grandchild-operation")
+
+	grandchildSpan.End()
+	childSpan.End()
+	rootSpan.End()
+
+	closeProvider(ctx)
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		if len(col.Spans()) >= 3 {
+			return poll.Success()
+		}
+		return poll.Continue("waiting for 3 spans, got %d", len(col.Spans()))
+	})
+
+	spans := col.Spans()
+	assert.Assert(t, len(spans) >= 3, "expected at least 3 spans, got %d", len(spans))
+
+	// Every span should have the baggage fields as trace-level attributes.
+	for _, s := range spans {
+		assert.Check(t, cmp.Equal(s.Attrs["app.bg_org_id"], "org123"),
+			"span %q missing bg_org_id", s.Name)
+		assert.Check(t, cmp.Equal(s.Attrs["app.bg_project_id"], "proj456"),
+			"span %q missing bg_project_id", s.Name)
+	}
+}
+
 func TestOtel_Writer(t *testing.T) {
 	var b syncbuffer.SyncBuffer
 	w := io.MultiWriter(os.Stdout, &b)
