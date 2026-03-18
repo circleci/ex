@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/cenkalti/backoff/v5"
 	"github.com/rollbar/rollbar-go"
 	"go.opentelemetry.io/otel/attribute"
