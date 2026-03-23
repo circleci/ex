@@ -16,7 +16,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/circleci/ex/testing/miniofixture"
+	"github.com/circleci/ex/testing/s3fixture"
 	"github.com/circleci/ex/testing/testcontext"
 )
 
@@ -269,7 +269,7 @@ func TestList_Lookup(t *testing.T) {
 }
 
 func fixture(ctx context.Context, t *testing.T) string {
-	fix := miniofixture.Default(ctx, t)
+	fix := s3fixture.Default(ctx, t)
 	bu := buckerUploader{
 		bucket:   fix.Bucket,
 		uploader: manager.NewUploader(fix.Client),

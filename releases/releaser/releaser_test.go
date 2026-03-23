@@ -22,13 +22,13 @@ import (
 	"gotest.tools/v3/golden"
 
 	"github.com/circleci/ex/closer"
-	"github.com/circleci/ex/testing/miniofixture"
+	"github.com/circleci/ex/testing/s3fixture"
 )
 
 func TestReleaser_Publish(t *testing.T) {
 	ctx := context.Background()
 
-	fix := miniofixture.Default(ctx, t)
+	fix := s3fixture.Default(ctx, t)
 
 	r := NewWithClient(fix.Client)
 
@@ -150,7 +150,7 @@ func TestReleaser_Publish(t *testing.T) {
 func TestReleaser_Release(t *testing.T) {
 	ctx := context.Background()
 
-	fix := miniofixture.Default(ctx, t)
+	fix := s3fixture.Default(ctx, t)
 
 	r := NewWithClient(fix.Client)
 
