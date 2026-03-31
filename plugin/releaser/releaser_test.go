@@ -17,13 +17,13 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/circleci/ex/plugin/releaser"
-	"github.com/circleci/ex/testing/miniofixture"
+	"github.com/circleci/ex/testing/s3fixture"
 	"github.com/circleci/ex/testing/testcontext"
 )
 
 func TestPlugin_Releaser(t *testing.T) {
 	ctx := testcontext.Background()
-	fix := miniofixture.Default(ctx, t)
+	fix := s3fixture.Default(ctx, t)
 
 	plugin := "fake"
 	version := "1.0.0"

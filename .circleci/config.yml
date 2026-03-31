@@ -75,24 +75,13 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: root
           MONGO_INITDB_ROOT_PASSWORD: password
           MONGO_INITDB_DATABASE: dbname
-      - image: minio/minio
-        environment:
-          MINIO_ROOT_USER: 'minio'
-          MINIO_ROOT_PASSWORD: 'minio123'
-        command: [
-          'server',
-          '/data/1','/data/2','/data/3','/data/4',
-          '--address', ':9123',
-          ]
-      - image: minio/minio
-        environment:
-          MINIO_ROOT_USER: 'minio-nv'
-          MINIO_ROOT_PASSWORD: 'minio-nv-123'
-        command: [
-          'server',
-          '/datanv',
-          '--address', ':9124',
-          ]
+      - image: chrislusf/seaweedfs
+        entrypoint: /bin/sh
+        command:
+          - -c
+          - >-
+            echo '{"identities":[{"name":"seaweed","credentials":[{"accessKey":"seaweed","secretKey":"seaweed123"}],"actions":["Admin","Read","ReadAcp","Write","WriteAcp","List","Tagging"]}]}' > /tmp/s3.json
+            && exec /entrypoint.sh server -s3 -s3.port=9123 -s3.config=/tmp/s3.json
       - image: hashicorp/vault:1.21.3
         environment:
           SKIP_SETCAP: skip
