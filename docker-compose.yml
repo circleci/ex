@@ -55,7 +55,7 @@ services:
       - '127.0.0.1:9123:9123'
 
   vault:
-    image: hashicorp/vault:1.21.3
+    image: hashicorp/vault:2.0.0
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: dummyroot
     ports:

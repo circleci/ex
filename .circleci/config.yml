@@ -82,7 +82,7 @@ jobs:
           - >-
             echo '{"identities":[{"name":"seaweed","credentials":[{"accessKey":"seaweed","secretKey":"seaweed123"}],"actions":["Admin","Read","ReadAcp","Write","WriteAcp","List","Tagging"]}]}' > /tmp/s3.json
             && exec /entrypoint.sh server -s3 -s3.port=9123 -s3.config=/tmp/s3.json
-      - image: hashicorp/vault:1.21.3
+      - image: hashicorp/vault:2.0.0
         environment:
           SKIP_SETCAP: skip
           VAULT_DEV_ROOT_TOKEN_ID: dummyroot
