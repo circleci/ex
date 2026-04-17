@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/sync/errgroup"
 	"gotest.tools/v3/assert"
