@@ -26,9 +26,9 @@ func (a *Annotator) addField(key string, value any) {
 	a.attrs = append(a.attrs, attr(key, value))
 }
 
-func (a Annotator) OnStart(_ context.Context, s sdktrace.ReadWriteSpan) {
+func (a *Annotator) OnStart(_ context.Context, s sdktrace.ReadWriteSpan) {
 	s.SetAttributes(a.attrs...)
 }
-func (a Annotator) Shutdown(context.Context) error   { return nil }
-func (a Annotator) ForceFlush(context.Context) error { return nil }
-func (a Annotator) OnEnd(s sdktrace.ReadOnlySpan)    {}
+func (a *Annotator) Shutdown(context.Context) error   { return nil }
+func (a *Annotator) ForceFlush(context.Context) error { return nil }
+func (a *Annotator) OnEnd(s sdktrace.ReadOnlySpan)    {}
