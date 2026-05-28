@@ -154,7 +154,7 @@ func (o *OtelConfig) ToOTEL() otel.Config {
 		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.environments", true))
 	}
 	if o.DisableTailSampling {
-		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.sampling.disabled", true))
+		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.keep.span", true))
 	}
 	return cfg
 }
