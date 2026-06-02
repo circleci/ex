@@ -42,6 +42,7 @@ type OtelConfig struct {
 	UseEnvironments bool
 
 	// This will tell the collectors to bypass the server side tail based sampler
+	// Deprecated: Use the sampling flag documented in confluence
 	DisableTailSampling bool
 
 	// DisableText prevents output to stdout for noisy services. Ignored if no other no hosts are supplied
@@ -153,9 +154,7 @@ func (o *OtelConfig) ToOTEL() otel.Config {
 	if o.UseEnvironments {
 		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.environments", true))
 	}
-	if o.DisableTailSampling {
-		cfg.ResourceAttributes = append(cfg.ResourceAttributes, attribute.Bool("meta.keep.span", true))
-	}
+
 	return cfg
 }
 
