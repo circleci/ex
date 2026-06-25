@@ -111,7 +111,7 @@ func (e *Exporter) format(ev *tracetest.SpanStub) []byte {
 
 	data := map[string]any{}
 	for _, a := range ev.Attributes {
-		data[string(a.Key)] = a.Value.Emit()
+		data[string(a.Key)] = a.Value.String()
 	}
 
 	for _, k := range sortedKeys(ev.Attributes) {
