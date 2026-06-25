@@ -2,7 +2,7 @@ module github.com/circleci/ex
 
 go 1.25.0
 
-toolchain go1.26.3
+toolchain go1.26.4
 
 require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible
@@ -26,7 +26,7 @@ require (
 	github.com/jolestar/go-commons-pool/v2 v2.1.2
 	github.com/makasim/amqpextra v1.2.1
 	github.com/rabbitmq/amqp091-go v1.11.0
-	github.com/redis/go-redis/v9 v9.19.0
+	github.com/redis/go-redis/v9 v9.21.0
 	github.com/rollbar/rollbar-go v1.4.8
 	github.com/vmihailenco/go-tinylfu v0.2.2
 	go.opentelemetry.io/otel v1.44.0
@@ -37,7 +37,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	go.opentelemetry.io/proto/otlp v1.10.0
 	go.uber.org/automaxprocs v1.6.0
-	golang.org/x/net v0.55.0
+	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
