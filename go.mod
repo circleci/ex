@@ -14,7 +14,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.28
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.2.11
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0
-	github.com/cenkalti/backoff/v5 v5.0.3
+	github.com/cenkalti/backoff/v6 v6.0.1
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
@@ -63,6 +63,7 @@ require (
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
