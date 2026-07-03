@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DataDog/datadog-go/statsd"
+	"github.com/DataDog/datadog-go/v5/statsd"
 	"github.com/rollbar/rollbar-go"
 	"go.opentelemetry.io/otel/baggage"
 )
