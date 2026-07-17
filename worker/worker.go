@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cenkalti/backoff/v5"
+	"github.com/cenkalti/backoff/v7"
 
 	"github.com/circleci/ex/o11y"
 )
