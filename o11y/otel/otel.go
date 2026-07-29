@@ -201,6 +201,7 @@ func newGRPC(ctx context.Context, endpoint string) (*otlptrace.Exporter, error) 
 	opts := []otlptracegrpc.Option{
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithServiceConfig(`{"loadBalancingConfig":[{"round_robin":{}}]}`),
 	}
 	return otlptrace.New(ctx, otlptracegrpc.NewClient(opts...))
 }
