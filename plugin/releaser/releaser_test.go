@@ -88,6 +88,7 @@ func TestPlugin_Releaser(t *testing.T) {
 						os: "windows",
 						expected: []string{
 							"amd64/fake.exe",
+							"arm64/fake.exe",
 						},
 					},
 				}
