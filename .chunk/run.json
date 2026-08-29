@@ -1,0 +1,11 @@
+{
+  "org_id": "f22b6566-597d-46d5-ba74-99ef5bb3d85c",
+  "project_id": "324365cd-8ec8-4b80-9145-fa4ea7cbcfeb",
+  "org_type": "github",
+  "definitions": {
+    "general": {
+      "definition_id": "5ec0958a-4693-48d5-9232-0de9f864025a",
+      "default_branch": "main"
+    }
+  }
+}
