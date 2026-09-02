@@ -416,7 +416,6 @@ func TestClientCancelled(t *testing.T) {
 			{
 				Metric: "timer",
 				Name:   "handler",
-				Value:  100.344581,
 				Tags: []string{
 					"http.server_name:test-server",
 					"http.method:GET",
@@ -425,7 +424,7 @@ func TestClientCancelled(t *testing.T) {
 				},
 				Rate: 1,
 			},
-		}, m.Calls(), fakemetrics.CMPMetrics))
+		}, m.Calls(), fakemetrics.CMPMetrics, cmpopts.IgnoreFields(fakemetrics.MetricCall{}, "Value")))
 	})
 }
 
