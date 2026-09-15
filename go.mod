@@ -1,6 +1,6 @@
 module github.com/circleci/ex
 
-go 1.25.0
+go 1.26.0
 
 toolchain go1.26.4
 
@@ -38,7 +38,7 @@ require (
 	go.opentelemetry.io/proto/otlp v1.11.0
 	go.uber.org/automaxprocs v1.6.0
 	golang.org/x/net v0.58.0
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.11
 	gotest.tools/v3 v3.5.2
