@@ -110,6 +110,7 @@ func (f *fixture) download(ctx context.Context, requirements ...func(*httpclient
 	}
 	var errorResp errorMessage
 
+	//nolint:prealloc // few elements, not a hot path
 	options := []func(*httpclient.Request){
 		httpclient.JSONDecoder(&resp),
 		httpclient.Decoder(http.StatusBadRequest, httpclient.NewJSONDecoder(&errorResp)),

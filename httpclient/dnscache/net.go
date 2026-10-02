@@ -43,5 +43,6 @@ func DialContext(resolver *Resolver, baseDial DialFunc) DialFunc {
 }
 
 var randPerm = func(n int) []int {
+	// #nosec G404 -- shuffling resolved addresses does not need a cryptographic RNG
 	return rand.Perm(n)
 }
