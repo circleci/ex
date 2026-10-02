@@ -54,7 +54,7 @@ func deref(i any) (o any) {
 		return i
 	}
 	v := reflect.ValueOf(i)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		if v.IsZero() || !v.IsValid() {
 			return i
 		}
@@ -76,7 +76,7 @@ func isNil(value any) bool {
 		reflect.Func,
 		reflect.Interface,
 		reflect.Map,
-		reflect.Ptr,
+		reflect.Pointer,
 		reflect.Slice:
 		return reflected.IsNil()
 	default:

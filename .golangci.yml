@@ -108,6 +108,9 @@ linters:
           - unparam
         path: _test\.go
       - linters:
+          - goconst
+        path: _test\.go
+      - linters:
           - gochecknoinits
         path: /rootcerts
       - linters:

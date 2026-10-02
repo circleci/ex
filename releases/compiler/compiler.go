@@ -66,6 +66,7 @@ func (c *compiler) Compile(ctx context.Context, work Work) (string, error) {
 		// #nosec - this is fine
 		cmd = exec.CommandContext(ctx, goBin, args...)
 	} else {
+		//nolint:prealloc // few elements, not a hot path
 		args := []string{
 			"test",
 			"-coverpkg=./...",
