@@ -14,7 +14,7 @@ func MemLimit(ctx context.Context) (err error) {
 	ctx, span := o11y.StartSpan(ctx, "rundef: mem limit")
 	defer o11y.End(span, &err)
 
-	limit, err := memlimit.SetGoMemLimitWithOpts(
+	limit, err := memlimit.Set(
 		memlimit.WithRatio(0.9),
 		memlimit.WithProvider(
 			memlimit.ApplyFallback(
