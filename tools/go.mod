@@ -1,8 +1,8 @@
 module tools
 
-go 1.26.0
+go 1.26.10
 
-toolchain go1.26.4
+toolchain go1.26.10
 
 require (
 	github.com/golangci/golangci-lint/v2 v2.14.0
