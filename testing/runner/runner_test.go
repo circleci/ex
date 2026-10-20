@@ -2,7 +2,9 @@ package runner
 
 import (
 	"context"
+	"go/version"
 	"path"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -148,7 +150,9 @@ func TestRunner_Coverage(t *testing.T) {
 				sort.StringSlice(split[1:]).Sort()
 				s = strings.Join(split, "\n")
 
-				assert.Check(t, golden.String(s, "coverage.txt"))
+				if version.Compare(runtime.Version(), "go1.27") >= 0 {
+					assert.Check(t, golden.String(s, "coverage.txt"))
+				}
 			})
 		})
 	})

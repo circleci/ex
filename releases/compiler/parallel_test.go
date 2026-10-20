@@ -1,7 +1,9 @@
 package compiler
 
 import (
+	"go/version"
 	"os"
+	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -87,6 +89,8 @@ func TestParallel_Compile(t *testing.T) {
 		assert.Check(t, res.Equal(icmd.Expected{
 			Out: "command 3: [arg1 arg2 arg3] correct",
 		}))
-		assert.Check(t, golden.String(string(golden.Get(t, file.Path())), "coverage.txt"))
+		if version.Compare(runtime.Version(), "go1.27") >= 0 {
+			assert.Check(t, golden.String(string(golden.Get(t, file.Path())), "coverage.txt"))
+		}
 	})
 }

@@ -1,2 +1,2 @@
 mode: set
-github.com/circleci/ex/testing/compiler/internal/cmd/main.go:8.13,10.2 1 1
+github.com/circleci/ex/testing/compiler/internal/cmd/main.go:9.2,10.1 1 1
