@@ -6,6 +6,8 @@ x-data:
     - '1.23'
     - '1.24'
     - '1.25'
+    - '1.26'
+    - '1.27'
 
 workflows:
   main:
@@ -149,4 +151,3 @@ commands:
           path: test-reports
       - store_test_results:
           path: test-reports
-
