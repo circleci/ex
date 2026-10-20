@@ -43,9 +43,12 @@ jobs:
     steps:
       - checkout
       - setup
-      - run:
-          name: Check rootcerts is up to date
-          command: ./do check-rootcerts
+      # TODO: Re-enable once gwatts/rootcerts ships an updated certdata.txt
+      # that excludes the compromised eMudhra roots (Oct 2026).
+      # See: https://emudhra.we-have-a-problem.com/
+      # - run:
+      #     name: Check rootcerts is up to date
+      #     command: ./do check-rootcerts
       - run:
           name: Verify modules are tidy
           command: ./do check-gomod

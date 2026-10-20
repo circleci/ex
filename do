@@ -51,8 +51,8 @@ generate() {
 
     # TODO: Remove this when https://github.com/gwatts/rootcerts/pull/42 is merged
     rm -f rootcerts/rootcerts_16.go
-}
 
+}
 
 # This variable is used, but shellcheck can't tell.
 # shellcheck disable=SC2034
