@@ -1,5 +1,8 @@
 version: 2.1
 
+functions:
+  setup-go: github.com/circleci-functions/setup-go@v0.7.0
+
 x-data:
   go_versions: &go_versions
     - '1.22'
@@ -42,7 +45,8 @@ jobs:
       GOMAXPROCS: 4
     steps:
       - checkout
-      - setup
+      - setup:
+          golangci-lint-cache: true
       # TODO: Re-enable once gwatts/rootcerts ships an updated certdata.txt
       # that excludes the compromised eMudhra roots (Oct 2026).
       # See: https://emudhra.we-have-a-problem.com/
@@ -124,7 +128,16 @@ jobs:
 
 commands:
   setup:
+    parameters:
+      golangci-lint-cache:
+        type: boolean
+        default: false
     steps:
+      - setup-go:
+          with:
+            detect-only: true
+            golangci-lint-cache: << parameters.golangci-lint-cache >>
+            checksum: '{{ checksum "go.sum" }}-{{ checksum "tools/go.sum" }}'
       - run:
           name: Download dependencies
           command: go mod download && (cd tools && go mod download)
