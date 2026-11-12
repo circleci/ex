@@ -2,11 +2,9 @@ module tools
 
 go 1.26.10
 
-toolchain go1.26.10
-
 require (
 	github.com/golangci/golangci-lint/v2 v2.14.0
-	github.com/gwatts/rootcerts v0.0.0-20260901192443-18189d149cca
+	github.com/gwatts/rootcerts v0.0.0-20261023005650-8a3e0a514d7e
 	github.com/rinchsan/gosimports v0.3.8
 	gotest.tools/gotestsum v1.13.0
 )
