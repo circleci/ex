@@ -19,7 +19,6 @@ func AddBase64PEM(base64PemCert []byte) error {
 		return err
 	}
 	for scanner.Scan() {
-		fmt.Println(scanner.Text())
 		rawDecodedText, err := base64.StdEncoding.DecodeString(scanner.Text())
 		if err != nil {
 			return err
