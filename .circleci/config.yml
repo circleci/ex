@@ -37,7 +37,7 @@ jobs:
         type: string
     docker:
       - image: cimg/go:<<parameters.go_version>>
-    resource_class: large
+    resource_class: large.gen2
     environment:
       GOMAXPROCS: 4
     steps:
@@ -96,7 +96,7 @@ jobs:
           COLLECTOR_OTLP_ENABLED: true
           LOG_LEVEL: debug
 
-    resource_class: large
+    resource_class: large.gen2
     environment:
       GOMAXPROCS: 4
     steps:
@@ -111,6 +111,7 @@ jobs:
   release:
     docker:
       - image: cimg/base:stable
+    resource_class: medium.gen2
     steps:
       - checkout
       - run:
